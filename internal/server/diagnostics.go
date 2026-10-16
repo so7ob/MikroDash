@@ -52,6 +52,7 @@ const aiPrefix = "ai_"
 
 // commandSources names each file that sends a router command.
 var commandSources = map[string]string{
+	"activity.go":         "Activity archive",
 	"secscan.go":          "Security Scan",
 	"apps.go":             "Apps",
 	"tools.go":            "Tools",

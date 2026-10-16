@@ -388,3 +388,13 @@ func TestAGlobalAdminCanAlwaysReadTheWholeFleet(t *testing.T) {
 			len(ids), fleet, ids)
 	}
 }
+
+func TestActivityWriteIsGrantableAndScoped(t *testing.T) {
+	r := build(t, seed{roles: [][2]string{{"activity-writer", "0"}, {"activity-reader", "0"}}, rolePages: [][3]string{{"activity-writer", "activity", "write"}, {"activity-reader", "activity", "read"}}, grants: [][4]string{{"user", "u1", "router", "r-A"}, {"user", "u2", "router", "r-A"}}, grantRoles: []string{"activity-writer", "activity-reader"}})
+	if !ConfersAtWrite("activity") || !perm(t, r, "u1", "activity:manage", "r-A") || perm(t, r, "u1", "activity:manage", "r-B") || perm(t, r, "u2", "activity:manage", "r-A") {
+		t.Fatal("activity write capability is absent or crosses its scope")
+	}
+	if perm(t, r, "u1", "router:manage", "r-A") || perm(t, r, "u1", "system:principals", "") {
+		t.Fatal("activity management conferred unrelated administration")
+	}
+}

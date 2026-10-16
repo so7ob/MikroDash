@@ -59,6 +59,7 @@ var GlobalOnly = map[string]bool{
 
 // Scoped permissions are evaluated against a router.
 var Scoped = map[string]bool{
+	"activity:manage": true, // local archive source settings and classification rules
 	"router:read":     true,
 	"router:ack":      true,
 	"router:history":  true, // historical reports and exports — the audit trail's router half
@@ -78,6 +79,7 @@ var readConfers = map[string][]string{
 }
 
 var writeConfers = map[string][]string{
+	"activity":  {"activity:manage"},
 	"dashboard": {"router:ack"},
 	"firewall":  {"router:diagnose"},
 	// `wifi-clients`, renamed from `wireless` on 2026-09-01. The rename missed

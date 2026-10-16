@@ -547,3 +547,23 @@ rows below it, a select a few pixels off its neighbours, and placeholders in the
 - **Don't** add emoji icons, a new font, or a shadow to make something "pop".
 - **Don't** give a page tabs, pills or a count pill it has no rows for. The Terminal and the Tools
   pages are the recorded exceptions in CLAUDE.md.
+
+
+## Activity analytics
+
+A dense, calm, technical activity console. Keep existing typography, semantic
+palette and component sizes. The first viewport pairs a dominant time histogram
+with category rankings, followed by services and users. A weekday/hour heatmap
+reveals schedules without decorative charts. The signature interaction is a
+single click from a ranking or time bucket into the filtered event evidence,
+with removable filter chips and shareable URLs. Known users and unmapped devices
+carry text labels; uncertain times and archive failures never rely on colour
+alone. Use the page's own compact tab strip, bounded scrollable tables, responsive
+one-column panels and numeric monospace values. No new fonts or remote assets.
+
+Activity distributions use labelled SVG doughnuts with direct count/percentage
+legends. The legends provide keyboard targets and drilldowns, so segments do not
+rely on colour or pointer accuracy. Grouped analysis uses one shared selector for
+service, exact domain, destination country, category, user/device, day and hour.
+Destination country describes explicit Firewall IP evidence, with Unknown
+preserved as a real bucket.

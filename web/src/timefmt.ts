@@ -61,3 +61,8 @@ export function fmtMonthDay(ts: Stamp, tz = getDisplayTimezone()): string {
   const x = parts(ts, tz);
   return x.M + '-' + x.D;
 }
+
+/** The browser zone, for a source form before a router has a saved zone. */
+export function browserTimezone(): string {
+  return new Intl.DateTimeFormat().resolvedOptions().timeZone;
+}

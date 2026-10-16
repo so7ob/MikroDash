@@ -126,6 +126,7 @@ func (s *Server) holdOne(r store.Router) {
 		// setting; asking the flag directly is how a router whose reporting was
 		// never set silently stopped recording.
 		{"history", store.ReportingOn(r) && !r.Disabled},
+		{"activity", s.activityWire.Enabled(r.ID) && !r.Disabled},
 		// ── THE CONNECTION, FOR EVERY ENABLED ROUTER ────────────────────
 		//
 		// EVERY enabled router, unconditionally, since 2026-10-01. This hold is
