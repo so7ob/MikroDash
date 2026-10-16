@@ -821,7 +821,7 @@
           "firewall-redirects": "3081:3081:tcp:web",
           "interface": "none",
           "name": "mikrodash",
-          "project-page": "https://github.com/SecOps-7/MikroDash",
+          "project-page": "https://github.com/so7ob/MikroDash",
           "running": "false",
           "status": "",
           "ui-url": ""

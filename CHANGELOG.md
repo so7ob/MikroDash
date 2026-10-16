@@ -654,7 +654,7 @@ same permissions, checks and audit trail as the forms.
 
 Adds an AI Agent that reads and changes the selected router through MikroDash's own
 permissions, checks and audit trail
-([#98](https://github.com/SecOps-7/MikroDash/issues/98)). It ships switched off.
+([#98](https://github.com/so7ob/MikroDash/issues/98)). It ships switched off.
 
 ### New
 
@@ -765,7 +765,7 @@ the page itself of why. The setting that does still matter is kept.
 ## [0.8.57] - NetWatch and IP Addresses pages, interface and router name edits, and fewer open router channels
 
 Finishes the router management work tracked in
-[#97](https://github.com/SecOps-7/MikroDash/issues/97), on top of 0.8.56.
+[#97](https://github.com/so7ob/MikroDash/issues/97), on top of 0.8.56.
 
 ### New
 
@@ -805,7 +805,7 @@ A security and fixes release on top of 0.8.55.
 
 ### Merged contributions
 
-Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#136](https://github.com/SecOps-7/MikroDash/pull/136).
+Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#136](https://github.com/so7ob/MikroDash/pull/136).
 
 - **Fleet DNS copy and Sync all missing work.** Both did nothing before, and a
   refused copy now says why in the card.
@@ -835,7 +835,7 @@ Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#136](https://github.c
 
 - **Router changes need sign-in.** With sign-in off, or no audit database, write
   pages are read-only. From [@HeisLuka](https://github.com/HeisLuka)'s review on
-  [#97](https://github.com/SecOps-7/MikroDash/issues/97).
+  [#97](https://github.com/so7ob/MikroDash/issues/97).
 - **Router changes are limited to 30 a minute** per user per router.
 - **A change is confirmed on the router before it reports success.** If it cannot be
   confirmed, MikroDash says so and refreshes the table.
@@ -844,9 +844,9 @@ Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#136](https://github.c
 - **Sign-in is limited to 10 attempts a minute** again, and a forged
   `X-Forwarded-For` no longer dodges rate limits or fakes audit addresses. From
   [@HeisLuka](https://github.com/HeisLuka)'s review on
-  [#111](https://github.com/SecOps-7/MikroDash/issues/111).
+  [#111](https://github.com/so7ob/MikroDash/issues/111).
 - **The Dashboard's Wired count shows with Physical Ports and alerts off.** Follow-up
-  to [#132](https://github.com/SecOps-7/MikroDash/issues/132) from
+  to [#132](https://github.com/so7ob/MikroDash/issues/132) from
   [@ET1963](https://github.com/ET1963).
 - **Debug logging no longer writes router passwords and Wi-Fi keys to the log.**
 - **Hiding the page you are on moves you to a page you can open**, and Back no
@@ -862,7 +862,7 @@ A feature release on top of 0.8.54, led by a large community contribution.
 
 ### Merged contributions
 
-Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#134](https://github.com/SecOps-7/MikroDash/pull/134).
+Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#134](https://github.com/so7ob/MikroDash/pull/134).
 
 - **Legacy CAPsMAN.** Access points on the old `/caps-man` now show on the CAPsMAN
   page, read-only and marked v1, and their clients reach Wifi Clients, Wifi
@@ -882,7 +882,7 @@ Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#134](https://github.c
 - **Branding** (Settings, Appearance, Branding). Give the install its own name,
   name font and icon, shown in the top left, the browser tab, the login page, PDF
   reports and report emails. Icons are square PNG or JPEG, 64 to 512 px, up to
-  512 KB. Requested in [#131](https://github.com/SecOps-7/MikroDash/issues/131) by
+  512 KB. Requested in [#131](https://github.com/so7ob/MikroDash/issues/131) by
   [@erion1979-cell](https://github.com/erion1979-cell).
 - **Settings, Appearance is split into cards**, one per section.
 - **Wifi Map can be hidden** from Settings, Appearance, Visible Pages.
@@ -891,7 +891,7 @@ Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#134](https://github.c
 
 - **Traffic, bandwidth and ping history records again.** Since 0.8.52 nothing new
   was saved, so Reports and Ping Stability stopped gaining data. Reported in
-  [#135](https://github.com/SecOps-7/MikroDash/issues/135) by
+  [#135](https://github.com/so7ob/MikroDash/issues/135) by
   [@christophergatz-sketch](https://github.com/christophergatz-sketch).
 - **Alerts fire again.** The same fault stopped every alert rule since 0.8.52:
   CPU, updates, ping, interfaces, VPN, NetWatch and BGP.
@@ -899,14 +899,14 @@ Thanks to [@vasmarfas](https://github.com/vasmarfas) for [#134](https://github.c
   channels and tokens used to wait for a restart.
 - **Email alerts send.** They always failed with "no mailer configured", even
   though the Test button worked, and personal My Alerts channels can deliver too.
-  Found while looking into [#130](https://github.com/SecOps-7/MikroDash/issues/130)
+  Found while looking into [#130](https://github.com/so7ob/MikroDash/issues/130)
   from [@quanguet98](https://github.com/quanguet98).
 - **The Dashboard's Wired count shows straight away**, without opening Interfaces
-  first. Reported in [#132](https://github.com/SecOps-7/MikroDash/issues/132) by
+  first. Reported in [#132](https://github.com/so7ob/MikroDash/issues/132) by
   [@ET1963](https://github.com/ET1963).
 - **Devices waits for the server before saying "No routers configured"**, and no
   longer blanks for a moment when the router list changes. From
-  [#129](https://github.com/SecOps-7/MikroDash/issues/129), reported by
+  [#129](https://github.com/so7ob/MikroDash/issues/129), reported by
   [@erion1979-cell](https://github.com/erion1979-cell) and pinpointed by
   [@HeisLuka](https://github.com/HeisLuka).
 - **A router's connection status only reaches users allowed to see that router.**
@@ -964,7 +964,7 @@ A fixes release on top of 0.8.52, including a contributed fix for settings saves
 
 Thanks to [@omegaatt36](https://github.com/omegaatt36).
 
-- **Saving settings no longer crashes** ([#133](https://github.com/SecOps-7/MikroDash/pull/133)).
+- **Saving settings no longer crashes** ([#133](https://github.com/so7ob/MikroDash/pull/133)).
   Since 0.8.0 the first settings save after startup failed in the Docker image,
   and poll interval changes then stopped applying until a restart.
 
@@ -1573,7 +1573,7 @@ Devices page review from 0.8.19.
 
 ## [0.8.1] - MikroDash is now Go and TypeScript
 
-The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) replaces the
+The rewrite proposed in [#114](https://github.com/so7ob/MikroDash/issues/114) replaces the
 Node.js implementation. It has been serving in production since 2026-08-30, and this is the first
 published image of it.
 
@@ -1635,7 +1635,7 @@ healthy. Use `docker compose up -d`, or `docker rm -f` then `docker run`.
 > **No image was published for this version.** The build failed on 32-bit ARM; 0.8.1 is the
 > same cutover with that fix and is the release to use. This entry is kept as the record.
 
-The rewrite proposed in [#114](https://github.com/SecOps-7/MikroDash/issues/114) replaces the
+The rewrite proposed in [#114](https://github.com/so7ob/MikroDash/issues/114) replaces the
 Node.js implementation. It has been serving in production since 2026-08-30.
 
 **Nothing user-visible changed, by design.** The frontend reuses the original stylesheet, class
@@ -1711,7 +1711,7 @@ perform: a round trip through one implementation agrees with itself whatever it 
 - **The Traffic dropdown lost the selected interface after a reconnect.** The list stopped emptying
   in 0.7.38, but the chosen interface still reverted to the default. Choosing an interface now
   survives a dropped connection, and still resets when a different router is selected.
-  ([#119](https://github.com/SecOps-7/MikroDash/issues/119))
+  ([#119](https://github.com/so7ob/MikroDash/issues/119))
 - **The connection test named the wrong service.** A failure over api-ssl could be reported as a
   plain `api` problem and the other way round, and the commonest failure of all, a wrong username or
   password, was reported as a raw driver message.
@@ -1739,7 +1739,7 @@ perform: a round trip through one implementation agrees with itself whatever it 
 - **The Traffic dropdown still lost its interfaces in 0.7.37.** The earlier fix did not prevent the
   problem, it completed it. An interface that reports late, such as a ZeroTier tunnel, ended up
   replacing the whole list instead of joining it, which is why one reporter's dropdown contained
-  exactly `zerotier1`. ([#119](https://github.com/SecOps-7/MikroDash/issues/119), thanks
+  exactly `zerotier1`. ([#119](https://github.com/so7ob/MikroDash/issues/119), thanks
   [@steenekenm](https://github.com/steenekenm) and
   [@erion1979-cell](https://github.com/erion1979-cell))
 - **Alerts went quiet on large fleets.** Past 500 tracked interfaces, VPN peers, NetWatch hosts or
@@ -1766,13 +1766,13 @@ perform: a round trip through one implementation agrees with itself whatever it 
 
 - **The Save and Test Connection buttons in the device editor did nothing.** A scripting error broke
   both, silently, with no message to say why. This is what made sites look unremovable in
-  [#117](https://github.com/SecOps-7/MikroDash/issues/117).
+  [#117](https://github.com/so7ob/MikroDash/issues/117).
 - **Editing a device no longer asks you to retype its password.** The field says "leave blank to keep
   current", but saving then failed because the connection test had no password to use. The stored one
   is now reused, as long as the host, port, username and TLS settings are unchanged.
 - **The Traffic dropdown lost all but one interface** after a couple of minutes. Reported on a
   CCR2004; more likely the more interfaces a router has.
-  ([#119](https://github.com/SecOps-7/MikroDash/issues/119), thanks
+  ([#119](https://github.com/so7ob/MikroDash/issues/119), thanks
   [@steenekenm](https://github.com/steenekenm))
 - **The site filter could label a site wrongly** on the Devices page when a device still listed a
   deleted site. Picking that entry filtered to the wrong site.
@@ -1809,7 +1809,7 @@ perform: a round trip through one implementation agrees with itself whatever it 
 
 - **The Routers page is now Devices.** A fleet holds switches and access points too, so the name no
   longer claims otherwise. Custom roles keep the page across the upgrade.
-  ([#117](https://github.com/SecOps-7/MikroDash/issues/117), thanks
+  ([#117](https://github.com/so7ob/MikroDash/issues/117), thanks
   [@erion1979-cell](https://github.com/erion1979-cell))
 - **A device can belong to more than one site.** Assigning it to a second site no longer removes it
   from the first. A grant on any of its sites reaches it, and the first site listed is the primary,
@@ -1825,7 +1825,7 @@ perform: a round trip through one implementation agrees with itself whatever it 
 - **Switching routers could hang for 30 seconds.** A request already in flight when the old
   connection went away had no way to fail, so it waited out the full write timeout, and with 26
   collectors they all waited at once. Requests now fail as soon as the connection goes.
-  ([#118](https://github.com/SecOps-7/MikroDash/issues/118))
+  ([#118](https://github.com/so7ob/MikroDash/issues/118))
 - **A disconnected banner that would not clear** when switching to a router already connected in the
   background. That switch also left the traffic chart unbound until you reloaded.
 - **Only administrators can change which sites a device is in.** Previously anyone who could edit a
@@ -1884,14 +1884,14 @@ perform: a round trip through one implementation agrees with itself whatever it 
   interface, NetWatch host, VPN peer or BGP peer they are about. Add it to your template under
   Settings, Notifications, Message Templates, for example `{{alertType}}: {{detail}} ({{comment}})`.
   It is not in the default template, so nothing changes unless you add it.
-  ([#116](https://github.com/SecOps-7/MikroDash/issues/116), thanks
+  ([#116](https://github.com/so7ob/MikroDash/issues/116), thanks
   [@erion1979-cell](https://github.com/erion1979-cell))
 
 ### Fixed
 
 - **"DHCP used IPs" over-reported utilisation.** Static reservations nobody was using counted as in
   use, and leases that disappeared were never cleared in poll mode. A /23 could read 507 of 512 used
-  with about 110 addresses actually held. ([#115](https://github.com/SecOps-7/MikroDash/issues/115),
+  with about 110 addresses actually held. ([#115](https://github.com/so7ob/MikroDash/issues/115),
   thanks [@erion1979-cell](https://github.com/erion1979-cell))
 - **Traffic chart could silently lose most of its window** and redraw short, then refill. One
   out-of-order sample, which a router emits when NTP corrects its clock, ended the redraw early.
@@ -1919,7 +1919,7 @@ perform: a round trip through one implementation agrees with itself whatever it 
 ### Discussion
 
 - **Should MikroDash be rewritten in Go and TypeScript?** Comments wanted, objections as welcome as
-  support. ([#114](https://github.com/SecOps-7/MikroDash/issues/114))
+  support. ([#114](https://github.com/so7ob/MikroDash/issues/114))
 
 ## [0.7.33] - Failures that never announced themselves
 
@@ -1982,8 +1982,8 @@ Thanks to [@invoker-karl](https://github.com/invoker-karl) for both.
   on those three pages had no handler in scope. A write landed on the router and the browser then
   threw instead of reporting the result, so the operator saw nothing and assumed it had failed.
 
-[#112]: https://github.com/SecOps-7/MikroDash/pull/112
-[#113]: https://github.com/SecOps-7/MikroDash/pull/113
+[#112]: https://github.com/so7ob/MikroDash/pull/112
+[#113]: https://github.com/so7ob/MikroDash/pull/113
 
 ## [0.7.32] - Wireless you can change, not just watch
 
@@ -2627,7 +2627,7 @@ Everything else here is infrastructure: a Node 24 base image, a database driver 
 
   Releases now cover `linux/amd64` and `linux/arm64` only.
 
-  **If you are on ARMv7** - a RouterOS container on 32-bit hardware such as the hEX S (2025), or an older 32-bit Raspberry Pi - pin to `ghcr.io/secops-7/mikrodash:0.5.54`, the last release built for you. It will not receive further updates, including security fixes. Do not stay on `:latest`, which now resolves to a manifest with no arm/v7 entry, so your pull will fail rather than degrade gracefully.
+  **If you are on ARMv7** - a RouterOS container on 32-bit hardware such as the hEX S (2025), or an older 32-bit Raspberry Pi - pin to `ghcr.io/so7ob/mikrodash:0.5.54`, the last release built for you. It will not receive further updates, including security fixes. Do not stay on `:latest`, which now resolves to a manifest with no arm/v7 entry, so your pull will fail rather than degrade gracefully.
 
   Because this is a minor bump, **anyone pinned to `:0.5` is unaffected and stays on 0.5.54.** That was the reason for choosing 0.6.0 over 0.5.55.
 
@@ -2772,7 +2772,7 @@ Three of the fixes below were found while building the features rather than repo
 
 Two separate "it says offline but it isn't" reports turned out to be different bugs, and both are fixed.
 
-Most of the stream recovery and collector freshness work in this release was contributed by **[@invoker-karl](https://github.com/invoker-karl)** in [#91](https://github.com/SecOps-7/MikroDash/pull/91). Thank you.
+Most of the stream recovery and collector freshness work in this release was contributed by **[@invoker-karl](https://github.com/invoker-karl)** in [#91](https://github.com/so7ob/MikroDash/pull/91). Thank you.
 
 ### Fixed
 
@@ -2802,7 +2802,7 @@ Most of the stream recovery and collector freshness work in this release was con
 
 ### Contributors
 
-- [@invoker-karl](https://github.com/invoker-karl) - traffic stream watchdog, collector freshness checks in `/healthz`, interface poll error reporting, heartbeat emissions, zero-counter handling and explicit three-argument `stream()` support ([#91](https://github.com/SecOps-7/MikroDash/pull/91))
+- [@invoker-karl](https://github.com/invoker-karl) - traffic stream watchdog, collector freshness checks in `/healthz`, interface poll error reporting, heartbeat emissions, zero-counter handling and explicit three-argument `stream()` support ([#91](https://github.com/so7ob/MikroDash/pull/91))
 
 ---
 
@@ -3267,13 +3267,13 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Fixed
 
-- **Issue #35 - root cause fixed** - switching to a misconfigured router (wrong IP, bad SSL cert) left the entire dashboard non-interactive. The previous release dismissed the switching overlay correctly but `setRosBanner(false)` was still adding the `is-disconnected` body class, which applies `pointer-events: none` to the sidebar and main content. The fix introduces a separate `is-ros-disconnected` class that dims the UI to 70% opacity without blocking pointer events, so the user can navigate to Settings and switch to a working router. `is-disconnected` (full lockout) is now reserved exclusively for Socket.IO disconnects where the server itself is unreachable. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
+- **Issue #35 - root cause fixed** - switching to a misconfigured router (wrong IP, bad SSL cert) left the entire dashboard non-interactive. The previous release dismissed the switching overlay correctly but `setRosBanner(false)` was still adding the `is-disconnected` body class, which applies `pointer-events: none` to the sidebar and main content. The fix introduces a separate `is-ros-disconnected` class that dims the UI to 70% opacity without blocking pointer events, so the user can navigate to Settings and switch to a working router. `is-disconnected` (full lockout) is now reserved exclusively for Socket.IO disconnects where the server itself is unreachable. Fixes [#35](https://github.com/so7ob/MikroDash/issues/35).
 
 ## [0.5.31] - Full stream conversion, idle manager, theme system
 
 ### Added
 
-- **Theme system** - new "Appearance" section in Settings with 26 named palette swatches across 15 themes: Default (dark/light), Nord (dark/light), Catppuccin Mocha/Latte, Dracula, Tokyo Night, Gruvbox (dark/light), Rose Pine/Dawn/Moon, One Dark/Light, Solarized (dark/light), Everforest, Kanagawa, Monokai, Monokai Pro, Material (dark/light), Palenight, GitHub (dark/light). Selecting a swatch applies instantly and persists via `localStorage`. Implements [#36](https://github.com/SecOps-7/MikroDash/issues/36).
+- **Theme system** - new "Appearance" section in Settings with 26 named palette swatches across 15 themes: Default (dark/light), Nord (dark/light), Catppuccin Mocha/Latte, Dracula, Tokyo Night, Gruvbox (dark/light), Rose Pine/Dawn/Moon, One Dark/Light, Solarized (dark/light), Everforest, Kanagawa, Monokai, Monokai Pro, Material (dark/light), Palenight, GitHub (dark/light). Selecting a swatch applies instantly and persists via `localStorage`. Implements [#36](https://github.com/so7ob/MikroDash/issues/36).
 - **Appearance sliders** - three 15-point range sliders (Contrast, Text Brightness, Background Brightness) provide fine-grained adjustment of text alpha, text RGB brightness, and background brightness independently of the selected palette. Neutral midpoint is step 8 (1.0×).
 - **Interface Status interval setting** - new "Interface Status" slider in Settings (10 s–10 min, default 60 s) controls how often interface metadata (name, type, IP, enabled state) is refreshed. Previously hardcoded.
 
@@ -3294,7 +3294,7 @@ This release resolves a cluster of bugs introduced by the multi-session refactor
 
 ### Fixed
 
-- **Router-switch overlay stuck permanently** when switching to a misconfigured router (bad SSL cert, wrong credentials) - the overlay previously only dismissed on a successful connection; it now also dismisses on a second consecutive `connected:false` event, allowing the user to switch again or edit the config. Fixes [#35](https://github.com/SecOps-7/MikroDash/issues/35).
+- **Router-switch overlay stuck permanently** when switching to a misconfigured router (bad SSL cert, wrong credentials) - the overlay previously only dismissed on a successful connection; it now also dismisses on a second consecutive `connected:false` event, allowing the user to switch again or edit the config. Fixes [#35](https://github.com/so7ob/MikroDash/issues/35).
 
 ## [0.5.30]
 

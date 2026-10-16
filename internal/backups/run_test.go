@@ -258,7 +258,7 @@ func TestNoPasswordRefusesBeforeWritingAnything(t *testing.T) {
 // browser by the diff view, and it is read as text by anything downstream -
 // so a credential in it is greppable plaintext rather than something behind a
 // decrypt. The secrets are already retained in the .backup binary, which the
-// router encrypts, and that is where they belong. github.com/SecOps-7/MikroDash
+// router encrypts, and that is where they belong. github.com/so7ob/MikroDash
 // issue #140 asked for the flag and this is the answer.
 func TestTheExportIsTerseAndNeverShowsSensitive(t *testing.T) {
 	f := newFake([]byte("cfg"), []byte("bin"))

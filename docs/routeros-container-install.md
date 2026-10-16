@@ -3,7 +3,7 @@
 How to run MikroDash directly on a MikroTik router, using RouterOS's own container
 support rather than the **Apps** menu.
 
-Every step here came from a real install ([#124](https://github.com/SecOps-7/MikroDash/issues/124)),
+Every step here came from a real install ([#124](https://github.com/so7ob/MikroDash/issues/124)),
 including the two that are easy to get wrong and give you no useful error when you do.
 
 > **Why not the Apps menu?** MikroTik maintain that catalogue themselves, so the entry
@@ -148,7 +148,7 @@ mounts. Replace `usb1` with your own disk name from `/disk/print`.
 **RouterOS 7.21 and later:**
 
 ```routeros
-/container/add remote-image=ghcr.io/secops-7/mikrodash:latest \
+/container/add remote-image=ghcr.io/so7ob/mikrodash:latest \
   interface=veth_mikrodash root-dir=usb1/mikrodash \
   mountlists=mikrodash_data \
   logging=yes start-on-boot=yes comment="MikroDash"

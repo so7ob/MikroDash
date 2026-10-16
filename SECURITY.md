@@ -13,7 +13,7 @@ Only the latest release is actively maintained and receives security fixes.
 
 **Please do not open a public GitHub issue for security vulnerabilities.**
 
-Report security issues by emailing the maintainer directly or by using [GitHub's private vulnerability reporting](https://github.com/SecOps-7/MikroDash/security/advisories/new).
+Report security issues by emailing the maintainer directly or by using [GitHub's private vulnerability reporting](https://github.com/so7ob/MikroDash/security/advisories/new).
 
 Include:
 - A description of the vulnerability and its potential impact
