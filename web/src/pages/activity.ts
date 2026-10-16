@@ -174,11 +174,20 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   root.addEventListener('click', e => {
     const target = e.target instanceof Element ? e.target.closest<HTMLElement>('button') : null; if (!target) return;
     if (target.dataset.view) update('tab', target.dataset.view);
-    if (target.dataset.filter) { if(target.dataset.filter==='country')state.set('kind','firewall'); state.set(target.dataset.filter, target.dataset.value || ''); state.set('tab', 'events'); state.delete('page'); state.delete('sort'); saveURL(); void load(); }
+    if (target.dataset.filter) { if(target.dataset.filter==='country')state.set('kind','firewall'); state.set(target.dataset.filter, target.dataset.value || ''); if (e.ctrlKey || !target.closest('#activityOverview')) state.set('tab', 'events'); state.delete('page'); state.delete('sort'); saveURL(); void load(); }
     if (target.dataset.clear) { if (target.dataset.clear === 'all') filterKeys.forEach(k => state.delete(k)); else state.delete(target.dataset.clear); state.delete('page'); saveURL(); void load(); }
-    if (target.dataset.bucket && data) { const index = Number(target.dataset.bucket); const p = data.series[index]; if (p) { state.set('from', String(Math.max(p.at, data.filter.from))); state.set('to', String(data.series[index + 1]?.at || data.filter.to)); state.set('tab', 'events'); state.delete('page'); saveURL(); void load(); } }
+    if (target.dataset.bucket && data) { const index = Number(target.dataset.bucket); const p = data.series[index]; if (p) { state.set('from', String(Math.max(p.at, data.filter.from))); state.set('to', String(data.series[index + 1]?.at || data.filter.to)); if (e.ctrlKey) state.set('tab', 'events'); state.delete('page'); saveURL(); void load(); } }
     if (target.dataset.editRule && data) { const r = data.rules.find(r => r.domain === target.dataset.editRule && r.custom === (target.dataset.custom === 'true')); if (r) { input('activityRuleDomain').value = r.domain; input('activityRuleService').value = r.service; input('activityRuleCategory').value = r.category; input('activityRuleSubdomains').checked = r.subdomains; input('activityRuleDomain').focus(); } }
     if (target.dataset.removeRule) void mutate('rules?domain=' + encodeURIComponent(target.dataset.removeRule), 'DELETE');
+  });
+  // Native keyboard clicks omit Ctrl in Chromium. Preserve it for chart
+  // activation before the browser dispatches its unmodified click.
+  root.addEventListener('keydown', e => {
+    if (!e.ctrlKey || (e.key !== 'Enter' && e.key !== ' ')) return;
+    const button = e.target instanceof Element ? e.target.closest<HTMLButtonElement>('#activityOverview button[data-filter], #activityOverview button[data-bucket]') : null;
+    if (!button || button.disabled) return;
+    e.preventDefault();
+    button.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
   });
   el('activityTabs')!.addEventListener('keydown', e => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return; e.preventDefault(); const i = views.indexOf(view()); const next = e.key === 'Home' ? 0 : e.key === 'End' ? views.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + views.length) % views.length; update('tab', views[next]!); root.querySelector<HTMLButtonElement>(`[data-view="${views[next]}"]`)?.focus(); });
   select('activityRouter').addEventListener('change', () => update('routerId', select('activityRouter').value));

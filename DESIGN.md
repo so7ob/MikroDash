@@ -555,7 +555,8 @@ A dense, calm, technical activity console. Keep existing typography, semantic
 palette and component sizes. The first viewport pairs a dominant time histogram
 with category rankings, followed by services and users. A weekday/hour heatmap
 reveals schedules without decorative charts. The signature interaction is a
-single click from a ranking or time bucket into the filtered event evidence,
+chart selection that filters the current overview in place. Ctrl + click opens
+the matching Events tab. Labels, rankings and time bars follow this same rule,
 with removable filter chips and shareable URLs. Known users and unmapped devices
 carry text labels; uncertain times and archive failures never rely on colour
 alone. Use the page's own compact tab strip, bounded scrollable tables, responsive

@@ -13,6 +13,46 @@ const assert=require('node:assert/strict');
  await page.waitForFunction(()=>document.querySelector('#activityCount')?.textContent==='130');
  await page.locator('#activityConfig').evaluate(e=>e.open=false);
  await page.screenshot({path:'/tmp/mikrodash-activity-desktop.png',fullPage:true});
+ // Every overview chart/ranking filters in place; only Ctrl opens Events.
+ const settled=()=>page.waitForFunction(()=>document.querySelector('#page-activity')?.getAttribute('aria-busy')==='false');
+ const resetOverview=async()=>{
+  await page.locator('[data-view="summary"]').click();
+  if(await page.locator('[data-clear="all"]').count())await page.locator('[data-clear="all"]').click();
+  if(await page.locator('#activityKind').inputValue())await page.locator('#activityKind').selectOption('');
+  await page.waitForFunction(()=>document.querySelector('#activityCount')?.textContent==='130'&&document.querySelector('#page-activity')?.getAttribute('aria-busy')==='false');
+ };
+ for(const selector of ['#activityCategories','#activityServiceDonut','#activityUserDonut','#activityCountryDonut','#activityServices','#activityClients']){
+  await resetOverview();const button=page.locator(selector+' [data-filter]').first();
+  const filter=await button.getAttribute('data-filter'),value=await button.getAttribute('data-value');
+  await button.click();await settled();
+  assert.equal(await page.locator('[data-view="summary"]').getAttribute('aria-selected'),'true',selector+' ordinary click left Overview');
+  assert.equal(new URL(page.url()).searchParams.get(filter),value);
+  assert.equal(await page.locator('#activityOverview').isVisible(),true);
+  if(filter==='country')assert.equal(await page.locator('#activityKind').inputValue(),'firewall');
+  await button.click({modifiers:['Control']});await settled();
+  assert.equal(await page.locator('[data-view="events"]').getAttribute('aria-selected'),'true',selector+' Ctrl did not open Events');
+  assert.equal(new URL(page.url()).searchParams.get(filter),value);assert.equal(context.pages().length,1);
+ }
+ await resetOverview();
+ const timebar=page.locator('#activityTimeline button').filter({has:page.locator('span')});
+ // Pick an occupied bucket so filtering has visible evidence.
+ const index=await page.locator('#activityTimeline button').evaluateAll(nodes=>{const heights=nodes.map(node=>parseFloat(node.style.getPropertyValue('--activity-height')));return heights.indexOf(Math.max(...heights));});
+ assert.ok(index>=0,'no time buckets were measured');
+ await timebar.nth(index).click();await settled();
+ assert.equal(await page.locator('[data-view="summary"]').getAttribute('aria-selected'),'true','time bar left Overview');
+ const range=new URL(page.url()).searchParams;assert.ok(range.has('from')&&range.has('to'));
+ await page.locator('#activityTimeline button').first().click({modifiers:['Control']});await settled();
+ assert.equal(await page.locator('[data-view="events"]').getAttribute('aria-selected'),'true','Ctrl time bar did not open Events');
+ assert.equal(new URL(page.url()).searchParams.get('from'),range.get('from'));
+ assert.equal(new URL(page.url()).searchParams.get('to'),range.get('to'));
+ await page.locator('#activityDays').selectOption('1');await resetOverview();
+ // Native keyboard activation has the same default and modifier behavior.
+ await page.locator('#activityServiceDonut [data-filter]').first().focus();await page.keyboard.press('Enter');await settled();
+ assert.equal(await page.locator('[data-view="summary"]').getAttribute('aria-selected'),'true','Enter left Overview');
+ await page.locator('#activityServiceDonut [data-filter]').first().focus();await page.keyboard.press('Control+Enter');await settled();
+ assert.equal(await page.locator('[data-view="events"]').getAttribute('aria-selected'),'true','Ctrl+Enter did not open Events');
+ await resetOverview();
+ console.log('chart selection: six legends/rankings, time range, country evidence, in-place filtering, Ctrl drilldown and Enter/Ctrl+Enter passed');
  await page.locator('[data-view="clients"]').click();await page.waitForSelector('#activityTableBody [data-filter="client"]');
  assert.ok((await page.locator('#activityTableBody').textContent()).includes('مستخدم تجريبي'));
  await page.locator('#activityTableBody [data-filter="client"]').first().click();await page.waitForSelector('#activityFilters [data-clear="client"]');

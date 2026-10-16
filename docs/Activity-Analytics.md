@@ -55,7 +55,9 @@ Sync status displays failures, last successful scan and invalid records.
 Overview includes service, category, user and destination-country doughnuts,
 a time histogram, rankings and a weekday/hour heatmap. Grouped analysis offers
 service, domain, country, category, client, day and hour using the same URL filters
-and event drilldowns. Country distribution counts Firewall records; no country is
+and event drilldowns. On the Activity overview, clicking a chart label, ranking
+or time bar filters the current view; Ctrl + click opens the matching Events tab.
+Country distribution counts Firewall records; no country is
 inferred for DNSUSER records without an explicit destination IP. The shared local
 GeoIP database supplies approximate destination countries/cities. Unknown IPs or
 a missing database remain Unknown. Labels and CSV retain that distinction.
