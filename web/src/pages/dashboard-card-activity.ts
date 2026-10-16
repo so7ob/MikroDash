@@ -34,12 +34,13 @@ export function renderActivityCards(data: ActivityResult): void {
   set('services', rankMarkup(data.services.slice(0, 5), 'service'));
   set('users', rankMarkup(data.clients.slice(0, 5), 'client'));
   set('categories', donutMarkup(data.categories, 'category', 'Activity categories'));
-  const countries = data.countries.map(row => {
+  const dnsCountries = data.dnsCountries.length > 0;
+  const countries = (dnsCountries ? data.dnsCountries : data.countries).map(row => {
     let label = row.key;
     try { if (label !== 'Unknown') label = new Intl.DisplayNames(['en'], { type: 'region' }).of(label) || label; } catch { /* retain the code */ }
     return { ...row, label };
   });
-  set('countries', donutMarkup(countries, 'country', 'Activity destination countries') + `<p class="activity-note">${data.geoAvailable ? 'Approximate country from Firewall destination IPs. DNS-only domains have no country evidence.' : 'Local GeoIP unavailable. Destination countries remain Unknown.'}</p>`);
+  set('countries', donutMarkup(countries, dnsCountries ? 'dnsCountry' : 'country', 'Activity destination countries', undefined, undefined, dnsCountries ? 'answers' : 'events') + `<p class="activity-note">${data.geoAvailable ? 'Approximate local GeoIP. ' : 'Local GeoIP unavailable; countries remain Unknown. '}${dnsCountries ? 'Recorded DNS answers, not confirmed connections.' : 'Explicit Firewall destination IPs.'}</p>`);
   const max = Math.max(1, ...data.series.map(point => point.count));
   set('timeline', data.totals.dns ? '<div class="activity-timeline">' + data.series.map((point, i) => {
     const from = Math.max(point.at, data.filter.from), to = data.series[i + 1]?.at || data.filter.to;

@@ -21,7 +21,79 @@ const assert=require('node:assert/strict');
   if(await page.locator('#activityKind').inputValue())await page.locator('#activityKind').selectOption('');
   await page.waitForFunction(()=>document.querySelector('#activityCount')?.textContent==='130'&&document.querySelector('#page-activity')?.getAttribute('aria-busy')==='false');
  };
- for(const selector of ['#activityCategories','#activityServiceDonut','#activityUserDonut','#activityCountryDonut','#activityServices','#activityClients']){
+ // Missing GeoIP keeps the answer evidence visible and labels its units honestly.
+ assert.equal(await page.locator('#activityCountryBasis').inputValue(),'dns');
+ assert.match(await page.locator('#activityGeoNote').textContent(),/database unavailable/);
+ assert.equal(await page.locator('#activityGeoSetup').isVisible(),true);
+ assert.equal(await page.locator('#activityCountryDonut .activity-donut-total').textContent(),'258');
+ assert.equal(await page.locator('#activityCountryDonut .activity-donut-caption').textContent(),'answers');
+ await page.locator('#activityCountry').selectOption('Unknown');await settled();
+ assert.equal(await page.locator('#activityCount').textContent(),'86','DNS country did not filter answered events');
+ assert.equal(await page.locator('#activityKind').inputValue(),'');
+ await page.locator('#activityCountryDonut button[data-value="Unknown"]').click();await settled();
+ assert.equal(await page.locator('#activityCount').textContent(),'130');
+ await page.locator('#activityCountryBasis').selectOption('firewall');await settled();
+ assert.equal(await page.locator('#activityCountryDonut .activity-donut-total').textContent(),'1');
+ assert.equal(await page.locator('#activityCountryDonut .activity-donut-caption').textContent(),'events');
+ await page.locator('#activityCountryDonut button[data-value="Unknown"]').click();await settled();
+ assert.equal(await page.locator('#activityCount').textContent(),'0');
+ await page.reload();await settled();
+ assert.equal(await page.locator('#activityCountryBasis').inputValue(),'firewall','country source not persisted in URL');
+ await page.locator('#activityCountryDonut button[data-value="Unknown"]').click();await settled();
+ assert.equal(await page.locator('#activityCount').textContent(),'130');
+ await page.locator('#activityCountryBasis').selectOption('dns');await settled();
+ console.log('country sources: missing GeoIP/Unknown, DNS answer units and event filter, Firewall units and filter, source URL restoration passed');
+ // Enriched DNS evidence is paginated/sorted through the real API.
+ assert.deepEqual(await page.locator('#activityDNSMetrics strong').allTextContents(),['86','81','9','2']);
+ await page.locator('.activity-dns-panel').screenshot({path:'/tmp/mikrodash-dns-evidence-panel.png'});
+ assert.equal(await page.locator('#activityEvidenceBody tr').count(),10);
+ await page.locator('#activityEvidenceNext').click();await settled();
+ assert.equal(await page.locator('#activityEvidenceBody tr').count(),10);
+ assert.match(await page.locator('#activityEvidencePage').textContent(),/^2 \/ 9/);
+ await page.locator('#activityEvidencePrev').click();await settled();
+ await page.locator('#activityEvidenceHead th').first().click();await settled();
+ const sorted=await page.locator('#activityEvidenceBody button[data-filter]').allTextContents();
+ assert.deepEqual(sorted,[...sorted].sort(),'evidence table did not sort by value');
+ for(const group of ['dnsIP','deviceName','canonical','domain','server']){
+  await resetOverview();await page.locator('#activityEvidenceGroup').selectOption(group);await settled();
+  const button=group==='domain' ? page.locator('#activityEvidenceBody button[data-value="youtubei.googleapis.com"]') : page.locator('#activityEvidenceBody button[data-filter]').first();
+  const value=await button.getAttribute('data-value');assert.ok(value,group+' has no grouping rows');
+  await button.click();await settled();
+  assert.equal(new URL(page.url()).searchParams.get(group),value);
+  assert.equal(await page.locator('[data-view="summary"]').getAttribute('aria-selected'),'true');
+  await button.click();await settled();
+  assert.equal(new URL(page.url()).searchParams.has(group),false,group+' evidence did not toggle off');
+  assert.equal(await page.locator('#activityCount').textContent(),'130');
+  await button.click();await settled();await button.click({modifiers:['Control']});await settled();
+  assert.equal(await page.locator('[data-view="events"]').getAttribute('aria-selected'),'true');
+  assert.ok(await page.locator('#activityTableBody .activity-dns-details').count(),'event details omitted');
+  for(const key of ['canonical','deviceName','ipBasis','dnsIP','dnsCountry'])assert.ok(await page.locator('#activityTableBody [data-filter="'+key+'"]').count(),group+' events omitted '+key);
+  assert.match(await page.locator('#activityTableBody').textContent(),/2001:db8::/);
+  assert.match(await page.locator('#activityTableBody').textContent(),/198\.51\.100\./);
+  if(group==='dnsIP'){
+   await page.locator('#activityTableBody tr').first().screenshot({path:'/tmp/mikrodash-dns-evidence-event.png'});
+   const eventAxe=await new AxeBuilder({page}).include('#page-activity').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+   assert.deepEqual(eventAxe.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[],'DNS event accessibility');
+  }
+  const link=await page.locator('#activityExport').getAttribute('href');const csv=await context.request.get(process.argv[2]+link);
+  assert.equal(csv.status(),200);assert.match(await csv.text(),/canonical,dns_ips,ip_basis,device_name/);
+ }
+ await resetOverview();
+ await page.locator('#activitySearch').fill('2001:db8::');await page.waitForFunction(()=>document.querySelector('#activityCount')?.textContent==='86');await settled();
+ await page.locator('#activitySearch').fill('');await page.waitForFunction(()=>document.querySelector('#activityCount')?.textContent==='130');await settled();
+ // The new fields do not make legacy messages appear enriched.
+ await page.locator('#activityIPBases button[data-value="-"]').click();await settled();
+ assert.equal(await page.locator('#activityCount').textContent(),'44');
+ await page.locator('#activityEvidenceGroup').selectOption('canonical');await settled();
+ assert.match(await page.locator('#activityEvidenceBody').textContent(),/Older DNSUSER/);
+ const legacyAxe=await new AxeBuilder({page}).include('#page-activity').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+ assert.deepEqual(legacyAxe.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[],'legacy evidence empty-state accessibility');
+ await page.locator('#activityIPBases button[data-value="-"]').click({modifiers:['Control']});await settled();
+ assert.equal(await page.locator('#activityTableBody [data-filter="dnsIP"]').count(),0);
+ assert.match(await page.locator('#activityTableBody').textContent(),/Not recorded/);
+ await resetOverview();await page.locator('#activityEvidenceGroup').selectOption('dnsIP');await settled();
+ console.log('DNS evidence: event fields/IPv4/IPv6, five overview groups, pagination, sorting, toggles/Ctrl, search, CSV, Arabic and missing legacy values passed');
+ for(const selector of ['#activityCategories','#activityServiceDonut','#activityUserDonut','#activityCountryDonut','#activityServices','#activityClients','#activityQueryTypes','#activityMatchMethods','#activityIPBases']){
   await resetOverview();const button=page.locator(selector+' button[data-filter]').first();
   const filter=await button.getAttribute('data-filter'),value=await button.getAttribute('data-value');
   await button.click();await settled();
@@ -42,12 +114,13 @@ const assert=require('node:assert/strict');
  }
  // Click the actual painted midpoint, rather than a path's bounding box.
  const clickSlice=async(selector,key,modifiers=[],touch=false)=>{
+  await page.locator(selector+' svg').scrollIntoViewIfNeeded();
   const point=await page.locator(selector+' svg').evaluate((svg,key)=>{
    const path=Array.from(svg.querySelectorAll('path')).find(p=>p.dataset.value===key);
    if(!path)throw new Error('slice missing: '+key);
    const p=path.getPointAtLength(path.getTotalLength()/2).matrixTransform(path.getScreenCTM());
    const hit=document.elementFromPoint(p.x,p.y);
-   if(hit!==path)throw new Error('overlapping or unreachable slice: '+key);
+   if(hit!==path)throw new Error('overlapping or unreachable slice: '+key+' at '+p.x+','+p.y+'; hit '+(hit?.outerHTML.slice(0,300)||'outside viewport'));
    return {x:p.x,y:p.y};
   },key);
   if(modifiers.includes('Control'))await page.keyboard.down('Control');
@@ -103,13 +176,13 @@ const assert=require('node:assert/strict');
  assert.equal(new URL(page.url()).searchParams.get('category'),category);
  assert.equal(await page.locator('#activityCount').textContent(),categoryCount);
  // A country-imposed source remembers an explicitly chosen source across reload.
- await resetOverview();await page.locator('#activityKind').selectOption('firewall');await settled();
+ await resetOverview();await page.locator('#activityCountryBasis').selectOption('firewall');await settled();await page.locator('#activityKind').selectOption('firewall');await settled();
  await page.locator('#activityCountryDonut button[data-filter]').first().click();await settled();
  await page.reload();await settled();
  await page.locator('#activityCountryDonut button[data-filter]').first().click();await settled();
  assert.equal(new URL(page.url()).searchParams.has('country'),false);
  assert.equal(await page.locator('#activityKind').inputValue(),'firewall');
- await resetOverview();
+ await resetOverview();await page.locator('#activityCountryBasis').selectOption('dns');await settled();
  console.log('slice selection: '+slices+' painted targets including small/full circles; label/slice toggle, Ctrl evidence, Other and hole passed');
  await resetOverview();
  const rangeState=()=>{
@@ -175,7 +248,7 @@ const assert=require('node:assert/strict');
  await page.locator('#activityServiceDonut button[data-filter]').first().focus();await page.keyboard.press('Control+Enter');await settled();
  assert.equal(await page.locator('[data-view="events"]').getAttribute('aria-selected'),'true','Ctrl+Enter did not open Events');
  await resetOverview();
- console.log('chart selection: six legends/rankings, time range, country evidence, in-place filtering, Ctrl drilldown and Enter/Ctrl+Enter passed');
+ console.log('chart selection: nine legends/rankings, time range, country evidence, in-place filtering, Ctrl drilldown and Enter/Ctrl+Enter passed');
  await page.locator('[data-view="clients"]').click();await page.waitForSelector('#activityTableBody [data-filter="client"]');
  assert.ok((await page.locator('#activityTableBody').textContent()).includes('مستخدم تجريبي'));
  await page.locator('#activityTableBody [data-filter="client"]').first().click();await page.waitForSelector('#activityFilters [data-clear="client"]');
@@ -188,14 +261,21 @@ const assert=require('node:assert/strict');
  const url=page.url();await page.reload();await page.waitForFunction(()=>document.querySelector('#activityTableBody')?.textContent?.includes('ChatGPT Custom'));assert.equal(page.url(),url);
  await page.locator('#activityGroup').selectOption('day');await page.waitForFunction(()=>/^\d{4}-/.test(document.querySelector('#activityTableBody button')?.textContent||''));
  await page.locator('#activityGroup').selectOption('hour');await page.waitForFunction(()=>document.querySelector('#activityTableBody')?.textContent?.includes(':00'));
+ await page.locator('#activityGroup').selectOption('dnsCountry');await settled();
+ assert.match(await page.locator('#activityTableHead').textContent(),/DNS answers/);
+ assert.match(await page.locator('#activityTableBody').textContent(),/258/);
+ await page.locator('#activityTableBody [data-filter="dnsCountry"]').click();await settled();
+ assert.equal(await page.locator('#activityCount').textContent(),'86');
+ assert.doesNotMatch(await page.locator('#activityTableBody').textContent(),/Firewall/);
+ await page.locator('[data-clear="all"]').click();await settled();await page.locator('[data-view="domains"]').click();await settled();
  await page.locator('#activityGroup').selectOption('country');await page.waitForFunction(()=>document.querySelector('#activityTableBody')?.textContent?.includes('Unknown'));
  await page.locator('#activityTableBody [data-filter="country"]').click();await page.waitForFunction(()=>document.querySelector('#activityTableBody')?.textContent?.includes('Firewall'));
  assert.ok(!(await page.locator('#activityTableBody').textContent()).includes('DNSUSER'));
  await page.locator('[data-clear="all"]').click();await page.locator('#activityKind').selectOption('');
  await page.locator('[data-view="summary"]').click();await page.waitForSelector('.activity-rank');
- assert.equal(await page.locator('.activity-donut svg').count(),4);
+ assert.equal(await page.locator('.activity-donut svg').count(),7);
 
- const ax=await new AxeBuilder({page}).include('#page-activity').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(ax.violations.map(v=>v.id),[],'desktop accessibility');console.log('axe: desktop zero violations');
+ const ax=await new AxeBuilder({page}).include('#page-activity').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(ax.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[],'desktop accessibility');console.log('axe: desktop zero violations');
  await page.setViewportSize({width:375,height:900});
  await resetOverview();await page.locator('#activityServiceDonut').scrollIntoViewIfNeeded();
  const touchKey=await page.locator('#activityServiceDonut button[data-filter]').first().getAttribute('data-value');
@@ -208,6 +288,6 @@ const assert=require('node:assert/strict');
  await page.evaluate(()=>document.documentElement.dataset.theme='light');await page.screenshot({path:'/tmp/mikrodash-activity-light.png',fullPage:true});
  const lightAxe=await new AxeBuilder({page}).include('#page-activity').withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(lightAxe.violations.map(v=>v.id),[],'mobile light accessibility');
  await page.keyboard.press('Tab');assert.ok(await page.evaluate(()=>document.activeElement!==document.body));
- assert.deepEqual(errors,[]);console.log('journey: source enable, archive import, user drilldown, CSV, rules, reclassification, URL reload, country/day/hour groups, four doughnuts, 375/1280, dark/light and keyboard passed');
+ assert.deepEqual(errors,[]);console.log('journey: source enable, archive import, user drilldown, CSV, rules, reclassification, URL reload, country/day/hour groups, seven doughnuts, 375/1280, dark/light and keyboard passed');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

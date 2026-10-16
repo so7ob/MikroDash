@@ -2049,6 +2049,14 @@ export interface ActivityRanking {
 }
 
 export interface ActivityFilter {
+  dnsCountry: string;
+  canonical: string;
+  deviceName: string;
+  dnsIP: string;
+  ipBasis: string;
+  server: string;
+  qtype: string;
+  match: string;
   country: string;
   day: string;
   hour: string;
@@ -2069,6 +2077,10 @@ export interface ActivityFilter {
 }
 
 export interface ActivityTotals {
+  answered: number;
+  answerIPs: number;
+  deviceNames: number;
+  canonicals: number;
   dns: number;
   firewall: number;
   domains: number;
@@ -2077,7 +2089,18 @@ export interface ActivityTotals {
   sources: number;
 }
 
+export interface DNSAnswer {
+  ip: string;
+  country: string;
+  city: string;
+}
+
 export interface ActivityEvent {
+  dnsAnswers: DNSAnswer[];
+  canonical: string;
+  dnsIPs: string[];
+  ipBasis: string;
+  deviceName: string;
   country: string;
   city: string;
   day: string;
@@ -2153,6 +2176,10 @@ export interface ActivitySettings {
 }
 
 export interface ActivityResult {
+  dnsCountries: ActivityRanking[];
+  queryTypes: ActivityRanking[];
+  matchMethods: ActivityRanking[];
+  ipBases: ActivityRanking[];
   countries: ActivityRanking[];
   geoAvailable: boolean;
   routerId: string;

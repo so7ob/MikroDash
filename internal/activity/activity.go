@@ -15,7 +15,21 @@ import (
 
 const Retention = 30 * 24 * time.Hour
 
+// DNSAnswer is local GeoIP evidence for a recorded answer, never a connection.
+type DNSAnswer struct {
+	IP      string `json:"ip"`
+	Country string `json:"country"`
+	City    string `json:"city"`
+}
+
 type Event struct {
+	DNSAnswers []DNSAnswer `json:"dnsAnswers"`
+	Canonical  string      `json:"canonical"`
+	DNSIPs     []string    `json:"dnsIPs"`
+	IPBasis    string      `json:"ipBasis"`
+	DeviceName string      `json:"deviceName"`
+	// Replay rows enrich retained records only; they never resurrect expired data.
+	Replay      bool   `json:"-"`
 	Country     string `json:"country"`
 	City        string `json:"city"`
 	Day         string `json:"day"`
@@ -185,7 +199,7 @@ func endpointIP(s string) string {
 // Parse returns relevant=false for ordinary router logs. Invalid DNSUSER rows
 // are distinguishable from those ordinary logs and count as source failures.
 func Parse(routerID, sourceID, stamp, topics, message string, received int64, zone string) (e Event, relevant bool, err error) {
-	e = Event{RouterID: routerID, Received: received, RouterTime: stamp, Count: 1}
+	e = Event{RouterID: routerID, Received: received, RouterTime: stamp, Count: 1, DNSIPs: []string{}, DNSAnswers: []DNSAnswer{}}
 	e.At, e.TimeCertain = EventTime(stamp, received, zone)
 	if strings.HasPrefix(strings.TrimSpace(message), "DNSUSER ") {
 		relevant = true
@@ -197,13 +211,17 @@ func Parse(routerID, sourceID, stamp, topics, message string, received int64, zo
 				Match  string `json:"match"`
 			} `json:"Connection"`
 			Destination struct {
-				Domain string `json:"domain"`
-				IP     string `json:"ip"`
+				Domain    string   `json:"domain"`
+				IP        string   `json:"ip"`
+				Canonical string   `json:"canonical"`
+				DNSIPs    []string `json:"dns_ips"`
+				IPBasis   string   `json:"ip_basis"`
 			} `json:"Destination"`
 			Source struct {
-				User string `json:"user"`
-				IP   string `json:"ip"`
-				MAC  string `json:"mac"`
+				User       string `json:"user"`
+				IP         string `json:"ip"`
+				MAC        string `json:"mac"`
+				DeviceName string `json:"device_name"`
 			} `json:"Source"`
 		}
 		msg := strings.TrimSpace(message)
@@ -211,6 +229,22 @@ func Parse(routerID, sourceID, stamp, topics, message string, received int64, zo
 			return e, true, errors.New("invalid DNSUSER JSON")
 		}
 		e.Domain = NormalizeDomain(p.Destination.Domain)
+		e.Canonical = NormalizeDomain(clean(p.Destination.Canonical))
+		e.IPBasis, e.DeviceName = clean(p.Destination.IPBasis), clean(p.Source.DeviceName)
+		if (clean(p.Destination.Canonical) != "" && e.Canonical == "") || len(e.IPBasis) > 80 || len(e.DeviceName) > 256 || strings.ContainsAny(e.IPBasis+e.DeviceName, "\x00\r\n") || len(p.Destination.DNSIPs) > 128 {
+			return e, true, errors.New("invalid DNSUSER metadata")
+		}
+		seen := map[string]bool{}
+		for _, raw := range p.Destination.DNSIPs {
+			a, x := netip.ParseAddr(strings.TrimSpace(raw))
+			if x != nil || a.Zone() != "" {
+				return e, true, errors.New("invalid DNSUSER answer address")
+			}
+			if !seen[a.String()] {
+				e.DNSIPs = append(e.DNSIPs, a.String())
+				seen[a.String()] = true
+			}
+		}
 		if a, x := netip.ParseAddr(p.Destination.IP); x == nil {
 			e.Destination = a.String()
 		}

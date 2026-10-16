@@ -303,7 +303,7 @@ func (w *Wire) Sync(id string) {
 		verified := w.verified[manifestKey]
 		w.mu.Unlock()
 		for _, c := range checkpoints {
-			if c.Name == f.Name && c.Size == f.Size && c.Modified == f.Modified && c.Offset == f.Size && verified == c.Generation+":"+strconv.FormatInt(f.Size, 10)+":"+f.Modified {
+			if c.ParserVersion == activity.ParserVersion && c.Name == f.Name && c.Size == f.Size && c.Modified == f.Modified && c.Offset == f.Size && verified == c.Generation+":"+strconv.FormatInt(f.Size, 10)+":"+f.Modified {
 				unchanged = true
 				break
 			}
@@ -349,7 +349,14 @@ func (w *Wire) Sync(id string) {
 				syncErr = err
 				return
 			}
-			cp = activity.Checkpoint{Generation: hex.EncodeToString(nonce), PrefixLen: len(head), PrefixHash: hash(head), TailHash: hash(nil)}
+			cp = activity.Checkpoint{ParserVersion: activity.ParserVersion, Generation: hex.EncodeToString(nonce), PrefixLen: len(head), PrefixHash: hash(head), TailHash: hash(nil)}
+		}
+		if cp.ParserVersion < activity.ParserVersion {
+			// Retain the generation/byte identities while revisiting old records.
+			// Replay progress is committed with metadata, so restart is incremental.
+			cp.ReplayUntil = cp.Offset
+			cp.Offset, cp.TailHash = 0, hash(nil)
+			cp.ParserVersion = activity.ParserVersion
 		}
 		cp.Name = f.Name
 		for cp.Offset < f.Size {
@@ -396,18 +403,19 @@ func (w *Wire) Sync(id string) {
 				}
 				stamp, topics, msg, ok := activity.SplitArchiveLine(strings.TrimSuffix(string(line), "\n"))
 				if !ok {
-					if bytes.Contains(line, []byte("DNSUSER")) {
+					if offset >= cp.ReplayUntil && bytes.Contains(line, []byte("DNSUSER")) {
 						invalid++
 					}
 					offset += int64(len(line))
 					continue
 				}
 				e, relevant, err := activity.Parse(id, "", stamp, topics, msg, now, cfg.Timezone)
-				if relevant && err != nil {
+				if relevant && err != nil && offset >= cp.ReplayUntil {
 					invalid++
 				}
 				if relevant && err == nil && e.At >= now-int64(activity.Retention/time.Millisecond) {
 					e.SourceKey = hash([]byte(cp.Generation + ":" + strconv.FormatInt(offset, 10)))
+					e.Replay = offset < cp.ReplayUntil
 					events = append(events, e)
 				}
 				offset += int64(len(line))
@@ -453,6 +461,7 @@ func (w *Wire) Sync(id string) {
 		}
 		// A renamed but already-complete file still needs its new manifest recorded.
 		if cp.Offset == f.Size {
+			cp.ReplayUntil = 0
 			cp.Size = f.Size
 			cp.Modified = f.Modified
 			if err = w.db.PersistActivity(nil, nil, nil, map[string]activity.Checkpoint{id: cp}); err != nil {

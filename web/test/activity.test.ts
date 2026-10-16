@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { rankMarkup, donutMarkup, initActivityPage } from '../src/pages/activity';
+import { rankMarkup, donutMarkup, initActivityPage, dnsEvidenceMarkup } from '../src/pages/activity';
 import fs from 'node:fs';
 import path from 'node:path';
 import { makeDoc } from './dom-shim';
@@ -83,7 +83,7 @@ test('table row drilldowns keep opening their event evidence', () => {
 });
 
 test('repeated chart selections toggle only their own filter across labels and slices', () => {
- for (const filter of ['service', 'client', 'category', 'country']) {
+ for (const filter of ['service', 'client', 'category', 'country', 'dnsCountry', 'canonical', 'deviceName', 'dnsIP', 'ipBasis', 'server', 'qtype', 'match']) {
   const [on, off] = clickSelections([{ filter, value: 'Synthetic' }, { filter, value: 'Synthetic', shape: 'path' }]);
   assert.equal(on.searchParams.get(filter), 'Synthetic');
   assert.equal(off.searchParams.has(filter), false);
@@ -136,4 +136,26 @@ test('doughnut arcs keep escaped values, selected legends and a non-selectable O
  assert.match(rankMarkup([row],'client',row.key), /aria-pressed="true"/);
  const full=donutMarkup([{...row,count:100}], 'client', 'Users');
  assert.equal([...full.matchAll(/ A 15\.9155/g)].length,2,'full circle needs two actual arcs');
+});
+
+test('DNS event metadata renders both address families and escapes every supplied value', () => {
+ const html=dnsEvidenceMarkup({kind:'dns',canonical:'<img src=x>',deviceName:'جهاز <script>',ipBasis:'" onmouseover=evil',dnsIPs:['198.51.100.7','2001:db8::7'],dnsAnswers:[{ip:'198.51.100.7',country:'Unknown',city:''},{ip:'2001:db8::7',country:'DE',city:'<City>'}]} as any);
+ for(const key of ['canonical','deviceName','ipBasis','dnsIP','dnsCountry'])assert.ok(html.includes('data-filter="'+key+'"'),key+' has no event drilldown');
+ assert.match(html,/198\.51\.100\.7/);assert.match(html,/2001:db8::7/);assert.match(html,/جهاز/);assert.match(html,/Germany · &lt;City&gt;/);
+ assert.doesNotMatch(html,/<img|<script>|data-value="" onmouseover=/);
+ const empty=dnsEvidenceMarkup({kind:'dns',canonical:'',deviceName:'',ipBasis:'',dnsIPs:[],dnsAnswers:[]} as any);
+ assert.match(empty,/Not recorded/);assert.equal(dnsEvidenceMarkup({kind:'firewall'} as any),'');
+});
+
+
+test('DNS country selection filters DNS without claiming a Firewall connection', () => {
+ const url=clickFilter('dnsCountry','DE',false);
+ assert.equal(url.searchParams.get('tab'),'summary');
+ assert.equal(url.searchParams.get('dnsCountry'),'DE');
+ assert.equal(url.searchParams.has('kind'),false);
+ const row={key:'DE',label:'Germany',count:3,service:'',category:'',server:'',ip:'',mac:'',user:'',domains:1,devices:1,last:0};
+ const html=donutMarkup([row],'dnsCountry','DNS answer countries',undefined,'DE','answers');
+ assert.match(html,/aria-label="DNS answer countries: 3 answers"/);
+ assert.match(html,/activity-donut-caption">answers/);
+ assert.doesNotMatch(html,/3 events/);
 });

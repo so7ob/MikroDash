@@ -1,38 +1,51 @@
 package activity
 
 import (
+	"slices"
 	"sort"
 	"strings"
 	"time"
 )
 
 type Filter struct {
-	Country  string `json:"country"`
-	Day      string `json:"day"`
-	Hour     string `json:"hour"`
-	From     int64  `json:"from"`
-	To       int64  `json:"to"`
-	Search   string `json:"search"`
-	Client   string `json:"client"`
-	Domain   string `json:"domain"`
-	Service  string `json:"service"`
-	Category string `json:"category"`
-	Kind     string `json:"kind"`
-	View     string `json:"view"`
-	Group    string `json:"group"`
-	Sort     string `json:"sort"`
-	Desc     bool   `json:"desc"`
-	Page     int    `json:"page"`
-	Limit    int    `json:"limit"`
+	DNSCountry string `json:"dnsCountry"`
+	Canonical  string `json:"canonical"`
+	DeviceName string `json:"deviceName"`
+	DNSIP      string `json:"dnsIP"`
+	IPBasis    string `json:"ipBasis"`
+	Server     string `json:"server"`
+	QType      string `json:"qtype"`
+	Match      string `json:"match"`
+	Country    string `json:"country"`
+	Day        string `json:"day"`
+	Hour       string `json:"hour"`
+	From       int64  `json:"from"`
+	To         int64  `json:"to"`
+	Search     string `json:"search"`
+	Client     string `json:"client"`
+	Domain     string `json:"domain"`
+	Service    string `json:"service"`
+	Category   string `json:"category"`
+	Kind       string `json:"kind"`
+	View       string `json:"view"`
+	Group      string `json:"group"`
+	Sort       string `json:"sort"`
+	Desc       bool   `json:"desc"`
+	Page       int    `json:"page"`
+	Limit      int    `json:"limit"`
 }
 
 type Totals struct {
-	DNS      int `json:"dns"`
-	Firewall int `json:"firewall"`
-	Domains  int `json:"domains"`
-	Users    int `json:"users"`
-	Unmapped int `json:"unmapped"`
-	Sources  int `json:"sources"`
+	Answered    int `json:"answered"`
+	AnswerIPs   int `json:"answerIPs"`
+	DeviceNames int `json:"deviceNames"`
+	Canonicals  int `json:"canonicals"`
+	DNS         int `json:"dns"`
+	Firewall    int `json:"firewall"`
+	Domains     int `json:"domains"`
+	Users       int `json:"users"`
+	Unmapped    int `json:"unmapped"`
+	Sources     int `json:"sources"`
 }
 
 type Ranking struct {
@@ -62,6 +75,10 @@ type Heat struct {
 // Result is the generated REST response. The invalidation event carries only
 // RouterID, so large query results never fan out.
 type Result struct {
+	DNSCountries []Ranking  `json:"dnsCountries"`
+	QueryTypes   []Ranking  `json:"queryTypes"`
+	MatchMethods []Ranking  `json:"matchMethods"`
+	IPBases      []Ranking  `json:"ipBases"`
 	Countries    []Ranking  `json:"countries"`
 	GeoAvailable bool       `json:"geoAvailable"`
 	RouterID     string     `json:"routerId"`
@@ -85,7 +102,22 @@ type Result struct {
 }
 
 func Matches(e Event, f Filter) bool {
-	if f.Country != "" && f.Country != e.Country {
+	for _, value := range []struct{ wanted, actual string }{
+		{f.Canonical, e.Canonical}, {f.DeviceName, e.DeviceName},
+		{f.IPBasis, e.IPBasis}, {f.Server, e.Server}, {f.QType, e.QType}, {f.Match, e.Match},
+	} {
+		if value.wanted != "" && (e.Kind != "dns" || clean(value.wanted) != value.actual) {
+			return false
+		}
+	}
+	if f.DNSIP != "" && (e.Kind != "dns" || !slices.Contains(e.DNSIPs, f.DNSIP)) {
+		return false
+	}
+
+	if f.DNSCountry != "" && (e.Kind != "dns" || !slices.ContainsFunc(e.DNSAnswers, func(a DNSAnswer) bool { return a.Country == f.DNSCountry })) {
+		return false
+	}
+	if f.Country != "" && (e.Kind != "firewall" || f.Country != e.Country) {
 		return false
 	}
 	if f.Day != "" && f.Day != e.Day {
@@ -110,7 +142,7 @@ func Matches(e Event, f Filter) bool {
 		return false
 	}
 	if f.Search != "" {
-		hay := strings.ToLower(strings.Join([]string{e.Domain, e.Service, e.Category, e.User, e.IP, e.MAC, e.Server, e.Destination, e.Protocol}, " "))
+		hay := strings.ToLower(strings.Join([]string{e.Domain, e.Service, e.Category, e.User, e.IP, e.MAC, e.Server, e.Destination, e.Protocol, e.Canonical, e.DeviceName, e.IPBasis, e.QType, e.Match, strings.Join(e.DNSIPs, " ")}, " "))
 		if !strings.Contains(hay, strings.ToLower(f.Search)) {
 			return false
 		}
@@ -207,12 +239,17 @@ func SortRankings(rows []Ranking, f Filter) {
 // Analyze streams rows, retaining only aggregate indexes and the current events
 // page. No raw history slice grows with the number of stored events.
 func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(Event) error) error, lookups ...func(string) (string, string)) (Result, error) {
-	out := Result{Countries: []Ranking{}, Filter: f, Rows: []Ranking{}, Events: []Event{}, Services: []Ranking{}, Clients: []Ranking{}, Categories: []Ranking{}, Series: []Point{}, Heatmap: []Heat{}, Coverage: []Coverage{}, Rules: []Rule{}}
+	out := Result{DNSCountries: []Ranking{}, QueryTypes: []Ranking{}, MatchMethods: []Ranking{}, IPBases: []Ranking{}, Countries: []Ranking{}, Filter: f, Rows: []Ranking{}, Events: []Event{}, Services: []Ranking{}, Clients: []Ranking{}, Categories: []Ranking{}, Series: []Point{}, Heatmap: []Heat{}, Coverage: []Coverage{}, Rules: []Rule{}}
 	domains := map[string]*group{}
 	services := map[string]*group{}
 	clients := map[string]*group{}
 	categories := map[string]*group{}
 	countries := map[string]*group{}
+	dnsCountries := map[string]*group{}
+	dnsGroups := map[string]map[string]*group{}
+	for _, key := range []string{"canonical", "deviceName", "dnsIP", "ipBasis", "server", "qtype", "match"} {
+		dnsGroups[key] = map[string]*group{}
+	}
 	dates := map[string]*group{}
 	hours := map[string]*group{}
 	var lookup func(string) (string, string)
@@ -254,6 +291,22 @@ func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(E
 		}
 		if e.Kind == "dns" {
 			out.Totals.DNS++
+			for _, answer := range e.DNSAnswers {
+				addGroup(dnsCountries, answer.Country, e)
+				addGroup(dnsGroups["dnsIP"], answer.IP, e)
+			}
+			for key, value := range map[string]string{"canonical": e.Canonical, "deviceName": e.DeviceName, "ipBasis": e.IPBasis, "server": e.Server, "qtype": e.QType, "match": e.Match} {
+				if value == "" {
+					if key == "canonical" || key == "deviceName" {
+						continue
+					}
+					value = "-"
+				}
+				addGroup(dnsGroups[key], value, e)
+			}
+			if len(e.DNSAnswers) > 0 {
+				out.Totals.Answered++
+			}
 			addGroup(domains, e.Domain, e)
 			addGroup(services, e.Service, e)
 			addGroup(clients, e.Client, e)
@@ -274,6 +327,17 @@ func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(E
 	if err != nil {
 		return out, err
 	}
+	out.Totals.AnswerIPs = len(dnsGroups["dnsIP"])
+	out.Totals.DeviceNames = len(dnsGroups["deviceName"])
+	out.Totals.Canonicals = len(dnsGroups["canonical"])
+	for _, key := range []string{"ipBasis", "server", "qtype", "match"} {
+		if missing := dnsGroups[key]["-"]; missing != nil {
+			missing.row.Label = "Not provided"
+		}
+	}
+	out.QueryTypes = rankings(dnsGroups["qtype"])
+	out.MatchMethods = rankings(dnsGroups["match"])
+	out.IPBases = rankings(dnsGroups["ipBasis"])
 	out.Totals.Domains = len(domains)
 	out.Totals.Users = len(known)
 	out.Totals.Unmapped = len(unmapped)
@@ -293,6 +357,7 @@ func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(E
 	out.Clients = top(rankings(clients), 10)
 	out.Categories = rankings(categories)
 	out.Countries = rankings(countries)
+	out.DNSCountries = rankings(dnsCountries)
 	for at := f.From / bucket * bucket; at < f.To; at += bucket {
 		out.Series = append(out.Series, Point{At: at, Count: points[at]})
 	}
@@ -303,6 +368,12 @@ func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(E
 	}
 	var rows []Ranking
 	switch f.View {
+	case "summary":
+		if f.Group == "domain" {
+			rows = rankings(domains)
+		} else {
+			rows = rankings(dnsGroups[f.Group])
+		}
 	case "clients":
 		rows = rankings(clients)
 	case "domains":
@@ -311,6 +382,8 @@ func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(E
 			rows = rankings(domains)
 		case "country":
 			rows = rankings(countries)
+		case "dnsCountry":
+			rows = rankings(dnsCountries)
 		case "category":
 			rows = rankings(categories)
 		case "client":
@@ -320,7 +393,11 @@ func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(E
 		case "hour":
 			rows = rankings(hours)
 		default:
-			rows = rankings(services)
+			if group, ok := dnsGroups[f.Group]; ok {
+				rows = rankings(group)
+			} else {
+				rows = rankings(services)
+			}
 		}
 	default:
 		rows = []Ranking{}

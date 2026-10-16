@@ -20,7 +20,7 @@ func (d *DB) ActivityEventPage(ctx context.Context, router string, f activity.Fi
 	// Every displayed detail participates, so two rows with different IP/MAC or
 	// matching provenance never disappear into one ambiguous group.
 	q := `SELECT id,payload,COUNT(*) AS n FROM activity_events WHERE router_id=? AND at>=? AND at<?
- GROUP BY at/1000,kind,json_extract(payload,'$.client'),json_extract(payload,'$.domain'),json_extract(payload,'$.destination'),json_extract(payload,'$.user'),json_extract(payload,'$.server'),json_extract(payload,'$.ip'),json_extract(payload,'$.mac'),json_extract(payload,'$.qtype'),json_extract(payload,'$.match'),json_extract(payload,'$.protocol'),json_extract(payload,'$.in'),json_extract(payload,'$.out'),json_extract(payload,'$.length'),json_extract(payload,'$.timeCertain') ORDER BY ` + sortExpr + dir + `,id DESC`
+ GROUP BY at/1000,kind,json_extract(payload,'$.client'),json_extract(payload,'$.domain'),json_extract(payload,'$.destination'),json_extract(payload,'$.user'),json_extract(payload,'$.server'),json_extract(payload,'$.ip'),json_extract(payload,'$.mac'),json_extract(payload,'$.qtype'),json_extract(payload,'$.match'),json_extract(payload,'$.protocol'),json_extract(payload,'$.in'),json_extract(payload,'$.out'),json_extract(payload,'$.length'),json_extract(payload,'$.timeCertain'),COALESCE(json_extract(payload,'$.canonical'),''),COALESCE(json_extract(payload,'$.deviceName'),''),COALESCE(json_extract(payload,'$.ipBasis'),''),COALESCE(json_extract(payload,'$.dnsIPs'),'[]') ORDER BY ` + sortExpr + dir + `,id DESC`
 	cfg, err := d.ActivityState(router)
 	if err != nil {
 		return nil, 0, err

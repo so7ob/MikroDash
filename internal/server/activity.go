@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -82,6 +83,16 @@ func activityFilter(r *http.Request, now time.Time) (activity.Filter, error) {
 		days = 1
 	}
 	f := activity.Filter{To: now.UnixMilli() + 1, Search: q.Get("q"), Client: q.Get("client"), Domain: q.Get("domain"), Service: q.Get("service"), Category: q.Get("category"), Country: q.Get("country"), Day: q.Get("day"), Hour: q.Get("hour"), Kind: q.Get("kind"), View: q.Get("view"), Group: q.Get("group"), Sort: q.Get("sort"), Desc: q.Get("dir") != "asc", Page: 1, Limit: 50}
+	f.DNSCountry = q.Get("dnsCountry")
+	f.Canonical, f.DeviceName, f.DNSIP = q.Get("canonical"), q.Get("deviceName"), q.Get("dnsIP")
+	f.IPBasis, f.Server, f.QType, f.Match = q.Get("ipBasis"), q.Get("server"), q.Get("qtype"), q.Get("match")
+	if f.DNSIP != "" {
+		a, err := netip.ParseAddr(f.DNSIP)
+		if err != nil || a.Zone() != "" {
+			return f, errors.New("invalid DNS answer filter")
+		}
+		f.DNSIP = a.String()
+	}
 	f.From = f.To - int64(time.Duration(days)*24*time.Hour/time.Millisecond)
 	var err error
 	if q.Has("from") {
@@ -105,7 +116,7 @@ func activityFilter(r *http.Request, now time.Time) (activity.Filter, error) {
 	if n, e := strconv.Atoi(q.Get("limit")); e == nil && n > 0 && n <= 200 {
 		f.Limit = n
 	}
-	for _, v := range []string{f.Search, f.Client, f.Domain, f.Service, f.Category, f.Country, f.Day, f.Hour} {
+	for _, v := range []string{f.Search, f.Client, f.Domain, f.Service, f.Category, f.Country, f.DNSCountry, f.Day, f.Hour, f.Canonical, f.DeviceName, f.DNSIP, f.IPBasis, f.Server, f.QType, f.Match} {
 		if len(v) > 1024 {
 			return f, errors.New("filter too long")
 		}
@@ -120,6 +131,17 @@ func activityFilter(r *http.Request, now time.Time) (activity.Filter, error) {
 	case "domains", "clients", "events", "rules", "summary", "series":
 	default:
 		f.View = "summary"
+	}
+	if f.View == "summary" {
+		if !q.Has("limit") {
+			f.Limit = 10
+		}
+		f.Group = q.Get("evidenceGroup")
+		switch f.Group {
+		case "domain", "canonical", "deviceName", "dnsIP", "server":
+		default:
+			f.Group = "dnsIP"
+		}
 	}
 	return f, nil
 }
@@ -320,7 +342,7 @@ func (s *Server) activityExport(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write([]byte("\xef\xbb\xbf"))
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"time_utc", "router_time", "time_certain", "kind", "domain", "service", "category", "user", "server", "ip", "mac", "qtype", "match", "protocol", "destination", "in", "out", "packet_length", "country", "city"})
+	_ = cw.Write([]string{"time_utc", "router_time", "time_certain", "kind", "domain", "service", "category", "user", "server", "ip", "mac", "qtype", "match", "protocol", "destination", "in", "out", "packet_length", "country", "city", "canonical", "dns_ips", "ip_basis", "device_name", "dns_answer_locations"})
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 	cfg, _ := s.auditDB.ActivityState(id)
@@ -341,7 +363,8 @@ func (s *Server) activityExport(w http.ResponseWriter, r *http.Request) {
 			}
 			nextAuth = time.Now().Add(time.Second)
 		}
-		row := []string{time.UnixMilli(e.At).UTC().Format(time.RFC3339), e.RouterTime, strconv.FormatBool(e.TimeCertain), e.Kind, e.Domain, e.Service, e.Category, e.User, e.Server, e.IP, e.MAC, e.QType, e.Match, e.Protocol, e.Destination, e.In, e.Out, e.Length, e.Country, e.City}
+		locations, _ := json.Marshal(e.DNSAnswers)
+		row := []string{time.UnixMilli(e.At).UTC().Format(time.RFC3339), e.RouterTime, strconv.FormatBool(e.TimeCertain), e.Kind, e.Domain, e.Service, e.Category, e.User, e.Server, e.IP, e.MAC, e.QType, e.Match, e.Protocol, e.Destination, e.In, e.Out, e.Length, e.Country, e.City, e.Canonical, strings.Join(e.DNSIPs, " | "), e.IPBasis, e.DeviceName, string(locations)}
 		for i := range row {
 			row[i] = csvSafe(row[i])
 		}
