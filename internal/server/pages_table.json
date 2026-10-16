@@ -272,6 +272,11 @@
       "settingsKey": "pageLogs"
     },
     {
+      "key": "activity",
+      "title": "Activity Analytics",
+      "settingsKey": null
+    },
+    {
       "key": "packages",
       "title": "Packages",
       "settingsKey": "pagePackages"

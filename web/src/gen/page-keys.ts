@@ -70,6 +70,7 @@ export const ALL_NAV_PAGES: readonly string[] = [
   "firewall",
   "users",
   "logs",
+  "activity",
   "packages",
   "tools-ping",
   "tools-traceroute",

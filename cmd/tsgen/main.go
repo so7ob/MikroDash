@@ -351,7 +351,7 @@ var fieldOverrides = map[string][]string{
 // as a map. No declaration reaches them, so nothing would generate them, and
 // web/src/events-hand.ts would have to restate them by hand. Listed here, they
 // are generated like any other and imported there instead.
-var extraRoots = []string{"backups.Hunk", "collect.PingPoint", "resource.Error", "wifiscan.Row"}
+var extraRoots = []string{"activity.Result", "backups.Hunk", "collect.PingPoint", "resource.Error", "wifiscan.Row"}
 
 // ── TYPESCRIPT NAMES ────────────────────────────────────────────────────────
 //
@@ -361,6 +361,7 @@ var extraRoots = []string{"backups.Hunk", "collect.PingPoint", "resource.Error",
 // global `Error`. An unlisted collision is refused in render(), with both
 // sources named, rather than resolved by a rule nobody chose.
 var tsNames = map[string]string{
+	"activity.Event": "ActivityEvent", "activity.Rule": "ActivityRule", "activity.Settings": "ActivitySettings", "activity.Status": "ActivityStatus", "activity.Result": "ActivityResult", "activity.Filter": "ActivityFilter", "activity.Coverage": "ActivityCoverage", "activity.Totals": "ActivityTotals", "activity.Ranking": "ActivityRanking", "activity.Point": "ActivityPoint", "activity.Heat": "ActivityHeat",
 	"alert.Row":      "AlertRow",
 	"backups.Row":    "BackupRow",
 	"resource.Error": "ResFieldError",

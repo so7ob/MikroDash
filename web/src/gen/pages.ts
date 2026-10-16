@@ -68,6 +68,7 @@ export const PAGES: readonly Page[] = [
   { key: "tools-sniffer", title: "Packet Sniffer", path: "tools-sniffer" },
   { key: "terminal", title: "Terminal", path: "terminal" },
   { key: "logs", title: "Logs", path: "logs" },
+  { key: "activity", title: "Activity Analytics", path: "activity" },
   { key: "network-topology", title: "Network Topology", path: "network-topology" },
   { key: "wifi-clients", title: "Wifi Clients", path: "wifi-clients" },
   { key: "wifi-map", title: "Wifi Map", path: "wifi-map" },

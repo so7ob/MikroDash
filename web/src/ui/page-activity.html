@@ -1,0 +1,62 @@
+<div class="page-view" id="page-activity">
+ <div class="card activity-page">
+  <div class="card-header activity-header">
+   <div class="activity-title"><h3 class="card-title">Activity Analytics</h3><span class="card-badge active-blue" id="activityCount">0</span>
+    <div class="stab-bar rttab-bar" role="tablist" aria-label="Activity views" id="activityTabs">
+     <button type="button" class="stab active" role="tab" aria-selected="true" data-view="summary">Overview</button>
+     <button type="button" class="stab" role="tab" aria-selected="false" data-view="domains">Grouped analysis</button>
+     <button type="button" class="stab" role="tab" aria-selected="false" data-view="clients">Users &amp; devices</button>
+     <button type="button" class="stab" role="tab" aria-selected="false" data-view="events">Events</button>
+     <button type="button" class="stab" role="tab" aria-selected="false" data-view="rules">Classifications</button>
+    </div>
+   </div>
+   <div class="hdr-actions"><button type="button" class="sbtn sbtn-outline is-sm" id="activityRefresh">Refresh</button><a class="sbtn sbtn-outline is-sm" id="activityExport" href="#">Export CSV</a></div>
+  </div>
+  <div class="card-body">
+   <div class="activity-toolbar">
+    <label>Router<select class="sform-input sform-sm" id="activityRouter"></select></label>
+    <label>Period<select class="sform-input sform-sm" id="activityDays"><option value="1">Last 24 hours</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="custom">Custom range</option></select></label>
+    <label class="activity-search">Search<input class="sform-input sform-sm" id="activitySearch" type="search" placeholder="User, domain, IP or service"></label>
+    <label>Category<select class="sform-input sform-sm" id="activityCategory"><option value="">All categories</option></select></label>
+    <label>Destination country<select class="sform-input sform-sm" id="activityCountry"><option value="">All countries</option></select></label>
+    <label>Event source<select class="sform-input sform-sm" id="activityKind"><option value="">All sources</option><option value="dns">DNSUSER</option><option value="firewall">Firewall</option></select></label>
+    <label id="activityGroupWrap" hidden>Group by<select class="sform-input sform-sm" id="activityGroup"><option value="service">Service</option><option value="domain">Exact domain</option><option value="country">Destination country (Firewall)</option><option value="category">Category</option><option value="client">User / device</option><option value="day">Day</option><option value="hour">Hour</option></select></label>
+   </div>
+   <div class="activity-toolbar" id="activityCustomRange" hidden><label>From (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityFrom"></label><label>To (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityTo"></label><button type="button" class="sbtn sbtn-outline is-sm" id="activityApplyRange">Apply range</button></div>
+   <div id="activityFilters" class="activity-filter-trail"></div>
+   <div id="activityError" role="alert" hidden></div>
+   <div class="activity-source"><span id="activityState" role="status">Loading archive status…</span><details id="activityConfig"><summary>Archive synchronization</summary>
+    <div class="activity-toolbar activity-config">
+     <label class="activity-check"><input type="checkbox" id="activityEnabled" disabled>Synchronize this router</label>
+     <label>Router log folder<input class="sform-input sform-sm" id="activityFolder" value="usb1-part1/Log" maxlength="240" disabled></label>
+     <label>Router log timezone<input class="sform-input sform-sm" id="activityTimezone" placeholder="Asia/Aden" maxlength="128" disabled></label>
+     <button type="button" class="sbtn sbtn-primary is-sm" id="activitySaveSettings" disabled>Save source</button>
+    </div>
+    <p class="activity-muted">Incremental file synchronization runs every 5 seconds, including when this page is closed. Imported analytics are retained for 30 days. Rotated files are matched by content; unfinished lines resume on the next pass.</p>
+   </details></div>
+   <p class="activity-note">Counts represent recorded DNSUSER events. Background apps also request domains. Service classifications are local rules; unknown domains remain unclassified.</p>
+   <div id="activityOverview">
+    <div class="activity-metrics" id="activityMetrics"></div>
+    <div class="activity-chart-layout"><section class="activity-panel"><div class="activity-panel-header"><h4>Activity over time</h4><span id="activityComparison" class="activity-muted"></span></div><div id="activityTimeline" class="activity-timeline" aria-label="DNSUSER events over time"></div><div id="activityCoverage" class="activity-muted"></div></section><section class="activity-panel"><h4>Categories</h4><div id="activityCategories"></div></section></div>
+    <div class="activity-donut-layout"><section class="activity-panel"><h4>Service distribution</h4><div id="activityServiceDonut"></div></section><section class="activity-panel"><h4>User distribution</h4><div id="activityUserDonut"></div></section><section class="activity-panel"><h4>Destination countries</h4><p class="activity-muted" id="activityGeoNote">Based on explicit destination IPs in Firewall events.</p><div id="activityCountryDonut"></div></section></div>
+    <div class="activity-rank-layout"><section class="activity-panel"><h4>Top services</h4><div id="activityServices"></div></section><section class="activity-panel"><h4>Top users &amp; devices</h4><div id="activityClients"></div></section></div>
+    <section class="activity-panel"><div class="activity-panel-header"><h4>Hours of activity</h4><span class="activity-muted" id="activityHeatZone"></span></div><div id="activityHeat" class="activity-heat" aria-label="DNSUSER activity by weekday and hour"></div></section>
+   </div>
+   <div id="activityTablePane" hidden><div class="activity-table-scroll"><table class="table"><thead><tr id="activityTableHead"></tr></thead><tbody id="activityTableBody"></tbody></table></div>
+    <div class="activity-pager"><button type="button" class="sbtn sbtn-outline is-sm" id="activityPrev">Previous</button><span id="activityPageLabel"></span><button type="button" class="sbtn sbtn-outline is-sm" id="activityNext">Next</button></div>
+   </div>
+   <div id="activityRulesPane" hidden>
+    <form id="activityRuleForm" class="activity-toolbar">
+     <label>Domain<input class="sform-input sform-sm" id="activityRuleDomain" required maxlength="253" placeholder="example.com" disabled></label>
+     <label>Service<input class="sform-input sform-sm" id="activityRuleService" required maxlength="80" disabled></label>
+     <label>Category<input class="sform-input sform-sm" id="activityRuleCategory" required maxlength="80" list="activityCategorySuggestions" disabled></label>
+     <label class="activity-check"><input type="checkbox" id="activityRuleSubdomains" checked disabled>Include subdomains</label>
+     <button type="submit" class="sbtn sbtn-primary is-sm" id="activitySaveRule" disabled>Save local rule</button>
+    </form>
+    <datalist id="activityCategorySuggestions"><option value="AI"><option value="Social"><option value="Video"><option value="Messaging"><option value="Gaming"><option value="Education"><option value="Content creation"><option value="Advertising"><option value="Updates"><option value="Unclassified"></datalist>
+    <p class="activity-muted">Rules apply to this router, including stored history. Local rules take priority; the most specific matching domain wins. Editing a built-in creates a local override. Remove an override to restore the built-in rule.</p>
+    <div class="activity-table-scroll"><table class="table"><thead><tr id="activityRulesHead"></tr></thead><tbody id="activityRulesBody"></tbody></table></div>
+   </div>
+  </div>
+ </div>
+</div>
