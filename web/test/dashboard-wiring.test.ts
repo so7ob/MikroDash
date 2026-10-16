@@ -107,10 +107,14 @@ const CARDS = {
     prelude: ['traffic:history'],
   },
 };
+const HTTP_CARDS = new Set(['dashboard-card-activity']); // shared HTTP response; dashboard-activity.test.ts drives demand and stale-response rejection
+
 // Subscriptions that are NOT a card's payload. Each belongs to a module named in
 // HELPERS and needs a reason, because "not a card" is otherwise indistinguishable
 // from "nobody remembered to add it to the table".
 const EXTRA_EVENTS = {
+  'activity:changed': 'invalidates the shared Activity HTTP query; dashboard-activity.test.ts drives it',
+  'perms:changed': 'clears Activity data and rechecks the router-scoped HTTP permission',
   'stream:health': 'the per-card stream-degradation warning (dashboard-stream-health.ts). It ' +
     'tints a card and writes an element whose id is BUILT from the collector name, which is why ' +
     'neither shows up in a search for its literal id',
@@ -189,7 +193,7 @@ assert.ok(modules.length >= 5, 'only ' + modules.length + ' dashboard modules fo
 
 const problems = [];
 for (const m of modules) {
-  if (!CARDS[m] && !HELPERS.has(m)) {
+  if (!CARDS[m] && !HTTP_CARDS.has(m) && !HELPERS.has(m)) {
     problems.push(m + '.ts exists and is neither a card in CARDS nor named in HELPERS.\n' +
       '      A new card must be wired AND named here, or it is a renderer nothing calls.');
   }

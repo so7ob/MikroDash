@@ -146,6 +146,14 @@ var All = []Card{
 	// the rates), and gated on the WAN page, whose data it draws. 12 by 5 is the
 	// operator's default (2026-09-22).
 	{ID: "dc-card-wanflow", Label: "WAN Flow", Room: "wan", Page: "wan", X: 1, Y: 1, W: 12, H: 5},
+	// Activity cards read persisted analytics over HTTP, sharing one request and
+	// the activity invalidation event. They do not wake a RouterOS collector.
+	{ID: "dc-card-activity-overview", Label: "Activity Overview", Page: "activity", X: 1, Y: 1, W: 8, H: 5},
+	{ID: "dc-card-activity-timeline", Label: "Activity Timeline", Page: "activity", X: 1, Y: 1, W: 12, H: 5},
+	{ID: "dc-card-activity-services", Label: "Activity Services", Page: "activity", X: 1, Y: 1, W: 8, H: 6},
+	{ID: "dc-card-activity-users", Label: "Activity Users", Page: "activity", X: 1, Y: 1, W: 8, H: 6},
+	{ID: "dc-card-activity-categories", Label: "Activity Categories", Page: "activity", X: 1, Y: 1, W: 8, H: 6},
+	{ID: "dc-card-activity-countries", Label: "Activity Countries", Page: "activity", X: 1, Y: 1, W: 8, H: 6},
 }
 
 // PageFor is the page a card room borrows its data from, and therefore the

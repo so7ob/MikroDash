@@ -137,5 +137,14 @@ export const CARD_ROOMS: Readonly<Record<string, string>> = {
 	}
 	b.WriteString(strings.Join(rooms, ",\n"))
 	b.WriteString("\n};\n")
+	b.WriteString("\n/** Source-page permissions also gate cards that read over HTTP. */\nexport const CARD_PAGES: Readonly<Record<string, string>> = {\n")
+	var pages []string
+	for _, c := range dashcards.All {
+		if c.Page != "" {
+			pages = append(pages, fmt.Sprintf("  %s: %s", strconv.Quote(c.ID), strconv.Quote(c.Page)))
+		}
+	}
+	b.WriteString(strings.Join(pages, ",\n"))
+	b.WriteString("\n};\n")
 	return []byte(b.String())
 }

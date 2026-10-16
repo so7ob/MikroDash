@@ -60,6 +60,21 @@ inferred for DNSUSER records without an explicit destination IP. The shared loca
 GeoIP database supplies approximate destination countries/cities. Unknown IPs or
 a missing database remain Unknown. Labels and CSV retain that distinction.
 
+## Optional dashboard cards
+
+On `/home`, choose Edit → Add Card and select Activity Overview, Activity Timeline,
+Activity Services, Activity Users, Activity Categories or Activity Countries. They
+start hidden, so adding them preserves existing saved arrangements. Save, Discard,
+remove, drag and resize use the existing dashboard editor and per-user persistence.
+
+All six summarize the selected router's last 24 hours. One shared request to
+`/api/activity/dashboard` feeds them; visible cards refresh on `activity:changed`
+and on returning to the Dashboard. Hiding the cards/page cancels pending work.
+No collector or browser polling loop is added. Drilldowns carry the router and
+matching filter into `/activity`. The dashboard endpoint checks both Dashboard
+and Activity read permission on that router. The card picker follows the source
+page's permission, and permission changes clear displayed Activity data.
+
 ## Verification
 
 Run `sh tools/verify.sh` for all repository checks. The optional browser journey
@@ -70,6 +85,11 @@ hardware. With Playwright and @axe-core/playwright available to Node, run:
 NODE_PATH=/usr/lib/node_modules MIKRODASH_ACTIVITY_BROWSER=1 \
   go test ./internal/server -run TestActivityBrowserJourney -v -timeout 90s
 ```
+
+The same browser command with `-run TestActivityDashboardBrowserJourney` verifies
+the optional cards through the real editor and APIs, including layout portability,
+resize, drilldown, invalidation, permission changes and router switching. Card
+screenshots are written under `/tmp/mikrodash-activity-cards-*.png`.
 
 The journey verifies import, filters, CSV, editable classification, country/day/hour
 groups, four doughnuts, URL restoration, keyboard, 375/1280 and light/dark modes.

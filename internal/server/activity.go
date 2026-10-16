@@ -32,6 +32,7 @@ func (s *Server) registerActivity(mux *http.ServeMux) {
 	for _, name := range []string{"query", "summary", "series", "domains", "clients", "events"} {
 		mux.HandleFunc("GET /api/activity/"+name, s.activityQuery)
 	}
+	mux.HandleFunc("GET /api/activity/dashboard", s.activityQuery)
 	mux.HandleFunc("GET /api/activity/export", s.activityExport)
 	mux.HandleFunc("GET /api/activity/settings", s.activitySettingsGet)
 	mux.HandleFunc("PUT /api/activity/settings", s.activitySettingsPut)
@@ -50,6 +51,12 @@ func (s *Server) activityAccess(w http.ResponseWriter, r *http.Request, access s
 		return nil, ""
 	}
 	if !permitted(s.rbac.CanPage(s.userIDFor(sess.Username), "activity", access, id)) {
+		writeJSONErr(w, 403, "Not permitted")
+		return nil, ""
+	}
+	// Dashboard cards disclose Activity data only to viewers allowed both pages
+	// on this exact router. The standalone Activity page remains independent.
+	if r.URL.Path == "/api/activity/dashboard" && !permitted(s.rbac.CanPage(s.userIDFor(sess.Username), "dashboard", "read", id)) {
 		writeJSONErr(w, 403, "Not permitted")
 		return nil, ""
 	}
@@ -176,6 +183,7 @@ func (s *Server) activityQuery(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, 500, "Activity query failed")
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	out.CanWrite = permitted(s.rbac.CanPage(s.userIDFor(sess.Username), "activity", "write", id))
 	writeJSON(w, out)
 }
