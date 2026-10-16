@@ -232,7 +232,12 @@ func syntheticArchive() string {
 		if i%7 == 0 {
 			user = "-"
 		}
-		p := map[string]any{"Connection": map[string]string{"server": "hs-test", "qtype": "A", "match": "active-now"}, "Destination": map[string]string{"domain": domains[i%len(domains)]}, "Source": map[string]string{"user": user, "ip": "198.51.100.25", "mac": "02:00:00:00:00:25"}}
+		domain := domains[i%len(domains)]
+		if i == 129 {
+			// Exercise a sub-1% selectable slice and the non-selectable Other tail.
+			domain, user = "rare.example", "rare-test-user"
+		}
+		p := map[string]any{"Connection": map[string]string{"server": "hs-test", "qtype": "A", "match": "active-now"}, "Destination": map[string]string{"domain": domain}, "Source": map[string]string{"user": user, "ip": "198.51.100.25", "mac": "02:00:00:00:00:25"}}
 		j, _ := json.Marshal(p)
 		b.WriteString(time.Now().UTC().Add(-time.Duration(i)*time.Minute).Format("2006-01-02 15:04:05") + " script,info DNSUSER " + string(j) + "\n")
 	}

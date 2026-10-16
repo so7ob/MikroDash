@@ -556,18 +556,30 @@ palette and component sizes. The first viewport pairs a dominant time histogram
 with category rankings, followed by services and users. A weekday/hour heatmap
 reveals schedules without decorative charts. The signature interaction is a
 chart selection that filters the current overview in place. Ctrl + click opens
-the matching Events tab. Labels, rankings and time bars follow this same rule,
-with removable filter chips and shareable URLs. Known users and unmapped devices
+the matching Events tab. Clicking a selected legend, ranking or doughnut slice
+again removes only its filter. Selected legends/rankings expose pressed state;
+selected arcs grow slightly. Time bars narrow the period; selecting that range
+again restores the exact preceding rolling/custom period. A selected range stays
+one pressed bar, including six-hour buckets, and survives URL reload. All
+selections keep removable filter chips and shareable URLs. Known users and unmapped devices
 carry text labels; uncertain times and archive failures never rely on colour
 alone. Use the page's own compact tab strip, bounded scrollable tables, responsive
 one-column panels and numeric monospace values. No new fonts or remote assets.
 
 Activity distributions use labelled SVG doughnuts with direct count/percentage
-legends. The legends provide keyboard targets and drilldowns, so segments do not
-rely on colour or pointer accuracy. Grouped analysis uses one shared selector for
-service, exact domain, destination country, category, user/device, day and hour.
+legends. Each arc is also a pointer/touch target for its own value. The legends
+provide equivalent keyboard targets and drilldowns, so selection never depends
+on colour or pointer accuracy. Other is an aggregate and stays non-selectable.
+Grouped analysis uses one shared selector for service, exact domain, destination
+country, category, user/device, day and hour.
 Destination country describes explicit Firewall IP evidence, with Unknown
 preserved as a real bucket.
+
+Interaction audit, 2026-10-17: the dense technical console retains its existing
+Oxanium/JetBrains Mono type and semantic palette. Pointer/touch arcs, pressed
+legend buttons, Ctrl drilldowns and reversible filters preserve the same overview
+interaction. Browser checks cover Arabic, both themes, 375/1280 layouts and zero
+axe violations. No new decorative patterns; checklist: 0 new tells.
 
 ### Activity dashboard cards
 

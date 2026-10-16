@@ -53,6 +53,14 @@ const assert = require('node:assert/strict');
   await page.locator('#dc-activity-services [data-filter="service"]').first().click();
   await page.waitForURL('**/activity?**'); assert.ok(new URL(page.url()).searchParams.get('service'));
   await page.waitForSelector('#activityTableBody [data-filter="domain"]'); await page.goBack(); await count(12);
+  // Shared doughnut arcs retain the dashboard's direct navigation behavior.
+  const countrySlice=page.locator('#dc-activity-countries path[data-filter]').first();
+  await countrySlice.scrollIntoViewIfNeeded();
+  const point=await countrySlice.evaluate(path=>{const p=path.getPointAtLength(path.getTotalLength()/2).matrixTransform(path.getScreenCTM());const hit=document.elementFromPoint(p.x,p.y)===path;if(!hit)throw new Error('dashboard slice is not reachable');return {x:p.x,y:p.y};});
+  await page.mouse.click(point.x,point.y);await page.waitForURL('**/activity?**');
+  assert.equal(new URL(page.url()).searchParams.get('country'),'Unknown');
+  assert.equal(new URL(page.url()).searchParams.get('kind'),'firewall');
+  await page.goBack();await count(12);
   const prior = requests; await context.request.post(base + '/fixture/append'); await socket('activity:changed', { routerId: 'r1', at: Date.now() }); await count(13);
   assert.equal(requests, prior + 1, 'invalidation duplicated data requests');
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('fixture-page', { detail: 'logs' })));
