@@ -14,13 +14,32 @@ on:
 env:
   REGISTRY: ghcr.io
   # Must be lowercase — Docker registry names are case-sensitive
-  IMAGE_NAME: secops-7/mikrodash
+  IMAGE_NAME: so7ob/mikrodash
 
 jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout release history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Set up Node
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Validate tag, main ancestry, version and release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node tools/release-check.mjs "$GITHUB_REF_NAME"
+
   # THE SAME SUITE test.yml RUNS, as a prerequisite. A `v*.*.*` tag publishes the
   # image people pull, and test.yml did not run on a tag: a tagged commit that
   # failed its tests still shipped.
   test:
+    needs: validate-release
     uses: ./.github/workflows/test.yml
     permissions:
       contents: read
@@ -54,6 +73,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GitHub Container Registry
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -108,22 +128,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
-      - name: Extract changelog for this version
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          # Extract description from the CHANGELOG header line, e.g. "CAPsMAN support, ..."
-          # Separator-tolerant on purpose: entries up to 0.7.33 use an em dash, 0.7.34 onward use a
-          # plain hyphen because em dashes are not wanted in anything user-facing. A hard-coded " — "
-          # here would silently yield an empty description for every future release, and the release
-          # would publish with no title rather than fail.
-          DESCRIPTION=$(grep "^## \[${VERSION}\]" CHANGELOG.md | head -1 \
-            | sed -E "s/^## \[${VERSION}\][[:space:]]*[—–:-][[:space:]]*//")
-          # Build release notes: description as a heading, then the section body
-          {
-            [ -n "$DESCRIPTION" ] && printf '## %s\n\n' "$DESCRIPTION"
-            awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md
-          } > release_notes.md
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Verify release and extract notes
+        run: node tools/release-check.mjs "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release_notes.md"
 
       - name: Create GitHub Release
         env:
@@ -131,4 +145,5 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
-            --notes-file release_notes.md
+            --verify-tag \
+            --notes-file "$RUNNER_TEMP/release_notes.md"

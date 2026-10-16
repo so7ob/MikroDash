@@ -68,3 +68,19 @@ body:
       render: shell
     validations:
       required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable conditions that show this issue is complete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Reproduction, regression coverage and manual checks; use sanitized or synthetic data.
+    validations:
+      required: true

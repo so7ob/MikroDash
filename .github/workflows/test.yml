@@ -1,6 +1,6 @@
 name: Tests
 
-# Runs on every PR and on pushes to main.
+# Runs on every PR and on pushes to develop and main.
 #
 # This used to build TWO images and run the suite inside one of them, because
 # npm has a dev/prod dependency split: the runtime install was --omit=dev, so a
@@ -17,6 +17,7 @@ on:
   pull_request:
   push:
     branches:
+      - develop
       - main
   workflow_dispatch:
   # docker-publish.yml calls this before it builds, so a tag cannot publish an

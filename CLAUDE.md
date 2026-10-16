@@ -355,23 +355,32 @@ write was executed against a router or a page was opened in a browser.
 
 ## Versioning rule
 
-**Do not bump a version or write release notes during a working session.** A bump happens only when
-asked to "package it up", and one bump covers the entire session. Versions are numbers, not decimals,
-and Docker tags sort lexically: 0.8.10 follows 0.8.9, and the release after 0.8.51 is 0.8.52.
+**Normal development does not bump a version or write release notes.** Prepare them only for an
+explicit release request or “package it up”. One bump covers that release, with the next patch
+version as the default unless another version is requested. Versions are numbers, not decimals:
+0.8.10 follows 0.8.9. Preparation and publication are separate steps.
 
 ---
 
 ## Workflow rules
 
+- **[CONTRIBUTING.md](CONTRIBUTING.md) is the detailed delivery policy.** Every change needs an
+  Issue in `so7ob/MikroDash`, a numbered branch from `develop`, tests and a PR back to `develop`.
+  Follow it for documentation, dependencies and CI changes too. `main` remains the default branch.
+- An implementation request authorizes that task's Issue, branch, commits, pushes, PR and verified
+  merge into `develop`. Do not ask again for those routine delivery steps. Planning/audit requests
+  authorize no mutations. Preserve unrelated local work and stage only the task's files.
+- Promotion to `main`, version tags and releases require an explicit request for that release or
+  promotion. A release request covers preparation, promotion, the tag, Docker publication and the
+  GitHub Release, but not deployment, router writes or deletion of operator data. It does not
+  authorize a later release. “Package it up” alone authorizes local preparation and a commit.
+- Both long-lived branches require protected PR delivery, current CI and resolved conversations.
+  Never force-push, delete those branches, bypass protections or count missing checks as success.
+  Use squash for issue PRs, merge commits for releases and their `main` → `develop` synchronization.
 - Append to `Changes.md` after every file edit, not in a batch at the end.
-- **Commit freely; never push or release without being asked for that push.** Committing is local
-  and revisable. A push publishes, and a `v*.*.*` tag makes GitHub Actions build and publish an
-  image people pull.
-- **Approval does not carry forward.** One approval covers one push. A follow-up fix, however
-  obviously related, is a new release and a new ask.
-- **"Package it up"** means bump the version, write the release notes, check the README and commit.
-  It does not mean push.
-- Build explicitly when you need a binary.
+- Build explicitly when you need a binary. Report the tested SHA and distinguish local checks,
+  pre/post-merge CI, release and deployment. Close development issues after verified `develop`
+  delivery, and release issues after the entire release procedure.
 
 ---
 
@@ -404,8 +413,10 @@ Before implementing:
 payload change, anything with more than one reasonable end state, and any time a step's intent no
 longer matches the code - re-scoping a step is a design question, not a local decision. Permission to
 do work already agreed, or to move to the next step, is not; nor is a change being large, touching
-many files, or removing something old - those are the job. **Always ask** before a push, a tag or a
-release; before anything that writes to a router; and before deleting operator data.
+many files, or removing something old - those are the job. Follow the authorization boundaries in
+**Workflow rules** and CONTRIBUTING.md: routine delivery into `develop` is covered by the task;
+promotion, tags and publication require an explicit release/promotion request. Ask before writing
+to a router or deleting operator data unless the current request already explicitly authorizes it.
 
 ## 2. Simplicity First
 
