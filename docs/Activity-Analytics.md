@@ -55,8 +55,16 @@ Sync status displays failures, last successful scan and invalid records.
 Overview includes service, category, user and destination-country doughnuts,
 a time histogram, rankings and a weekday/hour heatmap. Grouped analysis offers
 service, domain, country, category, client, day and hour using the same URL filters
-and event drilldowns. On the Activity overview, clicking a chart label, ranking
-or time bar filters the current view; Ctrl + click opens the matching Events tab.
+and event drilldowns. On the Activity overview, clicking a doughnut slice, chart
+label or ranking toggles its filter in the current view; selecting it again
+removes only that filter. Legend buttons expose their selected state and provide
+the same action with Enter or Space. Other is an aggregate with no single filter.
+Time bars also toggle: a selected period is one pressed bar; clicking it again
+restores the preceding period (including custom endpoints), preserving other
+filters and surviving URL reload. Choosing a period manually starts a new
+selection. Ctrl + click opens matching Events even when the value is already
+selected. Removing a country selection restores the prior event
+source, including after reloading a shared URL.
 Country distribution counts Firewall records; no country is
 inferred for DNSUSER records without an explicit destination IP. The shared local
 GeoIP database supplies approximate destination countries/cities. Unknown IPs or
@@ -94,6 +102,8 @@ resize, drilldown, invalidation, permission changes and router switching. Card
 screenshots are written under `/tmp/mikrodash-activity-cards-*.png`.
 
 The journey verifies import, filters, CSV, editable classification, country/day/hour
-groups, four doughnuts, URL restoration, keyboard, 375/1280 and light/dark modes.
+groups, four doughnuts, repeated-selection toggles, painted arc targets (including
+sub-1% and full-circle slices), touch, Ctrl drilldowns, Other, URL/source restoration,
+keyboard, 375/1280 and light/dark modes.
 Screenshots are written under `/tmp/mikrodash-activity-*.png`; accessibility failures
 fail the journey.

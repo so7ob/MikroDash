@@ -8,26 +8,34 @@ interface Router { id: string; label?: string; name?: string; host?: string }
 const API = '/api/activity/';
 const views = ['summary', 'domains', 'clients', 'events', 'rules'];
 const filterKeys = ['client', 'service', 'domain', 'country', 'category', 'day', 'hour'] as const;
+const rangeKeys = ['days', 'from', 'to'] as const;
 const n = (v: number): string => v.toLocaleString();
 const pill = (v: string): string => `<span class="pill pill-rx"><bdi>${esc(v)}</bdi></span>`;
 const cell = (v: string): string => `<bdi>${esc(v || '—')}</bdi>`;
 
-export function rankMarkup(rows: ActivityRanking[], kind: string): string {
+export function rankMarkup(rows: ActivityRanking[], kind: string, selected?: string): string {
   if (!rows.length) return '<p class="activity-muted">No matching DNSUSER activity.</p>';
   const max = Math.max(1, ...rows.map(r => r.count));
-  return rows.map((r, i) => `<button type="button" class="activity-rank" data-filter="${kind}" data-value="${esc(r.key)}"><span class="activity-rank-index">${i + 1}</span><span class="activity-rank-detail"><span class="activity-rank-label"><bdi>${esc(r.label)}</bdi>${kind === 'client' && !r.user ? '<span class="pill pill-warn">Unmapped</span>' : ''}</span><span class="activity-rank-meter" style="--activity-share:${Math.max(1, r.count / max * 100)}%"></span></span><strong>${n(r.count)}</strong></button>`).join('');
+  return rows.map((r, i) => `<button type="button" class="activity-rank" ${selected === undefined ? '' : `aria-pressed="${r.key === selected}"`} data-filter="${kind}" data-value="${esc(r.key)}"><span class="activity-rank-index">${i + 1}</span><span class="activity-rank-detail"><span class="activity-rank-label"><bdi>${esc(r.label)}</bdi>${kind === 'client' && !r.user ? '<span class="pill pill-warn">Unmapped</span>' : ''}</span><span class="activity-rank-meter" style="--activity-share:${Math.max(1, r.count / max * 100)}%"></span></span><strong>${n(r.count)}</strong></button>`).join('');
 }
 
 const tones = ['rx', 'tx', 'alt', 'warn', 'pink', 'ok', 'muted'];
-export function donutMarkup(rows: ActivityRanking[], kind: string, label: string, denominator?: number): string {
+export function donutMarkup(rows: ActivityRanking[], kind: string, label: string, denominator?: number, selected?: string): string {
   const total = denominator ?? rows.reduce((sum, r) => sum + r.count, 0);
   if (!total) return '<p class="activity-muted activity-empty">No matching events for this distribution.</p>';
   const shown = rows.slice(0, 6);
   const remainder=total-shown.reduce((sum,r)=>sum+r.count,0);
   if(remainder>0) shown.push({ ...rows[0]!, key: '', label: 'Other', count: remainder });
   let offset = 0;
-  const segments = shown.map((r, i) => { const share = r.count / total * 100; const start = offset; offset += share; return `<circle class="activity-donut-slice" cx="21" cy="21" r="15.9155" fill="none" pathLength="100" stroke-width="6" stroke-dasharray="${share} ${100 - share}" stroke-dashoffset="${-start}" style="--activity-slice:var(--accent-${tones[i]})"><title>${esc(r.label)}: ${n(r.count)} (${share.toFixed(1)}%)</title></circle>`; }).join('');
-  return `<div class="activity-donut"><svg viewBox="0 0 42 42" role="img" aria-label="${esc(label)}: ${n(total)} events"><g transform="rotate(-90 21 21)">${segments}</g><text x="21" y="20.5" text-anchor="middle" class="activity-donut-total">${n(total)}</text><text x="21" y="25" text-anchor="middle" class="activity-donut-caption">events</text></svg><div class="activity-donut-legend">${shown.map((r, i) => `<button type="button" class="activity-legend-item" ${r.key ? `data-filter="${kind}" data-value="${esc(r.key)}"` : 'disabled'}><span class="activity-legend-dot" style="--activity-slice:var(--accent-${tones[i]})"></span><bdi>${esc(r.label)}</bdi><strong>${(r.count / total * 100).toFixed(1)}%</strong><span>${n(r.count)}</span></button>`).join('')}</div></div>`;
+  const segments = shown.map((r, i) => {
+    const share = r.count / total * 100, start = offset; offset += share;
+    if (!share) return '';
+    const point = (percent: number): string => { const angle = percent / 100 * 2 * Math.PI; return `${21 + 15.9155 * Math.cos(angle)} ${21 + 15.9155 * Math.sin(angle)}`; };
+    // Actual arcs keep hit areas on their own slice. Two half-arcs also draw 100%.
+    const arc = `M ${point(start)} A 15.9155 15.9155 0 0 1 ${point(start + share / 2)} A 15.9155 15.9155 0 0 1 ${point(offset)}`;
+    return `<path class="activity-donut-slice" d="${arc}" fill="none" stroke-width="6" ${r.key ? `data-filter="${kind}" data-value="${esc(r.key)}" data-selected="${r.key === selected}"` : ''} style="--activity-slice:var(--accent-${tones[i]})"><title>${esc(r.label)}: ${n(r.count)} (${share.toFixed(1)}%)</title></path>`;
+  }).join('');
+  return `<div class="activity-donut"><svg viewBox="0 0 42 42" role="img" aria-label="${esc(label)}: ${n(total)} events"><g transform="rotate(-90 21 21)">${segments}</g><text x="21" y="20.5" text-anchor="middle" class="activity-donut-total">${n(total)}</text><text x="21" y="25" text-anchor="middle" class="activity-donut-caption">events</text></svg><div class="activity-donut-legend">${shown.map((r, i) => `<button type="button" class="activity-legend-item" ${r.key ? `data-filter="${kind}" data-value="${esc(r.key)}" ${selected === undefined ? '' : `aria-pressed="${r.key === selected}"`}` : 'disabled'}><span class="activity-legend-dot" style="--activity-slice:var(--accent-${tones[i]})"></span><bdi>${esc(r.label)}</bdi><strong>${(r.count / total * 100).toFixed(1)}%</strong><span>${n(r.count)}</span></button>`).join('')}</div></div>`;
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -58,7 +66,17 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     if (!p.has('sort')) p.set('sort', view() === 'events' ? 'last' : 'count');
     return p;
   }
+  function clearFilter(key: string): void {
+    state.delete(key);
+    if (key === 'country' && state.has('countrySource')) {
+      const source = state.get('countrySource');
+      if (source) state.set('kind', source); else state.delete('kind');
+      state.delete('countrySource');
+    }
+  }
   function update(key: string, value: string): void {
+    if (key === 'country' && !value) clearFilter(key);
+    if (key === 'kind') state.delete('countrySource');
     if (value) state.set(key, value); else state.delete(key);
     if (key !== 'page') state.delete('page');
     if (key === 'tab') { state.delete('sort'); state.delete('dir'); }
@@ -75,6 +93,10 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     root!.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b => { const on = b.dataset.view === v; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
     select('activityDays').value = state.has('from') ? 'custom' : state.get('days') || '1';
     el('activityCustomRange')!.hidden = select('activityDays').value !== 'custom';
+    if (!el('activityCustomRange')!.contains(document.activeElement)) {
+      input('activityFrom').value = state.has('from') ? fmtTs(Number(state.get('from')), false, '').replace(' ', 'T') : '';
+      input('activityTo').value = state.has('to') ? fmtTs(Number(state.get('to')), false, '').replace(' ', 'T') : '';
+    }
     input('activitySearch').value = state.get('q') || '';
     select('activityKind').value = state.get('kind') || '';
     select('activityCountry').value = state.get('country') || '';
@@ -102,20 +124,27 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     const cat = select('activityCategory'); const selected = state.get('category') || '';
     const cats = [...new Set([...d.rules.map(r => r.category), ...d.categories.map(c => c.key), selected].filter(Boolean))].sort();
     cat.innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); cat.value = selected;
-    el('activityServices')!.innerHTML = rankMarkup(d.services, 'service');
-    el('activityClients')!.innerHTML = rankMarkup(d.clients, 'client');
-    el('activityCategories')!.innerHTML = donutMarkup(d.categories, 'category', 'Category distribution');
-    el('activityServiceDonut')!.innerHTML = donutMarkup(d.services, 'service', 'Service distribution', d.totals.dns);
-    el('activityUserDonut')!.innerHTML = donutMarkup(d.clients, 'client', 'User distribution', d.totals.dns);
+    el('activityServices')!.innerHTML = rankMarkup(d.services, 'service', state.get('service') || '');
+    el('activityClients')!.innerHTML = rankMarkup(d.clients, 'client', state.get('client') || '');
+    el('activityCategories')!.innerHTML = donutMarkup(d.categories, 'category', 'Category distribution', undefined, state.get('category') || '');
+    el('activityServiceDonut')!.innerHTML = donutMarkup(d.services, 'service', 'Service distribution', d.totals.dns, state.get('service') || '');
+    el('activityUserDonut')!.innerHTML = donutMarkup(d.clients, 'client', 'User distribution', d.totals.dns, state.get('client') || '');
     const countryName=(cc:string):string=>{ if(cc==='Unknown')return 'Unknown';try{return new Intl.DisplayNames(['en'],{type:'region'}).of(cc)||cc;}catch{return cc;} };
     const countries=d.countries.map(r=>({...r,label:countryName(r.key)}));
-    el('activityCountryDonut')!.innerHTML = donutMarkup(countries, 'country', 'Destination countries');
+    el('activityCountryDonut')!.innerHTML = donutMarkup(countries, 'country', 'Destination countries', undefined, state.get('country') || '');
     el('activityGeoNote')!.textContent = d.geoAvailable ? 'Approximate country from explicit Firewall destination IPs. DNS-only domains have no country evidence.' : 'Local GeoIP database unavailable. Destination countries remain Unknown.';
     const csel=select('activityCountry');csel.innerHTML='<option value="">All countries</option>'+[...new Set([...d.countries.map(c=>c.key),state.get('country')||''].filter(Boolean))].map(c=>`<option value="${esc(c)}">${esc(countryName(c))}</option>`).join('');csel.value=state.get('country')||'';
-    const max = Math.max(1, ...d.series.map(p => p.count));
-    el('activityTimeline')!.innerHTML = d.series.map((p, i) => `<button type="button" class="activity-timebar" data-bucket="${i}" style="--activity-height:${Math.max(2, p.count / max * 100)}%" title="${esc(fmtTs(p.at))}: ${n(p.count)} events" aria-label="${esc(fmtTs(p.at))}: ${n(p.count)} events"><span></span></button>`).join('');
+    const timeSelected = state.has('timeRange');
+    // A selected six-hour bucket remains one selectable range after re-querying,
+    // even though the API returns hourly points for its narrower window.
+    const timeline = timeSelected ? [{ at: d.filter.from, count: d.totals.dns }] : d.series;
+    const max = Math.max(1, ...timeline.map(p => p.count));
+    el('activityTimeline')!.innerHTML = timeline.map((p, i) => {
+      const label = `${fmtTs(p.at)}${timeSelected ? ' — ' + fmtTs(d.filter.to) : ''}: ${n(p.count)} events`;
+      return `<button type="button" class="activity-timebar" data-bucket="${i}" aria-pressed="${timeSelected}" style="--activity-height:${Math.max(2, p.count / max * 100)}%" title="${esc(label)}" aria-label="${esc(label)}"><span></span></button>`;
+    }).join('');
     const first = d.series[0], last = d.series[d.series.length - 1];
-    el('activityCoverage')!.textContent = `${first ? fmtTs(first.at, false) : ''} — ${last ? fmtTs(last.at, false) : ''} · ${d.coverage.length ? 'Recording coverage available' : 'Historical coverage is not verified'} · Imported data begins with the available archive.`;
+    el('activityCoverage')!.textContent = `${timeSelected ? 'Selected period: ' + fmtTs(d.filter.from, false) + ' — ' + fmtTs(d.filter.to, false) + ' · Click again to restore the previous period' : (first ? fmtTs(first.at, false) : '') + ' — ' + (last ? fmtTs(last.at, false) : '')} · ${d.coverage.length ? 'Recording coverage available' : 'Historical coverage is not verified'} · Imported data begins with the available archive.`;
     el('activityComparison')!.textContent = d.comparison ? `${d.previous ? ((d.totals.dns - d.previous) / d.previous * 100).toFixed(1) + '%' : String(d.totals.dns - d.previous)} vs previous period` : 'Comparison awaits two fully covered periods';
     const peak = Math.max(1, ...d.heatmap.map(h => h.count));
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -172,11 +201,42 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     finally { busy = false; if (data) render(); }
   }
   root.addEventListener('click', e => {
-    const target = e.target instanceof Element ? e.target.closest<HTMLElement>('button') : null; if (!target) return;
+    const target = e.target instanceof Element ? e.target.closest<HTMLElement | SVGElement>('button, .activity-donut-slice[data-filter]') : null; if (!target) return;
     if (target.dataset.view) update('tab', target.dataset.view);
-    if (target.dataset.filter) { if(target.dataset.filter==='country')state.set('kind','firewall'); state.set(target.dataset.filter, target.dataset.value || ''); if (e.ctrlKey || !target.closest('#activityOverview')) state.set('tab', 'events'); state.delete('page'); state.delete('sort'); saveURL(); void load(); }
-    if (target.dataset.clear) { if (target.dataset.clear === 'all') filterKeys.forEach(k => state.delete(k)); else state.delete(target.dataset.clear); state.delete('page'); saveURL(); void load(); }
-    if (target.dataset.bucket && data) { const index = Number(target.dataset.bucket); const p = data.series[index]; if (p) { state.set('from', String(Math.max(p.at, data.filter.from))); state.set('to', String(data.series[index + 1]?.at || data.filter.to)); if (e.ctrlKey) state.set('tab', 'events'); state.delete('page'); saveURL(); void load(); } }
+    if (target.dataset.filter) {
+      const key = target.dataset.filter, value = target.dataset.value || '';
+      const overview = !!target.closest('#activityOverview');
+      if (overview && !e.ctrlKey && state.get(key) === value) clearFilter(key);
+      else {
+        if (key === 'country') {
+          // Keep the prior source in the URL so deselection also works after reload.
+          if (!state.has('countrySource')) state.set('countrySource', state.get('kind') || '');
+          state.set('kind', 'firewall');
+        }
+        state.set(key, value);
+      }
+      if (e.ctrlKey || !overview) state.set('tab', 'events');
+      state.delete('page'); state.delete('sort'); saveURL(); void load();
+    }
+    if (target.dataset.clear) { if (target.dataset.clear === 'all') filterKeys.forEach(clearFilter); else clearFilter(target.dataset.clear); state.delete('page'); saveURL(); void load(); }
+    if (target.dataset.bucket && data) {
+      const index = Number(target.dataset.bucket), p = data.series[index];
+      if (p) {
+        if (state.has('timeRange') && !e.ctrlKey) {
+          const previous = new URLSearchParams(state.get('timeRange')!);
+          rangeKeys.forEach(key => { const value = previous.get(key); if (value !== null) state.set(key, value); else state.delete(key); });
+          state.delete('timeRange');
+        } else if (!state.has('timeRange')) {
+          const previous = new URLSearchParams();
+          rangeKeys.forEach(key => { if (state.has(key)) previous.set(key, state.get(key)!); });
+          state.set('timeRange', previous.toString());
+          state.set('from', String(Math.max(p.at, data.filter.from)));
+          state.set('to', String(data.series[index + 1]?.at || data.filter.to));
+        }
+        if (e.ctrlKey) state.set('tab', 'events');
+        state.delete('page'); saveURL(); void load();
+      }
+    }
     if (target.dataset.editRule && data) { const r = data.rules.find(r => r.domain === target.dataset.editRule && r.custom === (target.dataset.custom === 'true')); if (r) { input('activityRuleDomain').value = r.domain; input('activityRuleService').value = r.service; input('activityRuleCategory').value = r.category; input('activityRuleSubdomains').checked = r.subdomains; input('activityRuleDomain').focus(); } }
     if (target.dataset.removeRule) void mutate('rules?domain=' + encodeURIComponent(target.dataset.removeRule), 'DELETE');
   });
@@ -191,8 +251,8 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   });
   el('activityTabs')!.addEventListener('keydown', e => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return; e.preventDefault(); const i = views.indexOf(view()); const next = e.key === 'Home' ? 0 : e.key === 'End' ? views.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + views.length) % views.length; update('tab', views[next]!); root.querySelector<HTMLButtonElement>(`[data-view="${views[next]}"]`)?.focus(); });
   select('activityRouter').addEventListener('change', () => update('routerId', select('activityRouter').value));
-  select('activityDays').addEventListener('change', () => { const days = select('activityDays').value; el('activityCustomRange')!.hidden = days !== 'custom'; if (days !== 'custom') { state.delete('from'); state.delete('to'); update('days', days); } });
-  el('activityApplyRange')!.addEventListener('click', () => { const from = new Date(input('activityFrom').value).getTime(), to = new Date(input('activityTo').value).getTime(); if (!from || !to || to <= from || to - from > 30 * 86400000) { showError('Choose a valid range of up to 30 days.'); return; } state.set('from', String(from)); update('to', String(to)); });
+  select('activityDays').addEventListener('change', () => { const days = select('activityDays').value; el('activityCustomRange')!.hidden = days !== 'custom'; if (days !== 'custom') { state.delete('timeRange'); state.delete('from'); state.delete('to'); update('days', days); } });
+  el('activityApplyRange')!.addEventListener('click', () => { const from = new Date(input('activityFrom').value).getTime(), to = new Date(input('activityTo').value).getTime(); if (!from || !to || to <= from || to - from > 30 * 86400000) { showError('Choose a valid range of up to 30 days.'); return; } state.delete('timeRange'); state.set('from', String(from)); update('to', String(to)); });
   input('activitySearch').addEventListener('input', debounce(() => update('q', input('activitySearch').value.trim()), 300));
   select('activityCountry').addEventListener('change', () => update('country', select('activityCountry').value));
   select('activityCategory').addEventListener('change', () => update('category', select('activityCategory').value));
