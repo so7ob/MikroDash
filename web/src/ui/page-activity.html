@@ -8,6 +8,7 @@
      <button type="button" class="stab" role="tab" aria-selected="false" data-view="clients">Users &amp; devices</button>
      <button type="button" class="stab" role="tab" aria-selected="false" data-view="events">Events</button>
      <button type="button" class="stab" role="tab" aria-selected="false" data-view="rules">Classifications</button>
+     <button type="button" class="stab" role="tab" aria-selected="false" data-view="sync">Synchronization</button>
     </div>
    </div>
    <div class="hdr-actions"><button type="button" class="sbtn sbtn-outline is-sm" id="activityRefresh">Refresh</button><a class="sbtn sbtn-outline is-sm" id="activityExport" href="#">Export CSV</a></div>
@@ -25,15 +26,6 @@
    <div class="activity-toolbar" id="activityCustomRange" hidden><label>From (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityFrom"></label><label>To (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityTo"></label><button type="button" class="sbtn sbtn-outline is-sm" id="activityApplyRange">Apply range</button></div>
    <div id="activityFilters" class="activity-filter-trail"></div>
    <div id="activityError" role="alert" hidden></div>
-   <div class="activity-source"><span id="activityState" role="status">Loading archive status…</span><details id="activityConfig"><summary>Archive synchronization</summary>
-    <div class="activity-toolbar activity-config">
-     <label class="activity-check"><input type="checkbox" id="activityEnabled" disabled>Synchronize this router</label>
-     <label>Router log folder<input class="sform-input sform-sm" id="activityFolder" value="usb1-part1/Log" maxlength="240" disabled></label>
-     <label>Router log timezone<input class="sform-input sform-sm" id="activityTimezone" placeholder="Asia/Aden" maxlength="128" disabled></label>
-     <button type="button" class="sbtn sbtn-primary is-sm" id="activitySaveSettings" disabled>Save source</button>
-    </div>
-    <p class="activity-muted">Incremental file synchronization runs every 5 seconds, including when this page is closed. Imported analytics are retained for 30 days. Rotated files are matched by content; unfinished lines resume on the next pass.</p>
-   </details></div>
    <p class="activity-note">Counts represent recorded DNSUSER events. Background apps also request domains. Service classifications are local rules; unknown domains remain unclassified.</p>
    <div id="activityOverview">
     <p class="activity-note">Click a slice, chart label or ranking to filter here; click the selected item again to clear its filter. Click a time bar again to restore the previous period. Ctrl + click opens matching events.</p>
@@ -67,6 +59,19 @@
     <p class="activity-muted">Rules apply to this router, including stored history. Local rules take priority; the most specific matching domain wins. Editing a built-in creates a local override. Remove an override to restore the built-in rule.</p>
     <div class="activity-table-scroll"><table class="table"><thead><tr id="activityRulesHead"></tr></thead><tbody id="activityRulesBody"></tbody></table></div>
    </div>
+   <section id="activitySyncPane" class="activity-panel" hidden>
+    <h4>Archive synchronization</h4>
+    <div class="activity-source"><span id="activityState" role="status">Loading archive status…</span></div>
+    <div id="activityConfig">
+     <div class="activity-toolbar activity-config">
+      <label class="activity-check"><input type="checkbox" id="activityEnabled" disabled>Synchronize this router</label>
+      <label>Router log folder<input class="sform-input sform-sm" id="activityFolder" value="usb1-part1/Log" maxlength="240" disabled></label>
+      <label>Router log timezone<input class="sform-input sform-sm" id="activityTimezone" placeholder="Asia/Aden" maxlength="128" disabled></label>
+      <button type="button" class="sbtn sbtn-primary is-sm" id="activitySaveSettings" disabled>Save source</button>
+     </div>
+     <p class="activity-muted">Incremental file synchronization runs every 5 seconds, including when this page is closed. Imported analytics are retained for 30 days. Rotated files are matched by content; unfinished lines resume on the next pass.</p>
+    </div>
+   </section>
   </div>
  </div>
 </div>

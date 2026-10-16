@@ -6,8 +6,12 @@ import type { ActivityResult, ActivityRanking, ActivityRule, ActivityEvent } fro
 
 interface Router { id: string; label?: string; name?: string; host?: string }
 const API = '/api/activity/';
-const views = ['summary', 'domains', 'clients', 'events', 'rules'];
+const views = ['summary', 'domains', 'clients', 'events', 'rules', 'sync'];
 const filterKeys = ['client', 'service', 'domain', 'country', 'dnsCountry', 'category', 'day', 'hour', 'canonical', 'deviceName', 'dnsIP', 'ipBasis', 'server', 'qtype', 'match'] as const;
+const filterTones: Record<(typeof filterKeys)[number], string> = {
+  client: 'rx', service: 'ok', domain: 'alt', country: 'warn', dnsCountry: 'warn', category: 'alt', day: 'muted', hour: 'muted',
+  canonical: 'alt', deviceName: 'rx', dnsIP: 'rx', ipBasis: 'warn', server: 'ok', qtype: 'alt', match: 'ok',
+};
 const rangeKeys = ['days', 'from', 'to'] as const;
 const n = (v: number): string => v.toLocaleString();
 const pill = (v: string): string => `<span class="pill pill-rx"><bdi>${esc(v)}</bdi></span>`;
@@ -117,7 +121,8 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     el('activityOverview')!.hidden = v !== 'summary';
     el('activityTablePane')!.hidden = !['domains', 'clients', 'events'].includes(v);
     el('activityRulesPane')!.hidden = v !== 'rules';
-    el('activityFilters')!.innerHTML = filterKeys.filter(k => state.has(k)).map(k => `<button type="button" class="sbtn sbtn-outline is-sm" data-clear="${k}">${esc(k)}: ${esc(k === 'client' ? (data?.clients.find(c => c.key === state.get(k))?.label || 'Selected user / device') : state.get(k))} ×</button>`).join('') + (filterKeys.some(k => state.has(k)) ? '<button type="button" class="sbtn sbtn-ghost is-sm" data-clear="all">Clear drilldown</button>' : '');
+    el('activitySyncPane')!.hidden = v !== 'sync';
+    el('activityFilters')!.innerHTML = filterKeys.filter(k => state.has(k)).map(k => `<button type="button" class="chip chip-${filterTones[k]} is-on" data-clear="${k}">${esc(k)}: <bdi>${esc(k === 'client' ? (data?.clients.find(c => c.key === state.get(k))?.label || 'Selected user / device') : state.get(k))}</bdi> ×</button>`).join('') + (filterKeys.some(k => state.has(k)) ? '<button type="button" class="sbtn sbtn-danger is-sm" data-clear="all">Clear</button>' : '');
     const csv = el<HTMLAnchorElement>('activityExport')!; csv.href = API + 'export?' + params();
   }
   function render(): void {
