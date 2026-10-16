@@ -159,7 +159,7 @@ var webLibraries = []Dependency{
 // also the only path from the running app to that notice.
 var fontLibraries = []Dependency{
 	{Name: "Fonts", Licence: "SIL Open Font License 1.1",
-		URL:  "https://github.com/SecOps-7/MikroDash/blob/main/web/public/fonts/OFL.txt",
+		URL:  "https://github.com/so7ob/MikroDash/blob/main/web/public/fonts/OFL.txt",
 		Kind: KindWeb},
 }
 

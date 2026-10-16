@@ -172,7 +172,7 @@ func (s *Server) updateStatus() aboutUpdate {
 	}
 
 	req, err := http.NewRequest("GET",
-		"https://api.github.com/repos/SecOps-7/MikroDash/releases/latest", nil)
+		"https://api.github.com/repos/so7ob/MikroDash/releases/latest", nil)
 	if err != nil {
 		return aboutUpdate{}
 	}
