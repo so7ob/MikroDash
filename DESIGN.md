@@ -567,3 +567,13 @@ rely on colour or pointer accuracy. Grouped analysis uses one shared selector fo
 service, exact domain, destination country, category, user/device, day and hour.
 Destination country describes explicit Firewall IP evidence, with Unknown
 preserved as a real bucket.
+
+### Activity dashboard cards
+
+Optional Activity cards use the dashboard's existing card header and drag/resize
+shell. A 24h count badge states the window beside each title; Open leads to the
+selected router's Activity page. The overview uses four plain metrics without
+nested cards, services/users reuse Activity's ranking rows, categories/countries
+reuse its circular distributions, and time buckets open an exact range. Content
+scrolls inside resized cards; phones use the dashboard's existing single column.
+All numbers, labels, source states and SVGs follow the shared theme/font tokens.

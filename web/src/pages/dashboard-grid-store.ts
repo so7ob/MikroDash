@@ -113,6 +113,7 @@ export function applyLayout(l: readonly GridCard[]): void {
     node.style.gridColumn = c.x + ' / span ' + c.w;
     node.style.gridRow = c.y + ' / span ' + c.h;
   }
+  document.dispatchEvent(new CustomEvent('dashboard:layout'));
 }
 
 function notifyRoom(eventName: string, room: string): void {

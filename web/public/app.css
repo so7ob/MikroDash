@@ -3947,3 +3947,27 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
 .activity-legend-dot { width:8px; height:8px; flex:0 0 8px; border-radius:50%; background:var(--activity-slice); }
 .activity-legend-item:disabled { cursor:default; }
 @media(max-width:1000px) { .activity-donut-layout { grid-template-columns:minmax(0,1fr); } }
+
+/* Optional Activity cards follow the dashboard grid's drag/resize geometry. */
+.dc-activity-card { min-width:0; }
+.dc-activity-card>.card { color:var(--text-main); }
+.dc-activity-card .card-header { gap:.5rem; flex-wrap:wrap; }
+.dc-activity-open { margin-inline-start:auto; }
+.dash-card.dc-activity-card>.card>.card-body { min-height:0; overflow:auto; }
+.dc-activity-content { min-width:0; overflow-wrap:anywhere; }
+.dc-activity-card .activity-muted, .dc-activity-card .activity-note, .dc-activity-status, .dc-activity-axis { color:color-mix(in srgb,var(--text-main) 75%,var(--text-muted)); font-size:.7rem; }
+.dc-activity-status { margin:.75rem 0 0; }
+.dc-activity-attention { color:var(--accent-warn); }
+.dc-activity-metrics { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; }
+.dc-activity-metrics>div { display:flex; flex-direction:column; gap:.25rem; }
+.dc-activity-metrics strong { font-family:var(--font-mono); font-size:1.5rem; font-variant-numeric:tabular-nums; }
+.dc-activity-metrics span { font-size:.7rem; }
+.dc-activity-card .activity-donut { gap:.5rem; }
+.dc-activity-card .activity-donut svg { width:110px; flex-basis:110px; }
+.dc-activity-card .activity-donut-caption { fill:color-mix(in srgb,var(--text-main) 75%,var(--text-muted)); }
+.dc-activity-card .activity-donut-legend { flex-basis:145px; }
+.dc-activity-card .activity-timeline { height:130px; }
+.dc-activity-bucket { display:flex; align-items:end; flex:1; height:100%; min-width:0; }
+.dc-activity-bucket span { width:100%; height:max(2px,var(--activity-height)); background:var(--accent-rx); border-radius:2px; }
+.dc-activity-bucket:hover span { background:var(--accent-alt); }
+.dc-activity-axis { display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem; }
