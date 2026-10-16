@@ -2,12 +2,12 @@ import { el, esc, debounce, renderSortHeader, sortRows, protoPill, type SortStat
 import { fmtTs, browserTimezone } from '../timefmt';
 import { getDisplayTimezone } from '../caps';
 import type { Socket } from '../socket';
-import type { ActivityResult, ActivityRanking, ActivityRule } from '../gen/payloads';
+import type { ActivityResult, ActivityRanking, ActivityRule, ActivityEvent } from '../gen/payloads';
 
 interface Router { id: string; label?: string; name?: string; host?: string }
 const API = '/api/activity/';
 const views = ['summary', 'domains', 'clients', 'events', 'rules'];
-const filterKeys = ['client', 'service', 'domain', 'country', 'category', 'day', 'hour'] as const;
+const filterKeys = ['client', 'service', 'domain', 'country', 'dnsCountry', 'category', 'day', 'hour', 'canonical', 'deviceName', 'dnsIP', 'ipBasis', 'server', 'qtype', 'match'] as const;
 const rangeKeys = ['days', 'from', 'to'] as const;
 const n = (v: number): string => v.toLocaleString();
 const pill = (v: string): string => `<span class="pill pill-rx"><bdi>${esc(v)}</bdi></span>`;
@@ -20,7 +20,7 @@ export function rankMarkup(rows: ActivityRanking[], kind: string, selected?: str
 }
 
 const tones = ['rx', 'tx', 'alt', 'warn', 'pink', 'ok', 'muted'];
-export function donutMarkup(rows: ActivityRanking[], kind: string, label: string, denominator?: number, selected?: string): string {
+export function donutMarkup(rows: ActivityRanking[], kind: string, label: string, denominator?: number, selected?: string, unit = 'events'): string {
   const total = denominator ?? rows.reduce((sum, r) => sum + r.count, 0);
   if (!total) return '<p class="activity-muted activity-empty">No matching events for this distribution.</p>';
   const shown = rows.slice(0, 6);
@@ -35,7 +35,15 @@ export function donutMarkup(rows: ActivityRanking[], kind: string, label: string
     const arc = `M ${point(start)} A 15.9155 15.9155 0 0 1 ${point(start + share / 2)} A 15.9155 15.9155 0 0 1 ${point(offset)}`;
     return `<path class="activity-donut-slice" d="${arc}" fill="none" stroke-width="6" ${r.key ? `data-filter="${kind}" data-value="${esc(r.key)}" data-selected="${r.key === selected}"` : ''} style="--activity-slice:var(--accent-${tones[i]})"><title>${esc(r.label)}: ${n(r.count)} (${share.toFixed(1)}%)</title></path>`;
   }).join('');
-  return `<div class="activity-donut"><svg viewBox="0 0 42 42" role="img" aria-label="${esc(label)}: ${n(total)} events"><g transform="rotate(-90 21 21)">${segments}</g><text x="21" y="20.5" text-anchor="middle" class="activity-donut-total">${n(total)}</text><text x="21" y="25" text-anchor="middle" class="activity-donut-caption">events</text></svg><div class="activity-donut-legend">${shown.map((r, i) => `<button type="button" class="activity-legend-item" ${r.key ? `data-filter="${kind}" data-value="${esc(r.key)}" ${selected === undefined ? '' : `aria-pressed="${r.key === selected}"`}` : 'disabled'}><span class="activity-legend-dot" style="--activity-slice:var(--accent-${tones[i]})"></span><bdi>${esc(r.label)}</bdi><strong>${(r.count / total * 100).toFixed(1)}%</strong><span>${n(r.count)}</span></button>`).join('')}</div></div>`;
+  return `<div class="activity-donut"><svg viewBox="0 0 42 42" role="img" aria-label="${esc(label)}: ${n(total)} ${esc(unit)}"><g transform="rotate(-90 21 21)">${segments}</g><text x="21" y="20.5" text-anchor="middle" class="activity-donut-total">${n(total)}</text><text x="21" y="25" text-anchor="middle" class="activity-donut-caption">${esc(unit)}</text></svg><div class="activity-donut-legend">${shown.map((r, i) => `<button type="button" class="activity-legend-item" ${r.key ? `data-filter="${kind}" data-value="${esc(r.key)}" ${selected === undefined ? '' : `aria-pressed="${r.key === selected}"`}` : 'disabled'}><span class="activity-legend-dot" style="--activity-slice:var(--accent-${tones[i]})"></span><bdi>${esc(r.label)}</bdi><strong>${(r.count / total * 100).toFixed(1)}%</strong><span>${n(r.count)}</span></button>`).join('')}</div></div>`;
+}
+
+const countryName = (cc: string): string => { if(cc === 'Unknown') return 'Unknown'; try { return new Intl.DisplayNames(['en'], {type:'region'}).of(cc) || cc; } catch { return cc; } };
+const evidenceGroups: Record<string, string> = { dnsIP: 'DNS answer IP', deviceName: 'Device name', canonical: 'Canonical name', domain: 'Requested domain', server: 'Hotspot server' };
+const evidenceButton = (kind: string, value: string): string => value ? `<button type="button" class="sbtn sbtn-ghost is-sm" data-filter="${kind}" data-value="${esc(value)}"><bdi>${esc(value)}</bdi></button>` : '—';
+export function dnsEvidenceMarkup(e: ActivityEvent): string {
+  if (e.kind !== 'dns') return '';
+  return `<dl class="activity-dns-details"><div><dt>Device name</dt><dd>${evidenceButton('deviceName', e.deviceName)}</dd></div><div><dt>Canonical name</dt><dd>${evidenceButton('canonical', e.canonical)}</dd></div><div><dt>IP basis</dt><dd>${evidenceButton('ipBasis', e.ipBasis)}</dd></div><div><dt>DNS answers</dt><dd class="activity-dns-ips">${e.dnsAnswers.length ? e.dnsAnswers.map(a => `<span class="activity-dns-answer">${evidenceButton('dnsIP', a.ip)}<button type="button" class="sbtn sbtn-ghost is-sm" data-filter="dnsCountry" data-value="${esc(a.country)}" title="${esc([countryName(a.country), a.city].filter(Boolean).join(' · '))}">${cell([countryName(a.country), a.city].filter(Boolean).join(' · '))}</button></span>`).join('') : '<span class="activity-muted">Not recorded</span>'}</dd></div></dl>`;
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -66,6 +74,8 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     if (!p.has('sort')) p.set('sort', view() === 'events' ? 'last' : 'count');
     return p;
   }
+  function countryBasis(): string { return state.get('countryBasis') === 'firewall' || (!state.has('countryBasis') && (state.has('country') || state.get('kind') === 'firewall')) ? 'firewall' : 'dns'; }
+  function countryKey(): string { return countryBasis() === 'firewall' ? 'country' : 'dnsCountry'; }
   function clearFilter(key: string): void {
     state.delete(key);
     if (key === 'country' && state.has('countrySource')) {
@@ -99,9 +109,11 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     }
     input('activitySearch').value = state.get('q') || '';
     select('activityKind').value = state.get('kind') || '';
-    select('activityCountry').value = state.get('country') || '';
+    select('activityCountry').value = state.get(countryKey()) || '';
+    select('activityCountryBasis').value = countryBasis();
     select('activityGroup').value = state.get('group') || 'service';
     el('activityGroupWrap')!.hidden = v !== 'domains';
+    select('activityEvidenceGroup').value = data?.filter.group && evidenceGroups[data.filter.group] ? data.filter.group : 'dnsIP';
     el('activityOverview')!.hidden = v !== 'summary';
     el('activityTablePane')!.hidden = !['domains', 'clients', 'events'].includes(v);
     el('activityRulesPane')!.hidden = v !== 'rules';
@@ -129,11 +141,18 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     el('activityCategories')!.innerHTML = donutMarkup(d.categories, 'category', 'Category distribution', undefined, state.get('category') || '');
     el('activityServiceDonut')!.innerHTML = donutMarkup(d.services, 'service', 'Service distribution', d.totals.dns, state.get('service') || '');
     el('activityUserDonut')!.innerHTML = donutMarkup(d.clients, 'client', 'User distribution', d.totals.dns, state.get('client') || '');
-    const countryName=(cc:string):string=>{ if(cc==='Unknown')return 'Unknown';try{return new Intl.DisplayNames(['en'],{type:'region'}).of(cc)||cc;}catch{return cc;} };
-    const countries=d.countries.map(r=>({...r,label:countryName(r.key)}));
-    el('activityCountryDonut')!.innerHTML = donutMarkup(countries, 'country', 'Destination countries', undefined, state.get('country') || '');
-    el('activityGeoNote')!.textContent = d.geoAvailable ? 'Approximate country from explicit Firewall destination IPs. DNS-only domains have no country evidence.' : 'Local GeoIP database unavailable. Destination countries remain Unknown.';
-    const csel=select('activityCountry');csel.innerHTML='<option value="">All countries</option>'+[...new Set([...d.countries.map(c=>c.key),state.get('country')||''].filter(Boolean))].map(c=>`<option value="${esc(c)}">${esc(countryName(c))}</option>`).join('');csel.value=state.get('country')||'';
+    const dnsCountries = countryBasis() === 'dns';
+    const countries = (dnsCountries ? d.dnsCountries : d.countries).map(r => ({...r, label:countryName(r.key)}));
+    el('activityCountryDonut')!.innerHTML = donutMarkup(countries, countryKey(), dnsCountries ? 'DNS answer countries' : 'Firewall destination countries', undefined, state.get(countryKey()) || '', dnsCountries ? 'answers' : 'events');
+    el('activityDNSMetrics')!.innerHTML = [[d.totals.answered, 'DNSUSER events with answers'], [d.totals.answerIPs, 'Unique answer addresses'], [d.totals.deviceNames, 'Recorded device names'], [d.totals.canonicals, 'Recorded canonical names']].map(([value, label]) => `<div class="activity-metric"><span>${label}</span><strong>${n(Number(value))}</strong></div>`).join('');
+    el('activityQueryTypes')!.innerHTML = donutMarkup(d.queryTypes, 'qtype', 'DNS query types', d.totals.dns, state.get('qtype') || '');
+    el('activityMatchMethods')!.innerHTML = donutMarkup(d.matchMethods, 'match', 'User matching methods', d.totals.dns, state.get('match') || '');
+    el('activityIPBases')!.innerHTML = donutMarkup(d.ipBases, 'ipBasis', 'DNS address evidence', d.totals.dns, state.get('ipBasis') || '');
+    el('activityGeoNote')!.textContent = (d.geoAvailable ? 'Approximate location from local GeoIP. ' : 'Local GeoIP database unavailable; recorded IPs remain Unknown. ') + (dnsCountries ? 'All recorded DNS answers in matching events; one event can contain several addresses. These are not confirmed connections.' : 'Counts Firewall events by their explicit destination IP.');
+    el('activityGeoSetup')!.hidden = d.geoAvailable;
+    const csel = select('activityCountry');
+    csel.innerHTML = '<option value="">All countries</option>' + [...new Set([...countries.map(c=>c.key), state.get(countryKey()) || ''].filter(Boolean))].map(c=>`<option value="${esc(c)}">${esc(countryName(c))}</option>`).join('');
+    csel.value = state.get(countryKey()) || '';
     const timeSelected = state.has('timeRange');
     // A selected six-hour bucket remains one selectable range after re-querying,
     // even though the API returns hourly points for its narrower window.
@@ -150,19 +169,32 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     el('activityHeat')!.innerHTML = '<span></span>' + Array.from({ length: 24 }, (_, h) => `<span class="activity-hour">${h % 3 === 0 ? h : ''}</span>`).join('') + days.map((day, i) => `<span class="activity-day">${day}</span>` + d.heatmap.filter(h => h.day === i).map(h => `<span class="activity-heat-cell" role="img" style="--activity-intensity:${h.count ? Math.max(.15, h.count / peak) : 0}" title="${day} ${h.hour}:00: ${n(h.count)} events" aria-label="${day} ${h.hour}:00: ${n(h.count)} events"></span>`).join('')).join('');
     el('activityHeatZone')!.textContent = d.settings.timezone || 'UTC (router zone not set)';
-    renderTable(); renderRules();
+    if (view() === 'summary') renderEvidenceTable(); else renderTable();
+    renderRules();
+  }
+  function renderEvidenceTable(): void {
+    if (!data) return;
+    const d = data, kind = d.filter.group;
+    const sort: SortState = { col: state.get('sort') || 'count', dir: state.get('dir') === 'asc' ? 'asc' : 'desc' };
+    renderSortHeader('activityEvidenceHead', [{key:'label',label:evidenceGroups[kind] || 'Value'}, {key:'count',label:'Events'}, {key:'domains',label:'Domains'}, {key:'devices',label:'Devices'}, {key:'last',label:'Last recorded'}], sort, () => { state.set('sort', sort.col); state.set('dir', sort.dir); state.delete('page'); saveURL(); void load(); });
+    keyboardSort('activityEvidenceHead');
+    el('activityEvidenceBody')!.innerHTML = d.rows.map(r => `<tr><td><button type="button" class="sbtn sbtn-ghost is-sm" data-filter="${kind}" data-value="${esc(r.key)}" aria-pressed="${state.get(kind) === r.key}"><bdi>${esc(r.label)}</bdi></button>${kind === 'dnsIP' ? pill(r.key.includes(':') ? 'IPv6' : 'IPv4') : ''}</td><td class="activity-number">${n(r.count)}</td><td class="activity-number">${n(r.domains)}</td><td class="activity-number">${n(r.devices)}</td><td class="activity-mono">${esc(fmtTs(r.last))}</td></tr>`).join('') || '<tr><td colspan="5" class="activity-empty">No recorded values for this group. Older DNSUSER messages may not contain these fields.</td></tr>';
+    const page = Number(state.get('page') || 1), pages = Math.max(1, Math.ceil(d.totalRows / d.filter.limit));
+    el('activityEvidencePage')!.textContent = `${page} / ${pages} · ${n(d.totalRows)} values`;
+    el<HTMLButtonElement>('activityEvidencePrev')!.disabled = page <= 1;
+    el<HTMLButtonElement>('activityEvidenceNext')!.disabled = page >= pages;
   }
   function renderTable(): void {
     if (!data) return; const d = data; const v = view();
     const group=state.get('group')||'service';
-    const groupTitle:Record<string,string>={service:'Service',domain:'Domain',country:'Destination country',category:'Category',client:'User / device',day:'Day',hour:'Hour'};
+    const groupTitle:Record<string,string>={service:'Service',domain:'Domain',country:'Destination country (Firewall)',dnsCountry:'DNS answer country',category:'Category',client:'User / device',day:'Day',hour:'Hour'};
     const sort: SortState = { col: state.get('sort') || (v === 'events' ? 'last' : 'count'), dir: state.get('dir') === 'asc' ? 'asc' : 'desc' };
     let cols: SortCol[];
     if (v === 'events') cols = [{ key: 'last', label: 'When' }, { key: 'kind', label: 'Source' }, { key: 'user', label: 'User / device' }, { key: 'label', label: 'Domain / destination' }, { label: 'Details' }, { key: 'count', label: 'Count' }];
-    else cols = [{ key: 'label', label: v === 'clients' ? 'User / device' : groupTitle[group] || 'Service' }, { key: 'category', label: v === 'clients' ? 'Identity' : 'Category' }, { key: 'count', label: 'Events' }, { key: 'domains', label: 'Domains' }, { key: 'devices', label: 'Devices' }, { key: 'last', label: 'Last activity' }];
+    else cols = [{ key: 'label', label: v === 'clients' ? 'User / device' : groupTitle[group] || evidenceGroups[group] || ({ qtype: 'Query type', match: 'User matching method', ipBasis: 'Address evidence' } as Record<string, string>)[group] || 'Service' }, { key: 'category', label: v === 'clients' ? 'Identity' : 'Category' }, { key: 'count', label: group === 'dnsCountry' && v === 'domains' ? 'DNS answers' : 'Events' }, { key: 'domains', label: 'Domains' }, { key: 'devices', label: 'Devices' }, { key: 'last', label: 'Last activity' }];
     renderSortHeader('activityTableHead', cols, sort, () => { state.set('sort', sort.col); state.set('dir', sort.dir); state.delete('page'); saveURL(); void load(); });
     keyboardSort('activityTableHead');
-    const rows = v === 'events' ? d.events.map(e => `<tr><td class="activity-mono">${esc(fmtTs(e.at))}${e.timeCertain ? '' : '<span class="pill pill-warn">Uncertain time</span>'}</td><td>${pill(e.kind === 'dns' ? 'DNSUSER' : 'Firewall')}</td><td><button type="button" class="sbtn sbtn-ghost" data-filter="client" data-value="${esc(e.client)}">${cell(e.user || e.mac || e.ip)}</button>${!e.user ? '<span class="pill pill-warn">Unmapped</span>' : ''}<div class="activity-muted">${cell(e.server)} · ${cell(e.ip)} · ${cell(e.mac)}</div></td><td>${e.domain ? `<button type="button" class="sbtn sbtn-ghost" data-filter="domain" data-value="${esc(e.domain)}">${cell(e.domain)}</button><div>${cell(e.service)}</div>` : cell(e.destination)}</td><td>${e.kind === 'dns' ? `${pill(e.qtype || '?')} ${cell(e.match)} ${pill(e.category)} ${pill(e.country)}` : `${protoPill(e.protocol)} ${pill(e.country)} ${cell(e.city)} ${cell(e.in)} → ${cell(e.out)}<div class="activity-muted">Packet length: ${esc(e.length || '?')} bytes</div>`}</td><td class="activity-number">${n(e.count)}</td></tr>`) : d.rows.map(r => `<tr><td><button type="button" class="sbtn sbtn-ghost" data-filter="${v === 'clients' ? 'client' : group}" data-value="${esc(r.key)}">${cell(r.label)}</button>${v === 'clients' ? `<div class="activity-muted">${cell(r.server)} · ${cell(r.ip)}</div>` : ''}</td><td>${v === 'clients' ? (r.user ? pill('Named user') : '<span class="pill pill-warn">Unmapped</span>') : pill(r.category)}</td><td class="activity-number">${n(r.count)}</td><td class="activity-number">${n(r.domains)}</td><td class="activity-number">${n(r.devices)}</td><td class="activity-mono">${esc(fmtTs(r.last))}</td></tr>`);
+    const rows = v === 'events' ? d.events.map(e => `<tr><td class="activity-mono">${esc(fmtTs(e.at))}${e.timeCertain ? '' : '<span class="pill pill-warn">Uncertain time</span>'}</td><td>${pill(e.kind === 'dns' ? 'DNSUSER' : 'Firewall')}</td><td><button type="button" class="sbtn sbtn-ghost" data-filter="client" data-value="${esc(e.client)}">${cell(e.user || e.mac || e.ip)}</button>${!e.user ? '<span class="pill pill-warn">Unmapped</span>' : ''}<div class="activity-muted">Server: ${cell(e.server)} · IP: ${cell(e.ip)} · MAC: ${cell(e.mac)}</div></td><td>${e.domain ? `<button type="button" class="sbtn sbtn-ghost" data-filter="domain" data-value="${esc(e.domain)}">${cell(e.domain)}</button><div>${cell(e.service)}</div>` : cell(e.destination)}</td><td>${e.kind === 'dns' ? `${pill(e.qtype || '?')} Match: ${cell(e.match)} ${pill(e.category)}${dnsEvidenceMarkup(e)}` : `${protoPill(e.protocol)} ${pill(e.country)} ${cell(e.city)} ${cell(e.in)} → ${cell(e.out)}<div class="activity-muted">Packet length: ${esc(e.length || '?')} bytes</div>`}</td><td class="activity-number">${n(e.count)}</td></tr>`) : d.rows.map(r => `<tr><td><button type="button" class="sbtn sbtn-ghost" data-filter="${v === 'clients' ? 'client' : group}" data-value="${esc(r.key)}">${cell(r.label)}</button>${v === 'clients' ? `<div class="activity-muted">${cell(r.server)} · ${cell(r.ip)}</div>` : ''}</td><td>${v === 'clients' ? (r.user ? pill('Named user') : '<span class="pill pill-warn">Unmapped</span>') : pill(r.category)}</td><td class="activity-number">${n(r.count)}</td><td class="activity-number">${n(r.domains)}</td><td class="activity-number">${n(r.devices)}</td><td class="activity-mono">${esc(fmtTs(r.last))}</td></tr>`);
     el('activityTableBody')!.innerHTML = rows.join('') || '<tr><td colspan="6" class="activity-empty">No matching activity. Enable archive sync or adjust the filters.</td></tr>';
     const page = Number(state.get('page') || 1); const pages = Math.max(1, Math.ceil(d.totalRows / d.filter.limit));
     el('activityPageLabel')!.textContent = `${page} / ${pages} · ${n(d.totalRows)} ${v === 'events' ? 'event groups' : 'rows'}`;
@@ -179,8 +211,9 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   }
   function clearData(): void {
     data=null;
-    ['activityMetrics','activityServices','activityClients','activityCategories','activityServiceDonut','activityUserDonut','activityCountryDonut','activityTimeline','activityHeat','activityTableBody','activityRulesBody'].forEach(id=>{el(id)!.innerHTML='';});
+    ['activityMetrics','activityServices','activityClients','activityCategories','activityServiceDonut','activityUserDonut','activityCountryDonut','activityTimeline','activityHeat','activityTableBody','activityRulesBody','activityDNSMetrics','activityQueryTypes','activityMatchMethods','activityIPBases','activityEvidenceBody','activityEvidencePage'].forEach(id=>{el(id)!.innerHTML='';});
     ['activityEnabled','activityFolder','activityTimezone','activitySaveSettings','activityRuleDomain','activityRuleService','activityRuleCategory','activityRuleSubdomains','activitySaveRule'].forEach(id=>{el<HTMLInputElement | HTMLButtonElement>(id)!.disabled=true;});
+    el<HTMLButtonElement>('activityEvidencePrev')!.disabled = true; el<HTMLButtonElement>('activityEvidenceNext')!.disabled = true;
   }
   async function load(): Promise<void> {
     if (!visible('activity')) return;
@@ -254,9 +287,13 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   select('activityDays').addEventListener('change', () => { const days = select('activityDays').value; el('activityCustomRange')!.hidden = days !== 'custom'; if (days !== 'custom') { state.delete('timeRange'); state.delete('from'); state.delete('to'); update('days', days); } });
   el('activityApplyRange')!.addEventListener('click', () => { const from = new Date(input('activityFrom').value).getTime(), to = new Date(input('activityTo').value).getTime(); if (!from || !to || to <= from || to - from > 30 * 86400000) { showError('Choose a valid range of up to 30 days.'); return; } state.delete('timeRange'); state.set('from', String(from)); update('to', String(to)); });
   input('activitySearch').addEventListener('input', debounce(() => update('q', input('activitySearch').value.trim()), 300));
-  select('activityCountry').addEventListener('change', () => update('country', select('activityCountry').value));
+  select('activityCountry').addEventListener('change', () => update(countryKey(), select('activityCountry').value));
+  select('activityCountryBasis').addEventListener('change', () => { clearFilter('country'); clearFilter('dnsCountry'); update('countryBasis', select('activityCountryBasis').value); });
   select('activityCategory').addEventListener('change', () => update('category', select('activityCategory').value));
   select('activityKind').addEventListener('change', () => update('kind', select('activityKind').value));
+  select('activityEvidenceGroup').addEventListener('change', () => update('evidenceGroup', select('activityEvidenceGroup').value));
+  el('activityEvidencePrev')!.addEventListener('click', () => update('page', String(Math.max(1, Number(state.get('page') || 1) - 1))));
+  el('activityEvidenceNext')!.addEventListener('click', () => update('page', String(Number(state.get('page') || 1) + 1)));
   select('activityGroup').addEventListener('change', () => update('group', select('activityGroup').value));
   el('activityRefresh')!.addEventListener('click', () => { void load(); });
   el('activityPrev')!.addEventListener('click', () => update('page', String(Math.max(1, Number(state.get('page') || 1) - 1))));

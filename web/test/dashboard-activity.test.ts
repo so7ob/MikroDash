@@ -4,7 +4,7 @@ import { ACTIVITY_CARDS, activityCardURL, initActivityCards, renderActivityCards
 import { DEFAULT_LAYOUT, CARD_PAGES } from '../src/gen/grid-tables';
 
 const pause = (ms = 15) => new Promise(resolve => setTimeout(resolve, ms));
-const result = (routerId: string, dns = 3): any => ({ routerId, totals: { dns, domains: dns ? 2 : 0, users: dns ? 1 : 0, unmapped: dns ? 1 : 0 }, filter: { from: 1, to: 3600001 }, services: [], clients: [], categories: [], countries: [], series: [], status: { enabled: false, error: '', lastSync: 0 }, geoAvailable: false });
+const result = (routerId: string, dns = 3): any => ({ routerId, totals: { dns, domains: dns ? 2 : 0, users: dns ? 1 : 0, unmapped: dns ? 1 : 0 }, filter: { from: 1, to: 3600001 }, services: [], clients: [], categories: [], countries: [], dnsCountries: [], series: [], status: { enabled: false, error: '', lastSync: 0 }, geoAvailable: false });
 
 test('Activity cards keep existing layouts and country drilldowns retain explicit Firewall evidence', () => {
   assert.equal(ACTIVITY_CARDS.length, 6);
@@ -71,4 +71,25 @@ test('empty retained activity shows zero metrics and explicit empty charts', () 
     assert.match(nodes.get('dc-activity-services').innerHTML, /No matching DNSUSER activity/);
     assert.match(nodes.get('dc-activity-categories').innerHTML, /No matching events/);
   } finally { globalThis.document = saved; }
+});
+
+
+test('country card prefers labelled DNS answer evidence and preserves Firewall fallback', () => {
+ const node={innerHTML:''}, saved=globalThis.document;
+ globalThis.document={getElementById:(id:string)=>id==='dc-activity-countries'?node:null} as any;
+ const row={key:'Unknown',label:'Unknown',count:2,service:'',category:'',server:'',ip:'',mac:'',user:'',domains:1,devices:1,last:0};
+ try {
+  const data=result('r1');data.countries=[{...row,count:1}];data.dnsCountries=[row];
+  renderActivityCards(data);
+  assert.match(node.innerHTML,/data-filter="dnsCountry"/);
+  assert.match(node.innerHTML,/activity-donut-caption">answers/);
+  assert.match(node.innerHTML,/not confirmed connections/);
+  assert.doesNotMatch(node.innerHTML,/data-filter="country"/);
+  const url=new URL(activityCardURL('r1','dnsCountry','Unknown'),'http://example.test');
+  assert.equal(url.searchParams.get('dnsCountry'),'Unknown');assert.equal(url.searchParams.has('kind'),false);
+  data.dnsCountries=[];renderActivityCards(data);
+  assert.match(node.innerHTML,/data-filter="country"/);
+  assert.match(node.innerHTML,/activity-donut-caption">events/);
+  assert.match(node.innerHTML,/Firewall destination/);
+ } finally {globalThis.document=saved;}
 });

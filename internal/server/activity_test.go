@@ -2,9 +2,12 @@ package server
 
 import (
 	"context"
+	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -238,6 +241,20 @@ func syntheticArchive() string {
 			domain, user = "rare.example", "rare-test-user"
 		}
 		p := map[string]any{"Connection": map[string]string{"server": "hs-test", "qtype": "A", "match": "active-now"}, "Destination": map[string]string{"domain": domain}, "Source": map[string]string{"user": user, "ip": "198.51.100.25", "mac": "02:00:00:00:00:25"}}
+		if i%3 != 0 {
+			destination := p["Destination"].(map[string]string)
+			// Keep DNS answer evidence distinct from a connected destination.
+			p["Destination"] = map[string]any{"domain": destination["domain"], "canonical": fmt.Sprintf("edge%d.example", i%2+1), "dns_ips": []string{fmt.Sprintf("198.51.100.%d", i%60+1), fmt.Sprintf("2001:db8::%x", i%60+1), "203.0.113.8"}, "ip_basis": "dns-cache"}
+			name := fmt.Sprintf("Synthetic-Device-%02d", i%12)
+			if i%5 == 1 {
+				name = "جهاز تجريبي"
+			}
+			p["Source"].(map[string]string)["device_name"] = name
+			p["Connection"].(map[string]string)["match"] = "manual-mac"
+			if i%4 == 1 {
+				p["Connection"].(map[string]string)["qtype"] = "AAAA"
+			}
+		}
 		j, _ := json.Marshal(p)
 		b.WriteString(time.Now().UTC().Add(-time.Duration(i)*time.Minute).Format("2006-01-02 15:04:05") + " script,info DNSUSER " + string(j) + "\n")
 	}
@@ -271,5 +288,51 @@ func TestActivityReadOnlyCannotChangeSourceOrClassification(t *testing.T) {
 	}
 	if w := activityRequest(mux, "DELETE", "/api/activity/rules?routerId=r1&domain=chatgpt.com", "", cookie); w.Code != 403 {
 		t.Fatal("read-only removed rule")
+	}
+}
+
+func TestActivityMetadataAPIFiltersCSVAndScope(t *testing.T) {
+	s, mux, _ := activityTestServer(t)
+	now := time.Now().Add(-time.Second).UnixMilli()
+	e := activity.Event{RouterID: "r1", SourceKey: "metadata", At: now, Received: now, Kind: "dns", Domain: "chatgpt.com", User: "Synthetic PC", Server: "hs-test", Client: "historical", IP: "198.51.100.25", MAC: "02:00:00:00:00:25", QType: "A", Match: "manual-mac", Canonical: "cdn.example", DeviceName: "=SUM(1,2)", IPBasis: "=dns-cache", DNSIPs: []string{"198.51.100.7", "2001:db8::7"}}
+	legacy := activity.Event{RouterID: "r1", SourceKey: "legacy", At: now - 1000, Received: now, Kind: "dns", Domain: "legacy.example"}
+	other := e
+	other.RouterID = "r2"
+	other.SourceKey = "other"
+	other.DeviceName = "Other router device"
+	if err := s.auditDB.PersistActivity([]activity.Event{e, legacy, other}, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	cookie := "mikrodash_sid=activity-test-token"
+	for key, value := range map[string]string{"canonical": e.Canonical, "deviceName": e.DeviceName, "dnsIP": "2001:0db8::7", "ipBasis": e.IPBasis, "server": e.Server, "qtype": "A", "match": "manual-mac", "q": "2001:db8::7", "dnsCountry": "Unknown"} {
+		q := url.Values{"routerId": {"r1"}, "view": {"events"}, key: {value}}
+		w := activityRequest(mux, "GET", "/api/activity/query?"+q.Encode(), "", cookie)
+		var result activity.Result
+		if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || len(result.Events) != 1 || result.Events[0].DeviceName != e.DeviceName || len(result.Events[0].DNSIPs) != 2 || len(result.Events[0].DNSAnswers) != 2 || result.Events[0].DNSAnswers[1].Country != "Unknown" || result.Events[0].Canonical != e.Canonical || result.Events[0].IPBasis != e.IPBasis || result.Totals.DNS != 1 || result.Events[0].Country != "Unknown" {
+			t.Fatal("metadata route/filter lost fields or scope", key, w.Code, w.Body.String())
+		}
+	}
+	w := activityRequest(mux, "GET", "/api/activity/query?routerId=r1&evidenceGroup=dnsIP&limit=1", "", cookie)
+	var result activity.Result
+	if w.Code != 200 || json.Unmarshal(w.Body.Bytes(), &result) != nil || result.TotalRows != 2 || len(result.Rows) != 1 || result.Totals.Answered != 1 || result.Totals.AnswerIPs != 2 || result.Totals.DeviceNames != 1 || result.Totals.Canonicals != 1 || result.GeoAvailable || len(result.DNSCountries) != 1 || result.DNSCountries[0].Key != "Unknown" || result.DNSCountries[0].Count != 2 || len(result.Countries) != 0 {
+		t.Fatal("overview evidence pagination/units", w.Code, w.Body.String())
+	}
+	if w := activityRequest(mux, "GET", "/api/activity/query?routerId=r1&dnsIP=invalid", "", cookie); w.Code != 400 {
+		t.Fatal("invalid address filter accepted", w.Code)
+	}
+	if w := activityRequest(mux, "GET", "/api/activity/query?routerId=r2&deviceName=secret", "", cookie); w.Code != 403 {
+		t.Fatal("metadata crossed router authorization", w.Code)
+	}
+	w = activityRequest(mux, "GET", "/api/activity/export?routerId=r1&dnsCountry=Unknown&dnsIP=2001%3Adb8%3A%3A7", "", cookie)
+	records, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(w.Body.String(), "\ufeff"))).ReadAll()
+	if w.Code != 200 || err != nil || len(records) != 2 {
+		t.Fatal("metadata CSV export", w.Code, err, records)
+	}
+	values := map[string]string{}
+	for i, key := range records[0] {
+		values[key] = records[1][i]
+	}
+	if values["canonical"] != "cdn.example" || values["dns_ips"] != "198.51.100.7 | 2001:db8::7" || values["device_name"] != "'=SUM(1,2)" || values["ip_basis"] != "'=dns-cache" || !strings.Contains(values["dns_answer_locations"], `"ip":"2001:db8::7","country":"Unknown"`) {
+		t.Fatal("metadata omitted or unsafe in CSV", values)
 	}
 }

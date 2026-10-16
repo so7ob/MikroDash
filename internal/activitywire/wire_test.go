@@ -17,6 +17,7 @@ type fakeArchive struct {
 	failNextChunk bool
 	files         map[string]string
 	reads         int
+	bigOffsets    []int64
 	fail          bool
 	rotate        bool
 }
@@ -48,6 +49,9 @@ func (f *fakeArchive) Do(c routeros.Cmd) ([]routeros.Reply, error) {
 		}
 		off, _ := strconv.Atoi(arg("offset"))
 		n, _ := strconv.Atoi(arg("chunk-size"))
+		if n > 1000 {
+			f.bigOffsets = append(f.bigOffsets, int64(off))
+		}
 		if n > 32768 || n <= 0 {
 			return nil, errors.New("bad chunk")
 		}
@@ -201,5 +205,90 @@ func TestCheckpointAdvancesBeforeCompleteFile(t *testing.T) {
 	w.Sync("r1")
 	if eventCount(t, d) != 200 {
 		t.Fatal("recovery duplicated the committed first chunk", eventCount(t, d))
+	}
+}
+
+func TestParserUpgradeResumesEnrichmentWithoutRecountingOrResurrection(t *testing.T) {
+	w, f, d := fixture(t)
+	name := activity.DefaultFolder + "/netlog.0.txt"
+	line := archiveLine("chatgpt.com")
+	line = strings.Replace(line, `"domain":"chatgpt.com"`, `"domain":"chatgpt.com","canonical":"cdn.example","dns_ips":["198.51.100.7","2001:db8::7"],"ip_basis":"dns-cache"`, 1)
+	line = strings.Replace(line, `"user":"synthetic"`, `"device_name":"Synthetic-device","user":"synthetic"`, 1)
+	const size = 180
+	body := strings.Repeat(line, size) + "malformed DNSUSER JSON\n"
+	f.files[name] = body
+	now := time.Now().UnixMilli()
+	originalAt, originalReceived := now-5000, now-7200000
+	events := []activity.Event{}
+	stamp, topics, msg, ok := activity.SplitArchiveLine(strings.TrimSuffix(line, "\n"))
+	if !ok {
+		t.Fatal("synthetic line not parsed")
+	}
+	for i := 0; i < size; i++ {
+		e, _, err := activity.Parse("r1", "", stamp, topics, msg, now, "UTC")
+		if err != nil {
+			t.Fatal(err)
+		}
+		e.SourceKey = hash([]byte("legacy:" + strconv.Itoa(i*len(line))))
+		e.Canonical, e.DeviceName, e.IPBasis, e.DNSIPs = "", "", "", nil
+		e.At, e.Received, e.TimeCertain = originalAt, originalReceived, false
+		if i == size-1 {
+			e.Received = now - int64(31*24*time.Hour/time.Millisecond)
+		}
+		events = append(events, e)
+	}
+	cp := activity.Checkpoint{Generation: "legacy", Name: name, Offset: int64(len(body)), PrefixLen: 512, PrefixHash: hash([]byte(body[:512])), TailHash: hash([]byte(body[len(body)-128:])), Size: int64(len(body)), Modified: strconv.Itoa(len(body))}
+	if err := d.PersistActivity(events, map[string]activity.Status{"r1": {Invalid: 1}}, nil, map[string]activity.Checkpoint{"r1": cp}); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.PruneActivity(now); err != nil {
+		t.Fatal(err)
+	}
+	w.status["r1"] = activity.Status{Invalid: 1}
+	w.verified = map[string]string{"r1\x00" + name: "legacy:" + strconv.Itoa(len(body)) + ":" + cp.Modified}
+	f.failNextChunk = true
+	w.Sync("r1")
+	checkpoints, err := d.ActivityCheckpoints("r1")
+	if err != nil || len(checkpoints) != 1 || checkpoints[0].Offset <= 0 || checkpoints[0].Offset >= int64(len(body)) || checkpoints[0].ParserVersion != activity.ParserVersion || checkpoints[0].ReplayUntil != int64(len(body)) || w.Status("r1").Error == "" {
+		t.Fatal("upgrade progress did not persist before disconnect", checkpoints, err)
+	}
+	resume := checkpoints[0].Offset
+	largeReads := len(f.bigOffsets)
+	f.failNextChunk = false
+	state, err := d.ActivityState("r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := &Wire{db: d, cfg: w.cfg, status: map[string]activity.Status{"r1": {Invalid: state.Invalid}}, source: w.source, stop: make(chan struct{})}
+	restarted.Sync("r1")
+	if len(f.bigOffsets) <= largeReads || f.bigOffsets[largeReads] < resume {
+		t.Fatal("upgrade restarted from zero", resume, f.bigOffsets[largeReads:])
+	}
+	count := 0
+	if err = d.WalkActivity(context.Background(), "r1", 0, now+10000, func(e activity.Event) error {
+		count++
+		if e.At != originalAt || e.Received != originalReceived || e.TimeCertain || e.User != "synthetic" || e.Canonical != "cdn.example" || e.DeviceName != "Synthetic-device" || e.IPBasis != "dns-cache" || len(e.DNSIPs) != 2 {
+			t.Fatal("metadata backfill rewrote history or lost fields", e)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if count != size-1 || restarted.Status("r1").Invalid != 1 {
+		t.Fatal("backfill recounted data, invalid rows, or resurrected pruned rows", count, restarted.Status("r1"))
+	}
+	checkpoints, _ = d.ActivityCheckpoints("r1")
+	if checkpoints[0].Generation != "legacy" || checkpoints[0].ParserVersion != activity.ParserVersion || checkpoints[0].ReplayUntil != 0 || checkpoints[0].Offset != int64(len(body)) {
+		t.Fatal("upgrade not completed", checkpoints)
+	}
+	reads := f.reads
+	restarted.Sync("r1")
+	if f.reads != reads {
+		t.Fatal("completed upgrade reread unchanged files")
+	}
+	f.files[name] += line
+	restarted.Sync("r1")
+	if eventCount(t, d) != size {
+		t.Fatal("new independent identical line was not appended")
 	}
 }

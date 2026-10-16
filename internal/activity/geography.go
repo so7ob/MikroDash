@@ -1,18 +1,35 @@
 package activity
 
-import (
-	"time"
-)
+import "time"
 
-// Enrich uses only the explicit destination address in the record. It never
-// resolves a domain now or associates adjacent DNS/firewall messages.
+// Enrich uses only addresses supplied in the event. DNS answers and connected
+// destinations keep separate geography; no live DNS or temporal joins occur.
 func Enrich(e *Event, zone string, lookup func(string) (string, string)) {
-	e.Country = "Unknown"
-	e.City = ""
-	if ip := endpointIP(e.Destination); ip != "" && lookup != nil {
-		if cc, city := lookup(ip); cc != "" {
-			e.Country = cc
-			e.City = city
+	if e.DNSIPs == nil {
+		e.DNSIPs = []string{}
+	}
+	e.DNSAnswers = []DNSAnswer{}
+	e.Country, e.City = "Unknown", ""
+	locate := func(ip string) (string, string) {
+		if lookup != nil {
+			if cc, city := lookup(ip); cc != "" {
+				return cc, city
+			}
+		}
+		return "Unknown", ""
+	}
+	if ip := endpointIP(e.Destination); ip != "" {
+		e.Country, e.City = locate(ip)
+	}
+	if e.Kind == "dns" {
+		seen := map[string]bool{}
+		for _, ip := range e.DNSIPs {
+			if seen[ip] {
+				continue
+			}
+			seen[ip] = true
+			cc, city := locate(ip)
+			e.DNSAnswers = append(e.DNSAnswers, DNSAnswer{IP: ip, Country: cc, City: city})
 		}
 	}
 	loc, err := time.LoadLocation(zone)

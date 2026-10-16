@@ -572,14 +572,43 @@ provide equivalent keyboard targets and drilldowns, so selection never depends
 on colour or pointer accuracy. Other is an aggregate and stays non-selectable.
 Grouped analysis uses one shared selector for service, exact domain, destination
 country, category, user/device, day and hour.
-Destination country describes explicit Firewall IP evidence, with Unknown
-preserved as a real bucket.
+The country panel labels its Location source: DNS answers by default, or explicit
+Firewall destinations. Its center says answers for DNS and events for Firewall;
+the note explains multiple answers per event and approximate location. Unknown
+stays a real bucket even without GeoIP, with a compact setup disclosure. Answer
+countries also appear beside their recorded addresses in Events. No DNS answer
+is described as a confirmed connected destination.
 
 Interaction audit, 2026-10-17: the dense technical console retains its existing
 Oxanium/JetBrains Mono type and semantic palette. Pointer/touch arcs, pressed
 legend buttons, Ctrl drilldowns and reversible filters preserve the same overview
 interaction. Browser checks cover Arabic, both themes, 375/1280 layouts and zero
 axe violations. No new decorative patterns; checklist: 0 new tells.
+
+### DNS resolution and device evidence
+
+Keep the first viewport's time/category hierarchy. Below the service/user ranks,
+a single evidence panel pairs four plain counts with one sortable table and
+an explicit group selector. The table defaults to ten rows with pagination;
+addresses carry IPv4/IPv6 text badges. Three existing-size doughnuts show query
+types, user matching methods and address provenance. Their labels and arcs use
+the same toggle/Ctrl interaction. The panel names the units: events containing
+an answer, unique addresses and observed names; it never describes DNS answers
+as connected destinations.
+
+Event details use compact labelled rows for device name, canonical name, address
+basis and every supplied address, with wrapping buttons and `bdi` around names.
+Legacy values stay explicitly missing. Headers and empty cells use theme tokens
+with sufficient contrast; type, density, radii and spacing follow the existing
+Activity system. The evidence counts stay borderless inside their panel, and
+record buttons use the primary text token for legibility. No new fonts, remote
+assets, gradients or decorative patterns.
+
+Evidence interaction audit, 2026-10-17: synthetic browser checks cover populated
+and legacy/empty evidence, all new event fields, IPv4/IPv6, sortable/paginated
+groups, Arabic names, URL filters, existing time restoration, both themes and
+375/1280 layouts. Axe reports zero violations at the event, empty-state,
+desktop and mobile/light checkpoints. Checklist: 0 new decorative tells.
 
 ### Activity dashboard cards
 
@@ -590,3 +619,5 @@ nested cards, services/users reuse Activity's ranking rows, categories/countries
 reuse its circular distributions, and time buckets open an exact range. Content
 scrolls inside resized cards; phones use the dashboard's existing single column.
 All numbers, labels, source states and SVGs follow the shared theme/font tokens.
+The Countries card prefers DNS answer evidence when supplied, otherwise explicit
+Firewall destinations; its note, unit and drilldown name the source.

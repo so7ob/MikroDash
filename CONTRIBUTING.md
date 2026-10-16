@@ -63,6 +63,10 @@ git clone https://github.com/so7ob/MikroDash.git
 cd MikroDash
 ```
 
+For country/city labels in a local build, also supply the local GeoIP data with
+`-geo`; see [Activity geography setup](docs/Activity-Analytics.md#geoip-for-local-runs).
+The Docker image includes that data.
+
 You need **Go 1.27+**. **Node 24** is needed only to type-check and test the frontend: the frontend itself is built by a Go program, and nothing Node-related runs at runtime.
 
 ```sh

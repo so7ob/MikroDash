@@ -91,7 +91,39 @@ func (d *DB) PersistActivity(events []activity.Event, statuses map[string]activi
 		return err
 	}
 	defer stmt.Close()
+	enrich, err := tx.Prepare(`UPDATE activity_events SET payload=json_patch(payload,?) WHERE router_id=? AND source_key=? AND kind='dns'`)
+	if err != nil {
+		return err
+	}
+	defer enrich.Close()
 	for _, e := range events {
+		if e.Replay {
+			// Patch only newly retained metadata. Original time, reception, identity
+			// and counts remain untouched; absent/pruned source rows stay absent.
+			patch := map[string]any{}
+			if e.Canonical != "" {
+				patch["canonical"] = e.Canonical
+			}
+			if e.DeviceName != "" {
+				patch["deviceName"] = e.DeviceName
+			}
+			if e.IPBasis != "" {
+				patch["ipBasis"] = e.IPBasis
+			}
+			if len(e.DNSIPs) > 0 {
+				patch["dnsIPs"] = e.DNSIPs
+			}
+			if len(patch) > 0 && e.SourceKey != "" {
+				body, err := json.Marshal(patch)
+				if err != nil {
+					return err
+				}
+				if _, err = enrich.Exec(string(body), e.RouterID, e.SourceKey); err != nil {
+					return err
+				}
+			}
+			continue
+		}
 		b, err := json.Marshal(e)
 		if err != nil {
 			return err
