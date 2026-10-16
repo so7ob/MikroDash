@@ -1,0 +1,24 @@
+name: Development Task
+description: Documentation, maintenance, refactoring, dependencies, CI or release preparation
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal and scope
+      description: Describe one coherent change, its reason and scope boundaries.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable outcomes required to complete the task.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Relevant automated and manual checks, including release checks when applicable.
+    validations:
+      required: true

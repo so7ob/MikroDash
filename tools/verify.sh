@@ -150,6 +150,17 @@ else
   printf '%s\n' "$out" | grep -aE '^(not ok|✖|  Error|AssertionError)' | head -8 | sed 's/^/        /'
 fi
 
+# Release and repository tooling tests use node:test and real isolated git fixtures.
+# The glob discovers new suites; a missing/empty set fails rather than silently passing.
+note '== tooling tests =='
+if out=$(node --test --test-reporter=tap tools/*.test.mjs 2>&1); then
+  note "  $(printf '%s\n' "$out" | grep -aE '^# (tests|pass|fail) ' | tr '\n' ' ')"
+else
+  fail=$((fail + 1))
+  note '  FAIL tooling tests'
+  printf '%s\n' "$out" | tail -20
+fi
+
 note ''
 if [ "$fail" -ne 0 ]; then
   note "verify: $fail failing"
