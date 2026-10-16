@@ -3,6 +3,7 @@ web/node_modules
 web/dist
 bin/
 .git
+.agents
 .screenshots
 .playwright-mcp
 .serena/cache
