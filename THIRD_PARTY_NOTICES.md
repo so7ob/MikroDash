@@ -19,6 +19,19 @@ Two things about how this file is meant to be maintained:
 
 ---
 
+## cc-skills - MIT (development tooling)
+
+`.agents/skills/cc-skills/` contains the installed project skill snapshot from
+[samber/cc-skills](https://github.com/samber/cc-skills), including its supporting
+references, assets and evaluations. Copyright (c) 2026 Samuel Berthe.
+
+The original authorship and full MIT notice are preserved in
+[`.agents/skills/cc-skills/LICENSE`](.agents/skills/cc-skills/LICENSE), verified
+against the bundled notice on 2026-10-17. These skills are repository tooling,
+excluded from the application image build context.
+
+---
+
 ## Fonts - SIL Open Font License 1.1
 
 `web/public/fonts/` (25 families, 98 files) and `web/public/vendor/fonts/`
