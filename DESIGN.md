@@ -566,6 +566,20 @@ carry text labels; uncertain times and archive failures never rely on colour
 alone. Use the page's own compact tab strip, bounded scrollable tables, responsive
 one-column panels and numeric monospace values. No new fonts or remote assets.
 
+Archive status and source controls live together in a dedicated Synchronization
+tab, with settings directly visible. Analysis views keep their space for data.
+Selected filters use the shared active chip: blue for users/devices, green for
+services, purple for domain/category evidence, amber for locations/provenance,
+and neutral for day/hour. Labels identify each filter independently of color.
+The separate red-tinted Clear button removes all drilldown filters. Tab changes
+preserve router/filters and use the existing URL and arrow/Home/End behavior.
+
+View-controls audit, 2026-10-17: the synchronization panel and colored filters
+pass the synthetic browser journey at 375/1280, with keyboard/URL persistence
+and zero axe violations in dark, light and Nord. The existing technical console,
+type, palette and reversible chart interactions remain the design direction.
+Checklist: 0 new decorative tells.
+
 Activity distributions use labelled SVG doughnuts with direct count/percentage
 legends. Each arc is also a pointer/touch target for its own value. The legends
 provide equivalent keyboard targets and drilldowns, so selection never depends

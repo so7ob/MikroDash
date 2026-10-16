@@ -1,13 +1,20 @@
 # Activity analytics
 
 `/activity` reads structured `DNSUSER` and firewall records from RouterOS disk logs.
-Enable synchronization per router, choose its log timezone and folder (default
+Open the **Synchronization** tab to see archive status and enable synchronization
+per router, then choose its log timezone and folder (default
 `usb1-part1/Log`). The API account needs access to `/file/read`. The documentation lists
 `read,api,ftp,test`, but RouterOS 7.24.5 was observed rejecting file reads even
 with those policies and `!write`; do not infer successful access from the policy
 list alone. Verify the actual command and surface a permission trap.
 No RouterOS configuration or file writes are issued. The existing `/logs` view
 continues to display the live memory log.
+
+Synchronization status and settings appear only in their own tab. Tab selection
+is retained in the URL and supports arrow keys, Home and End. Router selection
+and analysis filters are preserved when switching views. Selected filters use
+colored chips by filter type; click one to remove it, or use **Clear** to remove
+all selected drilldown filters.
 
 A held session supplies the existing shared RouterOS connection. Activity's hold
 runs no page collectors: the archive worker lists files every five seconds and
@@ -166,7 +173,8 @@ the optional cards through the real editor and APIs, including layout portabilit
 resize, drilldown, invalidation, permission changes and router switching. Card
 screenshots are written under `/tmp/mikrodash-activity-cards-*.png`.
 
-The journey verifies import, filters, CSV, editable classification, country/day/hour
+The journey verifies the synchronization tab's isolation, URL/keyboard navigation,
+read-only source controls, colored filters and Clear, import, CSV, editable classification, country/day/hour
 groups, DNS/Firewall country units and missing-database setup, seven doughnuts, recorded DNS/device evidence, paginated/sorted evidence
 groups, repeated-selection toggles, painted arc targets (including
 sub-1% and full-circle slices), touch, Ctrl drilldowns, Other, URL/source restoration,

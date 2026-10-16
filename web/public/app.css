@@ -3881,7 +3881,6 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
 .activity-muted, .activity-note { color:var(--text-muted); font-size:.72rem; }
 .activity-note { margin:.75rem 0 1rem; }
 .activity-source { padding:.65rem .75rem; border:1px solid var(--border); border-radius:6px; font-size:.75rem; }
-.activity-source summary { cursor:pointer; color:var(--accent-rx); margin-top:.5rem; }
 .activity-attention, #activityError { color:var(--accent-warn); }
 #activityError { margin:.75rem 0; }
 .activity-filter-trail { display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:.75rem; }
