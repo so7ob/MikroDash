@@ -71,7 +71,7 @@ go build ./cmd/mikrodash                          # the binary
 ./mikrodash -data ./devdata -web web/dist -static web/public
 ```
 
-The dashboard is then at <http://localhost:3081> (`-listen` changes the address).
+The dashboard is then at <http://localhost:3082> (`-listen` changes the address).
 
 If you would rather not install a Go toolchain, the Go commands also run in a container:
 
