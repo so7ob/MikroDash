@@ -109,6 +109,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   let lib: LibTemplate[] = [];
   let category = 'all';
   let query = '';
+  let handledTemplateLink = '';
   let captureMenus: string[] = [];
   let varTypes: string[] = ['text'];
   let serverVars: string[] = [];
@@ -960,6 +961,7 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
     void load().then(async () => {
       await loadRouters();
       drawDeploy();
+      await followTemplateLink();
     });
     socket.emit('cfgdeploy:watch', {});
   });
@@ -967,6 +969,27 @@ export function initConfigManagementPage(socket: Socket, isVisible: (page: strin
   // ── The Deploy tab ───────────────────────────────────────────────────────
 
   const labelOf = (id: string): string => dep.routers.find((r) => r.id === id)?.label ?? id;
+
+  // An explicit template link opens its read-only preview. Router/value choices
+  // are kept for Deploy, which still needs the normal preview and confirmation.
+  async function followTemplateLink(): Promise<void> {
+    const params = new URLSearchParams(window.location?.search || '');
+    const id = params.get('template') || '';
+    if (!lib.some(t => t.id === id)) return;
+    const routerId = params.get('routerId') || '';
+    const archivePath = params.get('archivePath') || '';
+    const key = JSON.stringify([id, routerId, archivePath]);
+    if (key === handledTemplateLink) return;
+    handledTemplateLink = key;
+    if (dep.routers.some(r => r.id === routerId)) dep.picked = [routerId];
+    await pickTemplate(id);
+    if (id === 'canned:activity-logging' && dep.picked.includes(routerId) && archivePath &&
+        archivePath.length <= 255 && !/[\x00-\x1f\x7f]/.test(archivePath)) {
+      dep.values[routerId] = { ...dep.values[routerId], archive_path: archivePath };
+      drawDeploy();
+    }
+    await preview(id);
+  }
 
   async function openDeploy(id: string): Promise<void> {
     show('deploy');

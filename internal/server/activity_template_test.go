@@ -2,30 +2,35 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
+	"mikrodash/internal/activity"
+	"mikrodash/internal/activitywire"
 	"mikrodash/internal/cfgtpl"
 	"mikrodash/internal/db"
+	"mikrodash/internal/routeros"
 )
 
-func activityLibraryServer(t *testing.T) *http.ServeMux {
+func activityLibraryServer(t *testing.T) (*http.ServeMux, *Server) {
 	t.Helper()
 	s, mux, _ := activityTestServer(t)
 	if err := s.auditDB.UpsertGrant(db.GrantSpec{PrincipalType: "user", PrincipalID: "activity-user", RoleID: "administrator", ScopeType: "global"}); err != nil {
 		t.Fatal(err)
 	}
 	s.registerConfig(mux)
-	return mux
+	return mux, s
 }
 
 func TestActivitySetupIsAvailableThroughTheLibraryAPI(t *testing.T) {
-	mux := activityLibraryServer(t)
+	mux, _ := activityLibraryServer(t)
 	cookie := "mikrodash_sid=activity-test-token"
 	path := cfgPrefix + "templates/canned:activity-logging"
 	if w := activityRequest(mux, "GET", path, "", ""); w.Code != 401 {
@@ -86,7 +91,10 @@ func TestActivityLibraryBrowserJourney(t *testing.T) {
 	if script == "" {
 		t.Skip("set MIKRODASH_ACTIVITY_LIBRARY_BROWSER for the library journey")
 	}
-	mux := activityLibraryServer(t)
+	mux, s := activityLibraryServer(t)
+	if err := s.auditDB.SetActivitySettings("r1", activity.Settings{Folder: "usb-test/Activity", Timezone: "UTC"}); err != nil {
+		t.Fatal(err)
+	}
 	root, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
@@ -99,6 +107,58 @@ func TestActivityLibraryBrowserJourney(t *testing.T) {
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("bundle library: %v %s", err, out)
 	}
+	activityEntry := filepath.Join(t.TempDir(), "activity-entry.js")
+	build = exec.Command(filepath.Join(root, "web/node_modules/.bin/esbuild"), filepath.Join(root, "web/test/browser/activity-setup-entry.ts"), "--bundle", "--format=esm", "--outfile="+activityEntry, "--log-level=error")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("bundle Activity: %v %s", err, out)
+	}
+	mux.HandleFunc("GET /activity-entry.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, activityEntry) })
+	mux.HandleFunc("GET /activity", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		_, _ = w.Write([]byte(`<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Activity setup verification</title><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/app.css"></head><body>`))
+		b, err := os.ReadFile(filepath.Join(root, "web/src/ui/page-activity.html"))
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_, _ = w.Write(b)
+		_, _ = w.Write([]byte(`<script type="module" src="/activity-entry.js"></script></body></html>`))
+	})
+	var setupMode atomic.Int32 // 0 missing, 1 ready, 2 unreadable, 3 no library rights
+	mux.HandleFunc("POST /fixture/setup", func(w http.ResponseWriter, r *http.Request) {
+		var v struct {
+			Mode int32 `json:"mode"`
+		}
+		if json.NewDecoder(r.Body).Decode(&v) != nil {
+			http.Error(w, "fixture mode", 400)
+			return
+		}
+		setupMode.Store(v.Mode)
+		if v.Mode == 3 {
+			_, _ = s.auditDB.DeleteGrantsForScope("global", "")
+		} else {
+			if err := s.auditDB.UpsertGrant(db.GrantSpec{PrincipalType: "user", PrincipalID: "activity-user", RoleID: "administrator", ScopeType: "global"}); err != nil {
+				t.Error(err)
+			}
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	})
+	setupHandler := s.activitySetupGet(func(id string) activitywire.Reader {
+		mode := setupMode.Load()
+		rows := activitySetupRows()
+		rows["/system/logging/action/print"][1]["disk-file-name"] = "usb-test/Activity/netlog"
+		if id == "r2" {
+			rows["/system/logging/action/print"][1]["disk-file-name"] = "usb1-part1/Log/netlog"
+		} else if mode == 0 || mode == 3 {
+			rows["/system/script/print"] = nil
+		}
+		return activityReader{exec: func(cmd routeros.Cmd) ([]routeros.Reply, error) {
+			if mode == 2 {
+				return nil, errors.New("synthetic permission failure")
+			}
+			return rows[cmd.Path], nil
+		}}
+	})
 	mux.HandleFunc("GET /api/routers", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{"routers": []map[string]string{{"id": "r1", "label": "Synthetic Router"}}})
 	})
@@ -107,7 +167,7 @@ func TestActivityLibraryBrowserJourney(t *testing.T) {
 		mux.Handle("GET "+prefix, http.FileServer(http.Dir(filepath.Join(root, "web/public"))))
 	}
 	mux.HandleFunc("GET /library-entry.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, entry) })
-	mux.HandleFunc("GET /journey", func(w http.ResponseWriter, r *http.Request) {
+	renderLibrary := func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(`<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Activity library verification</title><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/app.css"></head><body>`))
 		b, err := os.ReadFile(filepath.Join(root, "web/src/ui/page-config-management.html"))
@@ -117,8 +177,16 @@ func TestActivityLibraryBrowserJourney(t *testing.T) {
 		}
 		_, _ = w.Write(b)
 		_, _ = w.Write([]byte(`<script type="module" src="/library-entry.js"></script></body></html>`))
-	})
-	hs := httptest.NewServer(mux)
+	}
+	mux.HandleFunc("GET /journey", renderLibrary)
+	mux.HandleFunc("GET /config-management", renderLibrary)
+	hs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/activity/setup" {
+			setupHandler(w, r)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	}))
 	defer hs.Close()
 	cmd := exec.Command("node", script, hs.URL)
 	cmd.Env = append(os.Environ(), "NODE_PATH=/usr/lib/node_modules")

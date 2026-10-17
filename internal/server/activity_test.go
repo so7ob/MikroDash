@@ -69,7 +69,7 @@ func activityRequest(mux http.Handler, method, path, body, cookie string) *httpt
 func TestActivityRoutesRequireScopedPermissionAndAuditWrites(t *testing.T) {
 	s, mux, _ := activityTestServer(t)
 	cookie := "mikrodash_sid=activity-test-token"
-	for _, route := range []string{"query", "summary", "series", "domains", "clients", "events", "settings", "rules", "export"} {
+	for _, route := range []string{"query", "summary", "series", "domains", "clients", "events", "settings", "rules", "export", "setup"} {
 		if w := activityRequest(mux, "GET", "/api/activity/"+route+"?routerId=r1", "", ""); w.Code != 401 {
 			t.Fatalf("%s unauth %d", route, w.Code)
 		}
@@ -186,12 +186,21 @@ func TestActivityBrowserJourney(t *testing.T) {
 	mux.HandleFunc("GET /activity-entry.js", func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, entry) })
 	mux.HandleFunc("GET /journey", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
-		_, _ = w.Write([]byte(`<html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>Activity analytics verification</title><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/app.css"></head><body>`))
+		_, _ = w.Write([]byte(`<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Activity analytics verification</title><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/app.css"></head><body>`))
 		b, _ := os.ReadFile(filepath.Join(root, "web/src/ui/page-activity.html"))
 		_, _ = w.Write(b)
 		_, _ = w.Write([]byte(`<script type="module" src="/activity-entry.js"></script></body></html>`))
 	})
-	hs := httptest.NewServer(mux)
+	setup := s.activitySetupGet(func(string) activitywire.Reader {
+		return activityReader{exec: func(c routeros.Cmd) ([]routeros.Reply, error) { return activitySetupRows()[c.Path], nil }}
+	})
+	hs := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/activity/setup" {
+			setup(w, r)
+			return
+		}
+		mux.ServeHTTP(w, r)
+	}))
 	defer hs.Close()
 	cmd := exec.Command("node", script, hs.URL)
 	cmd.Env = append(os.Environ(), "NODE_PATH=/usr/lib/node_modules")

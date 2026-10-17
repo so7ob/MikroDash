@@ -542,3 +542,12 @@ than removed. Official references: [Log](https://manual.mikrotik.com/docs/diagno
 [logging actions](https://manual.mikrotik.com/docs/cli-reference/system/logging/action/),
 [DNS cache](https://manual.mikrotik.com/docs/cli-reference/ip/dns/cache/all/) and
 [script permissions](https://manual.mikrotik.com/docs/developer-guides/scripting/scripting-tips-and-tricks/).
+
+The Activity setup check (`GET /api/activity/setup`) reads those components on
+demand through the existing connection, with three sequential 3-second-bounded
+prints. Proplists are `/system/script/print`: `name,invalid,policy,dont-require-permissions`;
+`/system/logging/action/print`: `name,target,script,disk-file-name`; and
+`/system/logging/print`: `action,topics,regex,disabled,prefix`. Script source is
+not requested. No live connection means an unverified result, not a fresh dial
+or a claim that configuration is missing. Read-only live metadata on the
+reference 7.24.5 router satisfied all six checks; no configuration was applied.

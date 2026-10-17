@@ -3989,3 +3989,9 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
 .activity-evidence-table button { max-width:100%; white-space:normal; overflow-wrap:anywhere; text-align:start; }
 .activity-page .activity-table-scroll button[data-filter] { color:var(--text-main); }
 .activity-dns-panel .activity-metric { padding:.5rem 0; background:transparent; border:0; border-radius:0; }
+
+/* Activity setup: status is compact; archive controls stay in Synchronization. */
+.activity-setup-prompt { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem; }
+.activity-setup-panel { margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:1rem; }
+.activity-setup-checks { display:grid; gap:.5rem; list-style:none; padding:0; margin:.75rem 0; }
+.activity-setup-checks li { display:flex; align-items:center; gap:.5rem; }

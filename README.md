@@ -252,6 +252,12 @@ query type, matching method, canonical name and IPv4/IPv6 DNS answers.
 
 ### Start recording
 
+Activity checks the selected router's logging setup. If required settings are
+missing, **Set up Activity** opens the matching Configuration Library template
+with the router and archive filename selected for review. Details and **Check
+setup** are in **Synchronization**. An unreadable/offline router is shown as
+unverified; opening the template installs nothing automatically.
+
 In **Config Management > Library > Monitoring**, the **Activity analytics
 (DNSUSER + USB)** template includes `DNSUserLine`, the `DNSJoin` script action,
 the `NetArchive` disk action and logging rules. **Attach a USB drive to the router

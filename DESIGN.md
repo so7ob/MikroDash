@@ -635,3 +635,15 @@ scrolls inside resized cards; phones use the dashboard's existing single column.
 All numbers, labels, source states and SVGs follow the shared theme/font tokens.
 The Countries card prefers DNS answer evidence when supplied, otherwise explicit
 Firewall destinations; its note, unit and drilldown name the source.
+
+### Activity setup onboarding
+
+A compact status prompt appears only when required router logging components are
+missing. It links to the shipped configuration template for review and carries
+the selected router/archive filename. Archive controls and the detailed setup
+checklist stay in Synchronization. Ready, Missing, Optional and unverified reads
+carry text; shared pills/buttons and existing Activity typography/palette carry
+the status. There are no new fonts, colors or polling loops. The template opens
+its existing preview drawer, preserving the guarded Deploy flow. Synthetic
+browser verification covers 375/1280, dark/light/Nord, keyboard, stale router
+responses and zero axe violations. No new decorative patterns.

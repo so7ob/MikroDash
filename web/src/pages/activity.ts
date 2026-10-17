@@ -1,6 +1,7 @@
 import { el, esc, debounce, renderSortHeader, sortRows, protoPill, type SortState, type SortCol } from '../dom';
 import { fmtTs, browserTimezone } from '../timefmt';
 import { getDisplayTimezone } from '../caps';
+import { mountActivitySetup } from './activity-setup';
 import type { Socket } from '../socket';
 import type { ActivityResult, ActivityRanking, ActivityRule, ActivityEvent } from '../gen/payloads';
 
@@ -60,6 +61,7 @@ async function json<T>(url: string, init?: RequestInit): Promise<T> {
 export function initActivityPage(socket: Socket, visible: (page: string) => boolean, routers: () => Router[], activeId: () => string): void {
   const root = el('page-activity');
   if (!root) return;
+  const setup = mountActivitySetup(() => visible('activity'));
   const input = (id: string): HTMLInputElement => el<HTMLInputElement>(id)!;
   const select = (id: string): HTMLSelectElement => el<HTMLSelectElement>(id)!;
   const showError = (message: string): void => { const e = el('activityError')!; e.textContent = message; e.hidden = !message; };
@@ -176,6 +178,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     el('activityHeatZone')!.textContent = d.settings.timezone || 'UTC (router zone not set)';
     if (view() === 'summary') renderEvidenceTable(); else renderTable();
     renderRules();
+    void setup.refresh(d.routerId, d.settings.folder);
   }
   function renderEvidenceTable(): void {
     if (!data) return;
@@ -215,7 +218,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     el('activityRulesBody')!.innerHTML = sortRows(data.rules, rulesSort.col, rulesSort.dir).map(r => `<tr><td class="activity-mono">${cell(r.domain)}</td><td>${cell(r.service)}</td><td>${pill(r.category)}</td><td>${r.subdomains ? 'Domain + subdomains' : 'Exact domain'}</td><td>${pill(r.custom ? 'Local' : 'Built-in')}</td><td><button type="button" class="sbtn sbtn-outline" data-edit-rule="${esc(r.domain)}" data-custom="${r.custom}" ${data?.canWrite ? '' : 'disabled'}>Edit</button>${r.custom ? `<button type="button" class="sbtn sbtn-danger" data-remove-rule="${esc(r.domain)}" ${data?.canWrite ? '' : 'disabled'}>Remove override</button>` : ''}</td></tr>`).join('');
   }
   function clearData(): void {
-    data=null;
+    data=null; setup.stop();
     ['activityMetrics','activityServices','activityClients','activityCategories','activityServiceDonut','activityUserDonut','activityCountryDonut','activityTimeline','activityHeat','activityTableBody','activityRulesBody','activityDNSMetrics','activityQueryTypes','activityMatchMethods','activityIPBases','activityEvidenceBody','activityEvidencePage'].forEach(id=>{el(id)!.innerHTML='';});
     ['activityEnabled','activityFolder','activityTimezone','activitySaveSettings','activityRuleDomain','activityRuleService','activityRuleCategory','activityRuleSubdomains','activitySaveRule'].forEach(id=>{el<HTMLInputElement | HTMLButtonElement>(id)!.disabled=true;});
     el<HTMLButtonElement>('activityEvidencePrev')!.disabled = true; el<HTMLButtonElement>('activityEvidenceNext')!.disabled = true;
@@ -288,7 +291,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     button.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: true }));
   });
   el('activityTabs')!.addEventListener('keydown', e => { if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return; e.preventDefault(); const i = views.indexOf(view()); const next = e.key === 'Home' ? 0 : e.key === 'End' ? views.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + views.length) % views.length; update('tab', views[next]!); root.querySelector<HTMLButtonElement>(`[data-view="${views[next]}"]`)?.focus(); });
-  select('activityRouter').addEventListener('change', () => update('routerId', select('activityRouter').value));
+  select('activityRouter').addEventListener('change', () => { setup.stop(); update('routerId', select('activityRouter').value); });
   select('activityDays').addEventListener('change', () => { const days = select('activityDays').value; el('activityCustomRange')!.hidden = days !== 'custom'; if (days !== 'custom') { state.delete('timeRange'); state.delete('from'); state.delete('to'); update('days', days); } });
   el('activityApplyRange')!.addEventListener('click', () => { const from = new Date(input('activityFrom').value).getTime(), to = new Date(input('activityTo').value).getTime(); if (!from || !to || to <= from || to - from > 30 * 86400000) { showError('Choose a valid range of up to 30 days.'); return; } state.delete('timeRange'); state.set('from', String(from)); update('to', String(to)); });
   input('activitySearch').addEventListener('input', debounce(() => update('q', input('activitySearch').value.trim()), 300));
@@ -300,15 +303,15 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   el('activityEvidencePrev')!.addEventListener('click', () => update('page', String(Math.max(1, Number(state.get('page') || 1) - 1))));
   el('activityEvidenceNext')!.addEventListener('click', () => update('page', String(Number(state.get('page') || 1) + 1)));
   select('activityGroup').addEventListener('change', () => update('group', select('activityGroup').value));
-  el('activityRefresh')!.addEventListener('click', () => { void load(); });
+  el('activityRefresh')!.addEventListener('click', () => { if (data) void setup.refresh(data.routerId, data.settings.folder, true); void load(); });
   el('activityPrev')!.addEventListener('click', () => update('page', String(Math.max(1, Number(state.get('page') || 1) - 1))));
   el('activityNext')!.addEventListener('click', () => update('page', String(Number(state.get('page') || 1) + 1)));
   el('activitySaveSettings')!.addEventListener('click', () => { void mutate('settings', 'PUT', { enabled: input('activityEnabled').checked, folder: input('activityFolder').value.trim(), timezone: input('activityTimezone').value.trim() }); });
   el('activityRuleForm')!.addEventListener('submit', e => { e.preventDefault(); const rule: ActivityRule = { domain: input('activityRuleDomain').value, service: input('activityRuleService').value, category: input('activityRuleCategory').value, subdomains: input('activityRuleSubdomains').checked, custom: true }; void mutate('rules', 'PUT', rule); });
-  document.addEventListener('mikrodash:pagechange', () => { if (visible('activity')) void load(); else { controller?.abort(); request++; if (timer) clearTimeout(timer); } });
+  document.addEventListener('mikrodash:pagechange', () => { if (visible('activity')) void load(); else { setup.stop(); controller?.abort(); request++; if (timer) clearTimeout(timer); } });
   window.addEventListener('popstate', () => { state = new URLSearchParams(location.search); void load(); });
   socket.on('activity:changed', d => { if (!visible('activity') || d.routerId !== select('activityRouter').value || busy || timer) return; timer = setTimeout(() => { timer = undefined; void load(); }, 500); });
-  socket.on('connect', () => { void load(); });
+  socket.on('connect', () => { setup.stop(); void load(); });
   socket.on('routers:update', () => { void load(); });
   socket.on('perms:changed', () => { clearData(); void load(); });
   if (visible('activity')) void load();

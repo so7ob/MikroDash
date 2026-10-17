@@ -7,7 +7,8 @@ per router, then choose its log timezone and folder (default
 `read,api,ftp,test`, but RouterOS 7.24.5 was observed rejecting file reads even
 with those policies and `!write`; do not infer successful access from the policy
 list alone. Verify the actual command and surface a permission trap.
-No RouterOS configuration or file writes are issued. The existing `/logs` view
+Synchronization itself issues no RouterOS configuration or file writes. The
+optional library setup is a separate, explicitly reviewed configuration deployment. The existing `/logs` view
 continues to display the live memory log.
 
 Synchronization status and settings appear only in their own tab. Tab selection
@@ -15,6 +16,36 @@ is retained in the URL and supports arrow keys, Home and End. Router selection
 and analysis filters are preserved when switching views. Selected filters use
 colored chips by filter type; click one to remove it, or use **Clear** to remove
 all selected drilldown filters.
+
+## Router setup check
+
+Activity checks setup metadata on its first successful load for the selected
+router. It reads `DNSUserLine` validity/hook permissions, the `DNSJoin` binding,
+the `NetArchive` disk action and its folder, and enabled DNS/DNSUSER logging
+rules. The existing `HS_` archive rule is shown as optional for DNS analytics.
+Working topic order/negations and matching anchored filters are accepted.
+
+When required components are missing, a compact **Set up Activity** prompt links
+to the exact library template, preselecting the same accessible router and
+archive filename. A signed-in global administrator with Configuration Management
+write access sees that action. Other Activity readers see a request to ask an
+administrator. The link opens the template preview; it does not install anything
+or bypass the deployment preview, acknowledgements and target confirmation.
+
+**Synchronization > Router setup** shows the individual checks and a **Check
+setup** button. An offline connection or failed/denied read is **unverified**,
+never reported as absent configuration. The check uses three sequential,
+bounded metadata reads on the existing shared connection. It reads no script
+source, creates no session/collector and performs no router writes. Analysis
+filters do not repeat the reads; Refresh, explicit recheck, changing routers or
+returning to Activity can check again. Switching away cancels/discards pending
+results so another router's setup action cannot appear.
+
+The checker establishes that the named configuration components are present.
+It does not execute or prove the script's behavior, verify a mounted USB drive,
+or prove `/file/read` access. The synchronization status supplies actual archive
+read failures and progress. Existing historical data remains available even
+when the current logging setup is incomplete.
 
 ## Router setup from Configuration Library
 
@@ -251,6 +282,17 @@ and Activity read permission on that router. The card picker follows the source
 page's permission, and permission changes clear displayed Activity data.
 
 ## Verification
+
+The setup-to-library browser journey uses the same isolated store and real
+Activity/Configuration Library modules. It covers missing/ready/unreadable
+settings, permissions, deduplicated reads, stale router responses, the exact
+preview link and prefilled router/filename, without applying a deployment:
+
+```sh
+NODE_PATH=/usr/lib/node_modules \
+  MIKRODASH_ACTIVITY_LIBRARY_BROWSER="$PWD/web/test/browser/activity-setup-journey.cjs" \
+  go test ./internal/server -run '^TestActivityLibraryBrowserJourney$' -v -timeout 90s
+```
 
 Run `sh tools/verify.sh` for all repository checks. The optional browser journey
 uses an isolated SQLite database and a synthetic RouterOS archive, never live
