@@ -519,3 +519,35 @@ A proplist is the only thing keeping a credential out of a payload - see
 | `=.proplist=time,response-time,status,min-rtt,max-rtt` | src/collectors/ping.js |
 | `=.proplist=time,topics,message` | src/collectors/logs.js |
 | `=.proplist=version` | src/index.js |
+
+## Activity's shipped DNSUSER logging template
+
+`internal/cfgtpl/canned/activity-logging.rsc` adds a Monitoring setup using the
+existing Config Management import path. Its reference is an operating RouterOS
+7.24.5 configuration, inspected read-only on 2026-10-17; this change does not apply
+it to a live router. `ensure` is resolved by MikroDash before rendering, so only
+`add`/`set` and ordinary selectors reach the import.
+
+| Menu | Fields in the template |
+| --- | --- |
+| `/system/script` | `name=DNSUserLine`, `source`, `policy=read,write,test`, `dont-require-permissions=yes`, `comment` |
+| `/system/logging/action` | `name=DNSJoin target=script script=DNSUserLine`; `name=NetArchive target=disk disk-file-name=<USB folder>/netlog disk-lines-per-file=<1..65535> disk-file-count=<1..65535> disk-stop-on-full=no` |
+| `/system/logging` | `action`, `topics`, `regex`, `disabled`; DNS query rule to DNSJoin, `^DNSUSER` and `^HS_` to NetArchive |
+
+The logging script receives `$message`, reads HotSpot Active, DHCP bound leases,
+complete ARP entries and `/ip/dns/cache/all` (`name`, `type`, `data`), then writes
+an info log. No scheduler, disk formatting or DNS/firewall changes are added.
+The USB directory must already exist. Existing actions/rules are reused rather
+than removed. Official references: [Log](https://manual.mikrotik.com/docs/diagnostics-monitoring-and-troubleshooting/log/),
+[logging actions](https://manual.mikrotik.com/docs/cli-reference/system/logging/action/),
+[DNS cache](https://manual.mikrotik.com/docs/cli-reference/ip/dns/cache/all/) and
+[script permissions](https://manual.mikrotik.com/docs/developer-guides/scripting/scripting-tips-and-tricks/).
+
+The Activity setup check (`GET /api/activity/setup`) reads those components on
+demand through the existing connection, with three sequential 3-second-bounded
+prints. Proplists are `/system/script/print`: `name,invalid,policy,dont-require-permissions`;
+`/system/logging/action/print`: `name,target,script,disk-file-name`; and
+`/system/logging/print`: `action,topics,regex,disabled,prefix`. Script source is
+not requested. No live connection means an unverified result, not a fresh dial
+or a claim that configuration is missing. Read-only live metadata on the
+reference 7.24.5 router satisfied all six checks; no configuration was applied.

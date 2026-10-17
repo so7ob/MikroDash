@@ -26,9 +26,9 @@
    <div class="activity-toolbar" id="activityCustomRange" hidden><label>From (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityFrom"></label><label>To (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityTo"></label><button type="button" class="sbtn sbtn-outline is-sm" id="activityApplyRange">Apply range</button></div>
    <div id="activityFilters" class="activity-filter-trail"></div>
    <div id="activityError" role="alert" hidden></div>
-   <p class="activity-note">Counts represent recorded DNSUSER events. Background apps also request domains. Service classifications are local rules; unknown domains remain unclassified.</p>
+   <div id="activitySetupPrompt" class="activity-source activity-setup-prompt" role="status" hidden><span id="activitySetupPromptText"></span><a id="activitySetupLink" class="sbtn sbtn-primary is-sm" hidden>Set up Activity</a></div>
    <div id="activityOverview">
-    <p class="activity-note">Click a slice, chart label or ranking to filter here; click the selected item again to clear its filter. Click a time bar again to restore the previous period. Ctrl + click opens matching events.</p>
+    <p class="activity-note">Ctrl + click to open events.</p>
     <div class="activity-metrics" id="activityMetrics"></div>
     <div class="activity-chart-layout"><section class="activity-panel"><div class="activity-panel-header"><h4>Activity over time</h4><span id="activityComparison" class="activity-muted"></span></div><div id="activityTimeline" class="activity-timeline" aria-label="DNSUSER events over time"></div><div id="activityCoverage" class="activity-muted"></div></section><section class="activity-panel"><h4>Categories</h4><div id="activityCategories"></div></section></div>
     <div class="activity-donut-layout"><section class="activity-panel"><h4>Service distribution</h4><div id="activityServiceDonut"></div></section><section class="activity-panel"><h4>User distribution</h4><div id="activityUserDonut"></div></section><section class="activity-panel"><div class="activity-panel-header"><h4>Destination countries</h4><label class="activity-muted">Location source<select class="sform-input sform-sm" id="activityCountryBasis"><option value="dns">DNS answers</option><option value="firewall">Firewall destinations</option></select></label></div><p class="activity-muted" id="activityGeoNote"></p><details id="activityGeoSetup" class="activity-muted" hidden><summary>GeoIP setup</summary><p>Load the local DB-IP City Lite database when starting MikroDash. The standard Docker image includes it; local builds need a GeoIP directory passed with the server's -geo option. No addresses are sent to external lookup services.</p></details><div id="activityCountryDonut"></div></section></div>
@@ -60,6 +60,12 @@
     <div class="activity-table-scroll"><table class="table"><thead><tr id="activityRulesHead"></tr></thead><tbody id="activityRulesBody"></tbody></table></div>
    </div>
    <section id="activitySyncPane" class="activity-panel" hidden>
+    <div id="activitySetupPanel" class="activity-setup-panel" aria-busy="false">
+     <div class="activity-panel-header"><h4>Router setup</h4><button type="button" class="sbtn sbtn-outline is-sm" id="activityCheckSetup" disabled>Check setup</button></div>
+     <p id="activitySetupStatus" class="activity-muted" role="status">Choose a router to check its logging setup.</p>
+     <details class="activity-muted"><summary>Setup checks</summary><ul id="activitySetupChecks" class="activity-setup-checks"></ul></details>
+     <p class="activity-muted">This checks existing settings only. The setup template opens in Configuration Library for review; nothing is installed automatically. The USB log directory must already exist.</p>
+    </div>
     <h4>Archive synchronization</h4>
     <div class="activity-source"><span id="activityState" role="status">Loading archive status…</span></div>
     <div id="activityConfig">

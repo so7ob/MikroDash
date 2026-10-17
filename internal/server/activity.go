@@ -35,6 +35,7 @@ func (s *Server) registerActivity(mux *http.ServeMux) {
 	}
 	mux.HandleFunc("GET /api/activity/dashboard", s.activityQuery)
 	mux.HandleFunc("GET /api/activity/export", s.activityExport)
+	mux.HandleFunc("GET /api/activity/setup", newRateLimiter(30, time.Minute).limit(s.activitySetupGet(s.activityConnectedReader)))
 	mux.HandleFunc("GET /api/activity/settings", s.activitySettingsGet)
 	mux.HandleFunc("PUT /api/activity/settings", s.activitySettingsPut)
 	mux.HandleFunc("GET /api/activity/rules", s.activityRulesGet)
@@ -395,7 +396,16 @@ func (s *Server) broadcastActivity(id string) {
 	}
 }
 func (s *Server) activityReader(id string) activitywire.Reader {
-	if !s.holdFleet || s.sessions == nil {
+	if !s.holdFleet {
+		return nil
+	}
+	return s.activityConnectedReader(id)
+}
+
+// An interactive setup read may use an already-watched connection even when
+// background collection is disabled. It never creates or retains a session.
+func (s *Server) activityConnectedReader(id string) activitywire.Reader {
+	if s.sessions == nil {
 		return nil
 	}
 	rs := s.sessions.Live()[id]
