@@ -1,8 +1,11 @@
 package server
 
 import (
+	"io"
+	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 // THE CHANGELOG IS PARSED, NOT RENDERED AS MARKDOWN.
@@ -135,5 +138,38 @@ func TestTheBuildStampsAreLinkerWritable(t *testing.T) {
 	BuildCommit = "deadbee"
 	if BuildCommit != "deadbee" {
 		t.Error("BuildCommit is not assignable, so -ldflags -X cannot set it")
+	}
+}
+
+type aboutReleaseTransport func(*http.Request) (*http.Response, error)
+
+func (f aboutReleaseTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	return f(r)
+}
+
+func TestAboutUpdatesUseThisRepositoryAndCacheTheResponse(t *testing.T) {
+	transport := http.DefaultTransport
+	updateCache.Lock()
+	at, result := updateCache.at, updateCache.res
+	updateCache.at, updateCache.res = time.Time{}, aboutUpdate{}
+	updateCache.Unlock()
+	t.Cleanup(func() {
+		http.DefaultTransport = transport
+		updateCache.Lock()
+		updateCache.at, updateCache.res = at, result
+		updateCache.Unlock()
+	})
+	calls := 0
+	http.DefaultTransport = aboutReleaseTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		if r.URL.String() != "https://api.github.com/repos/so7ob/MikroDash/releases/latest" {
+			t.Errorf("update check used the wrong repository: %s", r.URL)
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"tag_name":"v` + AppVersion + `"}`))}, nil
+	})
+	s := &Server{}
+	first, cached := s.updateStatus(), s.updateStatus()
+	if first.Latest != AppVersion || !first.Current || first.CheckedAt == 0 || cached != first || calls != 1 {
+		t.Fatalf("update response/cache: first=%+v cached=%+v requests=%d", first, cached, calls)
 	}
 }

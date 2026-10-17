@@ -177,6 +177,7 @@ var All = []Page{
 	// before changing anything here.
 	{Key: "terminal", Title: "Terminal"},
 	{Key: "logs", Title: "Logs", Collector: "logs"},
+	{Key: "activity", Title: "Activity Analytics"},
 	{Key: "network-topology", Title: "Network Topology", Collector: "topology"},
 	{Key: "wifi-clients", Title: "Wifi Clients", Collector: "wireless"},
 	// NO OWNER, and that is the honest answer rather than a gap. This page draws

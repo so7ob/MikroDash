@@ -48,6 +48,7 @@ type Reasons struct {
 	// per router.
 	Devices bool
 	// Warm keeps the CONNECTION and runs no collectors at all.
+	// Activity archive synchronization uses that same collector-free connection.
 	//
 	// ── WHY A REASON THAT WANTS NOTHING ─────────────────────────────────────
 	//
@@ -133,7 +134,7 @@ func (s *Session) reasonsLocked() Reasons {
 		Alerts:  s.holds["alerts"],
 		History: s.holds["history"],
 		Devices: s.holds["devices"],
-		Warm:    s.holds["warm"],
+		Warm:    s.holds["warm"] || s.holds["activity"],
 	}
 }
 

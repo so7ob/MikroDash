@@ -63,6 +63,11 @@ let host: NavHost | null = null;
  *  topbar clock; the Reports page keeps its own copy fed from its own payload. */
 let displayTimezone = '';
 
+/** Cosmetic card-picker gating; every data request is authorized on the server. */
+export function pageAllowed(page: string): boolean {
+  return !pageAccess || !!pageAccess[page];
+}
+
 export function getDisplayTimezone(): string {
   return displayTimezone;
 }

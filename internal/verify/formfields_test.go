@@ -421,7 +421,10 @@ func TestEveryControlIsTheSharedControl(t *testing.T) {
 // buttonComponents are the button classes that are not actions: tabs, chips,
 // segmented choices, close and move glyphs, headers. Each draws itself.
 var buttonComponents = map[string]string{
-	"stab": "a tab", "ptab": "a tab (Access Management's sections)", "nav-group-hdr": "a sidebar category header",
+	"activity-legend-item": "an activity distribution legend that filters its segment",
+	"activity-rank":        "an activity ranking row that drills into its events",
+	"activity-timebar":     "an activity chart bucket that selects its time range",
+	"stab":                 "a tab", "ptab": "a tab (Access Management's sections)", "nav-group-hdr": "a sidebar category header",
 	"rtr-modal-close": "a dialog's close glyph", "topo-panel-close": "the topology panel's close glyph",
 	"apps-close": "an app card's close glyph", "dash-remove-btn": "a dashboard card's remove glyph in edit mode",
 	"fw-move": "an ordered table's move arrows", "res-neg": "a field's \"not\" toggle",

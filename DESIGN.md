@@ -547,3 +547,103 @@ rows below it, a select a few pixels off its neighbours, and placeholders in the
 - **Don't** add emoji icons, a new font, or a shadow to make something "pop".
 - **Don't** give a page tabs, pills or a count pill it has no rows for. The Terminal and the Tools
   pages are the recorded exceptions in CLAUDE.md.
+
+
+## Activity analytics
+
+A dense, calm, technical activity console. Keep existing typography, semantic
+palette and component sizes. The first viewport pairs a dominant time histogram
+with category rankings, followed by services and users. A weekday/hour heatmap
+reveals schedules without decorative charts. The signature interaction is a
+chart selection that filters the current overview in place. Ctrl + click opens
+the matching Events tab. Clicking a selected legend, ranking or doughnut slice
+again removes only its filter. Selected legends/rankings expose pressed state;
+selected arcs grow slightly. Time bars narrow the period; selecting that range
+again restores the exact preceding rolling/custom period. A selected range stays
+one pressed bar, including six-hour buckets, and survives URL reload. All
+selections keep removable filter chips and shareable URLs. Known users and unmapped devices
+carry text labels; uncertain times and archive failures never rely on colour
+alone. Use the page's own compact tab strip, bounded scrollable tables, responsive
+one-column panels and numeric monospace values. No new fonts or remote assets.
+
+Archive status and source controls live together in a dedicated Synchronization
+tab, with settings directly visible. Analysis views keep their space for data.
+Selected filters use the shared active chip: blue for users/devices, green for
+services, purple for domain/category evidence, amber for locations/provenance,
+and neutral for day/hour. Labels identify each filter independently of color.
+The separate red-tinted Clear button removes all drilldown filters. Tab changes
+preserve router/filters and use the existing URL and arrow/Home/End behavior.
+
+View-controls audit, 2026-10-17: the synchronization panel and colored filters
+pass the synthetic browser journey at 375/1280, with keyboard/URL persistence
+and zero axe violations in dark, light and Nord. The existing technical console,
+type, palette and reversible chart interactions remain the design direction.
+Checklist: 0 new decorative tells.
+
+Activity distributions use labelled SVG doughnuts with direct count/percentage
+legends. Each arc is also a pointer/touch target for its own value. The legends
+provide equivalent keyboard targets and drilldowns, so selection never depends
+on colour or pointer accuracy. Other is an aggregate and stays non-selectable.
+Grouped analysis uses one shared selector for service, exact domain, destination
+country, category, user/device, day and hour.
+The country panel labels its Location source: DNS answers by default, or explicit
+Firewall destinations. Its center says answers for DNS and events for Firewall;
+the note explains multiple answers per event and approximate location. Unknown
+stays a real bucket even without GeoIP, with a compact setup disclosure. Answer
+countries also appear beside their recorded addresses in Events. No DNS answer
+is described as a confirmed connected destination.
+
+Interaction audit, 2026-10-17: the dense technical console retains its existing
+Oxanium/JetBrains Mono type and semantic palette. Pointer/touch arcs, pressed
+legend buttons, Ctrl drilldowns and reversible filters preserve the same overview
+interaction. Browser checks cover Arabic, both themes, 375/1280 layouts and zero
+axe violations. No new decorative patterns; checklist: 0 new tells.
+
+### DNS resolution and device evidence
+
+Keep the first viewport's time/category hierarchy. Below the service/user ranks,
+a single evidence panel pairs four plain counts with one sortable table and
+an explicit group selector. The table defaults to ten rows with pagination;
+addresses carry IPv4/IPv6 text badges. Three existing-size doughnuts show query
+types, user matching methods and address provenance. Their labels and arcs use
+the same toggle/Ctrl interaction. The panel names the units: events containing
+an answer, unique addresses and observed names; it never describes DNS answers
+as connected destinations.
+
+Event details use compact labelled rows for device name, canonical name, address
+basis and every supplied address, with wrapping buttons and `bdi` around names.
+Legacy values stay explicitly missing. Headers and empty cells use theme tokens
+with sufficient contrast; type, density, radii and spacing follow the existing
+Activity system. The evidence counts stay borderless inside their panel, and
+record buttons use the primary text token for legibility. No new fonts, remote
+assets, gradients or decorative patterns.
+
+Evidence interaction audit, 2026-10-17: synthetic browser checks cover populated
+and legacy/empty evidence, all new event fields, IPv4/IPv6, sortable/paginated
+groups, Arabic names, URL filters, existing time restoration, both themes and
+375/1280 layouts. Axe reports zero violations at the event, empty-state,
+desktop and mobile/light checkpoints. Checklist: 0 new decorative tells.
+
+### Activity dashboard cards
+
+Optional Activity cards use the dashboard's existing card header and drag/resize
+shell. A 24h count badge states the window beside each title; Open leads to the
+selected router's Activity page. The overview uses four plain metrics without
+nested cards, services/users reuse Activity's ranking rows, categories/countries
+reuse its circular distributions, and time buckets open an exact range. Content
+scrolls inside resized cards; phones use the dashboard's existing single column.
+All numbers, labels, source states and SVGs follow the shared theme/font tokens.
+The Countries card prefers DNS answer evidence when supplied, otherwise explicit
+Firewall destinations; its note, unit and drilldown name the source.
+
+### Activity setup onboarding
+
+A compact status prompt appears only when required router logging components are
+missing. It links to the shipped configuration template for review and carries
+the selected router/archive filename. Archive controls and the detailed setup
+checklist stay in Synchronization. Ready, Missing, Optional and unverified reads
+carry text; shared pills/buttons and existing Activity typography/palette carry
+the status. There are no new fonts, colors or polling loops. The template opens
+its existing preview drawer, preserving the guarded Deploy flow. Synthetic
+browser verification covers 375/1280, dark/light/Nord, keyboard, stale router
+responses and zero axe violations. No new decorative patterns.

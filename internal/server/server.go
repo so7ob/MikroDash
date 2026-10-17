@@ -30,6 +30,7 @@ import (
 	"sync"
 	"time"
 
+	"mikrodash/internal/activitywire"
 	"mikrodash/internal/backups"
 	"mikrodash/internal/changelog"
 	"mikrodash/internal/connstate"
@@ -204,7 +205,8 @@ type Server struct {
 	// historyWire is built early, because the fleet holds build a session for
 	// every enabled router at startup and each session takes it when it is built
 	// — see New.
-	historyWire *historywire.Wire
+	historyWire  *historywire.Wire
+	activityWire *activitywire.Wire
 	// coverage records WHEN each router was observed (`monitor_runs`), so the
 	// connectivity strip can draw "not monitored" rather than infer a colour
 	// across time nobody was watching. Driven by the connectivity ticker.
@@ -392,6 +394,11 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// THE ALWAYS-ON HOLDS — see fleet_holds.go. They connect as soon as they are
 	// synced, so the sync happens once at startup rather than waiting for a page.
 	srv.holdFleet = !opts.NoPool
+	var activityErr error
+	srv.activityWire, activityErr = activitywire.New(opts.AuditDB, srv.activityReader, srv.broadcastActivity)
+	if activityErr != nil {
+		log.Printf("[activity] storage unavailable")
+	}
 	if !srv.holdFleet {
 		log.Printf("[holds] off; routers nobody is watching are neither connected " +
 			"to nor alerted on (pass -no-pool to keep it that way)")
@@ -585,6 +592,7 @@ func (s *Server) Handler() http.Handler {
 	s.registerConfigRouter(mux)
 	s.registerConfigHistory(mux)
 	s.registerAudit(mux)
+	s.registerActivity(mux)
 	s.registerBackupRaw(mux)
 	s.registerBackupDownloads(mux)
 	s.registerSnifferPcap(mux)
@@ -868,6 +876,7 @@ func (s *Server) Shutdown() {
 	}
 	s.ztpShutdown()
 	s.sessions.Shutdown()
+	s.activityWire.Close()
 	// ── THE OPEN MINUTE, BEFORE THE CONNECTIONS GO ────────────────────
 	//
 	// A history bucket only rolls over when the NEXT minute's first sample

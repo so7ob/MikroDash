@@ -112,7 +112,7 @@ func main() {
 				"is believed (e.g. 172.18.0.0/16). Empty trusts none. Also read from "+
 				"MIKRODASH_TRUSTED_PROXIES")
 		geoDir = flag.String("geo", "/app/geo",
-			"geoip-lite's data directory, read for country lookups")
+			"local GeoIP directory containing dbip.mmdb (or legacy .dat files)")
 	)
 	flag.Parse()
 

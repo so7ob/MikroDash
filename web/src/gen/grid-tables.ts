@@ -235,6 +235,54 @@ export const DEFAULT_LAYOUT: readonly GridCard[] = [
     "w": 12,
     "h": 5,
     "visible": false
+  },
+  {
+    "id": "dc-card-activity-overview",
+    "x": 1,
+    "y": 1,
+    "w": 8,
+    "h": 5,
+    "visible": false
+  },
+  {
+    "id": "dc-card-activity-timeline",
+    "x": 1,
+    "y": 1,
+    "w": 12,
+    "h": 5,
+    "visible": false
+  },
+  {
+    "id": "dc-card-activity-services",
+    "x": 1,
+    "y": 1,
+    "w": 8,
+    "h": 6,
+    "visible": false
+  },
+  {
+    "id": "dc-card-activity-users",
+    "x": 1,
+    "y": 1,
+    "w": 8,
+    "h": 6,
+    "visible": false
+  },
+  {
+    "id": "dc-card-activity-categories",
+    "x": 1,
+    "y": 1,
+    "w": 8,
+    "h": 6,
+    "visible": false
+  },
+  {
+    "id": "dc-card-activity-countries",
+    "x": 1,
+    "y": 1,
+    "w": 8,
+    "h": 6,
+    "visible": false
   }
 ];
 
@@ -264,7 +312,13 @@ export const CARD_LABELS: Readonly<Record<string, string>> = {
   "dc-card-diagnostics": "API Diagnostics",
   "dc-card-agent": "Agent Overview",
   "dc-card-secscore": "Security Score",
-  "dc-card-wanflow": "WAN Flow"
+  "dc-card-wanflow": "WAN Flow",
+  "dc-card-activity-overview": "Activity Overview",
+  "dc-card-activity-timeline": "Activity Timeline",
+  "dc-card-activity-services": "Activity Services",
+  "dc-card-activity-users": "Activity Users",
+  "dc-card-activity-categories": "Activity Categories",
+  "dc-card-activity-countries": "Activity Countries"
 };
 
 /**
@@ -283,4 +337,24 @@ export const CARD_ROOMS: Readonly<Record<string, string>> = {
   "dc-card-agent": "agent",
   "dc-card-secscore": "secscore",
   "dc-card-wanflow": "wan"
+};
+
+/** Source-page permissions also gate cards that read over HTTP. */
+export const CARD_PAGES: Readonly<Record<string, string>> = {
+  "card-connections": "connections",
+  "dc-card-netflow": "wifi-clients",
+  "card-network": "dhcp",
+  "card-wireguard": "vpn",
+  "dc-card-physports": "interfaces",
+  "dc-card-fwaction": "firewall",
+  "dc-card-logs": "logs",
+  "dc-card-agent": "ai-agent",
+  "dc-card-secscore": "security-scan",
+  "dc-card-wanflow": "wan",
+  "dc-card-activity-overview": "activity",
+  "dc-card-activity-timeline": "activity",
+  "dc-card-activity-services": "activity",
+  "dc-card-activity-users": "activity",
+  "dc-card-activity-categories": "activity",
+  "dc-card-activity-countries": "activity"
 };

@@ -10,16 +10,17 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/SecOps-7/MikroDash/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/SecOps-7/MikroDash?style=flat-square&color=2563eb"></a>
-  <a href="https://github.com/SecOps-7/MikroDash/pkgs/container/mikrodash"><img alt="Docker image on GHCR" src="https://img.shields.io/badge/docker-ghcr.io%2Fsecops--7%2Fmikrodash-2496ED?style=flat-square&logo=docker&logoColor=white"></a>
+  <a href="https://github.com/so7ob/MikroDash/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/so7ob/MikroDash?style=flat-square&color=2563eb"></a>
+  <a href="https://github.com/so7ob/MikroDash/pkgs/container/mikrodash"><img alt="Docker image on GHCR" src="https://img.shields.io/badge/docker-ghcr.io%2Fso7ob%2Fmikrodash-2496ED?style=flat-square&logo=docker&logoColor=white"></a>
   <img alt="Platforms" src="https://img.shields.io/badge/platforms-amd64%20%7C%20arm64%20%7C%20arm%2Fv7-6b7280?style=flat-square">
   <img alt="RouterOS v7" src="https://img.shields.io/badge/RouterOS-v7-e11d48?style=flat-square">
-  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/SecOps-7/MikroDash?style=flat-square&color=16a34a"></a>
+  <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/github/license/so7ob/MikroDash?style=flat-square&color=16a34a"></a>
 </p>
 
 <p align="center">
   <a href="#-quick-start">Quick start</a> ·
   <a href="#-features">Features</a> ·
+  <a href="#activity-analytics">Activity</a> ·
   <a href="#-screenshots">Screenshots</a> ·
   <a href="#-routeros-setup">RouterOS setup</a> ·
   <a href="#-configuration">Configuration</a> ·
@@ -48,7 +49,7 @@
 # docker-compose.yml
 services:
   mikrodash:
-    image: ghcr.io/secops-7/mikrodash:latest
+    image: ghcr.io/so7ob/mikrodash:latest
     restart: unless-stopped
     ports:
       - "3081:3081"
@@ -67,7 +68,7 @@ docker compose up -d
 Open **http://localhost:3081**. On first run MikroDash asks you to create an administrator account, then walks you through adding your first router and testing the connection. No `.env` file is needed.
 
 > [!TIP]
-> Images are published for `linux/amd64`, `linux/arm64` and `linux/arm/v7` on every release tag, so `latest` always means the latest release, never unreleased work. Pin a version with `ghcr.io/secops-7/mikrodash:<version>`.
+> Images are published for `linux/amd64`, `linux/arm64` and `linux/arm/v7` on every release tag, so `latest` always means the latest release, never unreleased work. Pin a version with `ghcr.io/so7ob/mikrodash:<version>`.
 
 <details>
 <summary><strong>Run it on the router itself (RouterOS container)</strong></summary>
@@ -77,7 +78,7 @@ Open **http://localhost:3081**. On first run MikroDash asks you to create an adm
 MikroDash can run on the MikroTik it monitors, using RouterOS's own container support:
 
 ```routeros
-/container/add remote-image=ghcr.io/secops-7/mikrodash:latest \
+/container/add remote-image=ghcr.io/so7ob/mikrodash:latest \
   interface=veth_mikrodash root-dir=usb1/mikrodash \
   mountlists=mikrodash_data start-on-boot=yes comment="MikroDash"
 ```
@@ -96,7 +97,7 @@ The RouterOS **Apps** menu installs MikroDash from MikroTik's own copy of the ca
 Only Docker is needed on the host:
 
 ```bash
-git clone https://github.com/SecOps-7/MikroDash.git
+git clone https://github.com/so7ob/MikroDash.git
 cd MikroDash
 docker build -t mikrodash:local .
 docker run -d --name mikrodash --restart unless-stopped \
@@ -127,7 +128,8 @@ A worked deployment on a separate Docker host is in [`docs/deploy-r5s.md`](docs/
 | 🔔 **Alerts and notifications** | Interface up/down, WireGuard peers, CPU, ping loss, NetWatch hosts, router online/offline, RouterOS updates, configuration drift and backup failures, delivered through notification **channels** you create: SMTP, or a webhook URL for Telegram, Pushbullet, ntfy, Discord, Slack, Gotify, Pushover, a generic JSON endpoint, or an Apprise server for everything else. Each channel picks its own alert types, devices, thresholds and cooldown, and scheduled reports go out through one. |
 | 📈 **History and reports** | Traffic, ping, bandwidth, alerts and connectivity recorded to SQLite, viewable by date range, exported to CSV or PDF, and emailed on a daily, weekly or monthly schedule. Click any interface for its own traffic: live for the last minute, or up to thirty days back for the interfaces you choose to record. |
 | 🪄 **Zero-touch provisioning** | Add a router before it exists: a wizard makes a short script for it, and when the router runs it, it calls home, joins the fleet and receives its Config Management template on its own. Remote routers dial in over a WireGuard tunnel built into MikroDash, from behind NAT anywhere; a generic script brings in a whole rollout, each router waiting for your approval. |
-| 🧩 **Config Management** | A library of 21 ready-made configuration templates (firewalls, a threat IP blocklist, VLANs, a guest network, WireGuard, DNS, queues, monitoring) plus your own, captured from a router or written in the editor. Every setting has a working default. Deploy to one router or the fleet: a syntax check first, a restore point, a canary router before the rest, an automatic revert if a change cuts MikroDash off, and History and Drift afterwards. |
+| **Activity analytics** | Explore recorded DNSUSER activity by service, domain, category, user/device, destination country, day and hour. Interactive charts filter in place; Events preserve DNS/device evidence. Opt-in incremental USB archive sync, local classifications, CSV and six optional dashboard cards. |
+| 🧩 **Config Management** | A library of 22 ready-made configuration templates (firewalls, a threat IP blocklist, VLANs, a guest network, WireGuard, DNS, queues, monitoring, Activity USB logging) plus your own, captured from a router or written in the editor. Every setting has a working default. Deploy to one router or the fleet: a syntax check first, a restore point, a canary router before the rest, an automatic revert if a change cuts MikroDash off, and History and Drift afterwards. |
 | 💾 **Backups** | Scheduled configuration backups kept only when something changed, with a unified diff of what moved, retention rules, and a guarded restore. Optionally a **migration export** as well, per device: the full configuration with its passwords and keys included, encrypted at rest, for rebuilding on a different device. |
 | 🛠️ **Tools** | Ping, traceroute with an animated world map of the hops, torch, bandwidth test and a packet sniffer with a pcap export, run from the router with live output and a Stop button. |
 | ⌨️ **Terminal** | A RouterOS console in the browser, for the device you have selected. The line you type goes to the router's own parser, so `where`, `:put [...]` and everything else the CLI understands works, and what comes back is the router's own text. Granted per device through the Terminal page permission, and bounded by what the RouterOS account MikroDash signs in with may do. Every line is in the audit trail. |
@@ -148,7 +150,7 @@ MikroDash has more than fifty pages. Here they are by area (the sidebar can grou
 | **Network** | Interfaces, IP Addresses, VLANs, Bridges, DHCP, DHCP Servers, DHCP Clients, DNS, IP Pools, Interface Lists, ARP |
 | **Routing** | Routing (routes and BGP), Routing Tables, Routing Rules, OSPF, VRRP |
 | **Tunnels** | VPN (an overview of every tunnel technology, with a card per live connection), WireGuard (interfaces and peers, with a client configuration and a scannable QR code), PPP, IPsec, OpenVPN, PPPoE Clients |
-| **Traffic** | Connections (a world map, or a list of every connection), Bandwidth, Queues, Logs |
+| **Traffic** | Connections (a world map, or a list of every connection), Bandwidth, Queues, Logs, **Activity Analytics** |
 | **Security** | Firewall (Filter, NAT, Mangle and Raw, with reorder, undo and redo), Address Lists, Certificates, Security Scan |
 | **System** | Users (RouterOS accounts and groups), Services, Packages, Scripts, Scheduler, NTP Client, Clock, Logging, SNMP, Files, Containers, NetWatch |
 | **MikroDash** | Tools, Terminal, AI Agent, Reports, Backups, Audit Trail, Settings |
@@ -229,6 +231,64 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 
 ---
 
+## Activity analytics
+
+**Activity** (`/activity`) turns structured `DNSUSER` logs into a searchable
+history alongside the original **Logs** view. Overview combines activity over
+time, service/category/user doughnuts, rankings and peak-hour heatmaps. Grouped
+analysis compares services, exact domains, countries, categories, users/devices,
+days and hours. Events retain the recorded user, server, IP, MAC, device name,
+query type, matching method, canonical name and IPv4/IPv6 DNS answers.
+
+- Click a chart label, doughnut slice or ranking to filter the current view;
+  click it again to clear that filter. Click a selected time bar again to restore
+  the previous period. **Ctrl + click** opens matching Events. Colored filter
+  chips and **Clear** make selections visible; filters stay in the URL.
+- Apply local service/category rules to retained history, sort grouped results
+  and export the filtered events as CSV. Read/export and configuration changes
+  follow the selected router's permissions.
+- Add any of six optional Activity cards with **Dashboard > Edit > Add Card**:
+  Overview, Timeline, Services, Users, Categories and Countries.
+
+### Start recording
+
+Activity checks the selected router's logging setup. If required settings are
+missing, **Set up Activity** opens the matching Configuration Library template
+with the router and archive filename selected for review. Details and **Check
+setup** are in **Synchronization**. An unreadable/offline router is shown as
+unverified; opening the template installs nothing automatically.
+
+In **Config Management > Library > Monitoring**, the **Activity analytics
+(DNSUSER + USB)** template includes `DNSUserLine`, the `DNSJoin` script action,
+the `NetArchive` disk action and logging rules. **Attach a USB drive to the router
+and create its log directory first.** The template preview contains the setup
+checklist and adjustable file/line limits. If your router already produces these
+logs, keep that working setup and proceed to synchronization.
+
+Enable **Activity > Synchronization** explicitly for each router. Set its folder
+(default `usb1-part1/Log`, without `/netlog`) and log timezone, and verify the API
+account can read the files. MikroDash saves the new records in SQLite and retains
+**30 days**. Incremental checkpoints survive restarts, reconnects and file
+rotation, so the next synchronization recovers available new records without
+recounting files already imported. Collection continues with the page closed.
+USB logs still rotate: records overwritten before synchronization cannot be
+recovered. [Setup instructions, requirements and details](docs/Activity-Analytics.md#router-setup-from-configuration-library).
+
+Counts describe **recorded DNSUSER events**, including background app requests,
+not confirmed visits, viewing time or bandwidth. Local GeoIP estimates countries
+for recorded DNS answers separately from actual Firewall destination IPs;
+missing location data stays **Unknown**. No activity is sent to external
+classification or geolocation services.
+
+[![Activity overview with time histogram, category and user distributions, and DNS evidence](screenshots/activity-overview.png)](screenshots/activity-overview.png)
+
+| Recorded event details | Incremental archive synchronization |
+| :---: | :---: |
+| [![Activity events with recorded device name, canonical domain and IPv4/IPv6 DNS answers](screenshots/activity-events.png)](screenshots/activity-events.png) | [![Activity Synchronization tab with USB folder, timezone, archive status and last successful synchronization](screenshots/activity-sync.png)](screenshots/activity-sync.png) |
+
+*Activity screenshots use synthetic demonstration data, including Arabic names.
+DNS answer countries remain Unknown in this fixture, which has no GeoIP database.*
+
 ## 📸 Screenshots
 
 <table>
@@ -258,7 +318,7 @@ Every table sorts by its headers, except the ones where order is meaning (firewa
 
 ## 🔌 RouterOS setup
 
-Create a dedicated, **read-only** API user. Every page, chart and alert works with it, and a compromised dashboard cannot change your router:
+Create a dedicated, **read-only** API user for core monitoring and alerts. Activity archive synchronization additionally needs verified `/file/read` access; see the [Activity setup guide](docs/Activity-Analytics.md#router-setup-from-configuration-library). Configuration deployment and other router writes require separate permissions:
 
 ```routeros
 /ip service set api port=8728 disabled=no
@@ -524,7 +584,7 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) for the local setup and the project's co
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome, from typo fixes to new pages. Check the [open issues](https://github.com/SecOps-7/MikroDash/issues) first, and open one before a large change so the approach can be agreed. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Issues and pull requests are welcome, from typo fixes to new pages. Check the [open issues](https://github.com/so7ob/MikroDash/issues) first, and open one before a large change so the approach can be agreed. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

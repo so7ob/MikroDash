@@ -33,9 +33,10 @@
 // back. That is the live behaviour and it is the forgiving one.
 
 import { el } from '../dom';
+import { pageAllowed } from '../caps';
 import { cloneLayout, findFreeSlot } from './dashboard-grid-layout';
 import { applyLayout, saveLayout } from './dashboard-grid-store';
-import { CARD_LABELS, CARD_ROOMS, DEFAULT_LAYOUT, GAP, PAD, type GridCard } from '../gen/grid-tables';
+import { CARD_LABELS, CARD_PAGES, CARD_ROOMS, DEFAULT_LAYOUT, GAP, PAD, type GridCard } from '../gen/grid-tables';
 import { getCellSize, gridRows } from './dashboard-grid-layout';
 
 export interface GridEditor {
@@ -138,7 +139,7 @@ export function createGridEditor(
 
   function addCard(id: string): void {
     const c = getCard(id);
-    if (!c) return;
+    if (!c || (CARD_PAGES[id] && !pageAllowed(CARD_PAGES[id]!))) return;
     // `|| 3` and `|| 2` are a floor for a card whose stored size is 0 - not
     // reachable from the shipped defaults, and reproduced rather than dropped
     // because a 0×0 card would be invisible and unclickable.
@@ -165,7 +166,7 @@ export function createGridEditor(
     hdr.textContent = 'Hidden Cards';
     panel.appendChild(hdr);
 
-    const hidden = layout.filter((c) => !c.visible);
+    const hidden = layout.filter((c) => !c.visible && (!CARD_PAGES[c.id] || pageAllowed(CARD_PAGES[c.id]!)));
     if (hidden.length === 0) {
       const empty = document.createElement('div');
       empty.className = 'dash-add-empty';

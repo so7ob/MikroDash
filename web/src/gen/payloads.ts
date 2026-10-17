@@ -12,6 +12,11 @@
 // em dash while an explicit null renders the string "null". Arrays are never
 // null: Go does not send one, and TestNoPayloadSendsANullArray holds it to that.
 
+export interface ActivityChanged {
+  routerId: string;
+  at: number;
+}
+
 export interface AlertRow {
   id: number;
   routerId: string | null;
@@ -2028,6 +2033,175 @@ export interface ZTPPayload {
   batches: ZTPBatchView[];
 }
 
+export interface ActivityRanking {
+  key: string;
+  label: string;
+  service: string;
+  category: string;
+  user: string;
+  server: string;
+  ip: string;
+  mac: string;
+  count: number;
+  domains: number;
+  devices: number;
+  last: number;
+}
+
+export interface ActivityFilter {
+  dnsCountry: string;
+  canonical: string;
+  deviceName: string;
+  dnsIP: string;
+  ipBasis: string;
+  server: string;
+  qtype: string;
+  match: string;
+  country: string;
+  day: string;
+  hour: string;
+  from: number;
+  to: number;
+  search: string;
+  client: string;
+  domain: string;
+  service: string;
+  category: string;
+  kind: string;
+  view: string;
+  group: string;
+  sort: string;
+  desc: boolean;
+  page: number;
+  limit: number;
+}
+
+export interface ActivityTotals {
+  answered: number;
+  answerIPs: number;
+  deviceNames: number;
+  canonicals: number;
+  dns: number;
+  firewall: number;
+  domains: number;
+  users: number;
+  unmapped: number;
+  sources: number;
+}
+
+export interface DNSAnswer {
+  ip: string;
+  country: string;
+  city: string;
+}
+
+export interface ActivityEvent {
+  dnsAnswers: DNSAnswer[];
+  canonical: string;
+  dnsIPs: string[];
+  ipBasis: string;
+  deviceName: string;
+  country: string;
+  city: string;
+  day: string;
+  hour: string;
+  id: number;
+  routerId: string;
+  sourceKey: string;
+  at: number;
+  received: number;
+  routerTime: string;
+  timeCertain: boolean;
+  kind: string;
+  domain: string;
+  user: string;
+  ip: string;
+  mac: string;
+  server: string;
+  match: string;
+  qtype: string;
+  client: string;
+  protocol: string;
+  destination: string;
+  in: string;
+  out: string;
+  length: string;
+  service: string;
+  category: string;
+  count: number;
+}
+
+export interface ActivityPoint {
+  at: number;
+  count: number;
+}
+
+export interface ActivityHeat {
+  day: number;
+  hour: number;
+  count: number;
+}
+
+export interface ActivityCoverage {
+  start: number;
+  end: number;
+}
+
+export interface ActivityRule {
+  domain: string;
+  subdomains: boolean;
+  service: string;
+  category: string;
+  custom: boolean;
+}
+
+export interface ActivityStatus {
+  lastSync: number;
+  files: number;
+  bytesRead: number;
+  syncing: boolean;
+  enabled: boolean;
+  listening: boolean;
+  lastReceived: number;
+  lastPersisted: number;
+  invalid: number;
+  dropped: number;
+  error: string;
+}
+
+export interface ActivitySettings {
+  folder: string;
+  enabled: boolean;
+  timezone: string;
+}
+
+export interface ActivityResult {
+  dnsCountries: ActivityRanking[];
+  queryTypes: ActivityRanking[];
+  matchMethods: ActivityRanking[];
+  ipBases: ActivityRanking[];
+  countries: ActivityRanking[];
+  geoAvailable: boolean;
+  routerId: string;
+  filter: ActivityFilter;
+  totals: ActivityTotals;
+  rows: ActivityRanking[];
+  events: ActivityEvent[];
+  services: ActivityRanking[];
+  clients: ActivityRanking[];
+  categories: ActivityRanking[];
+  series: ActivityPoint[];
+  heatmap: ActivityHeat[];
+  coverage: ActivityCoverage[];
+  rules: ActivityRule[];
+  totalRows: number;
+  previous: number;
+  comparison: boolean;
+  canWrite: boolean;
+  status: ActivityStatus;
+  settings: ActivitySettings;
+}
+
 export interface DiffLine {
   op: string;
   text: string;
@@ -2091,6 +2265,7 @@ export interface ConnsUpdate {
 // each handler from this, so a page listening for an event gets exactly the
 // payload Go declared for it.
 export interface Events {
+  'activity:changed': ActivityChanged;
   'alert:acked': AlertRow;
   'apps:progress': AppsProgressPayload;
   'apps:state': AppsPayload;

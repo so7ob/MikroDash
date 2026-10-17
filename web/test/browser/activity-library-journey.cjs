@@ -1,0 +1,48 @@
+const assert = require('node:assert/strict');
+const { chromium } = require('playwright');
+(async () => {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1280, height: 950 } });
+  await context.addCookies([{ name: 'mikrodash_sid', value: 'activity-test-token', url: process.argv[2] }]);
+  const page = await context.newPage();
+  const errors = [], writes = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  page.on('request', (req) => { if (req.method() !== 'GET') writes.push(req.method() + ' ' + new URL(req.url()).pathname); });
+  await page.goto(process.argv[2] + '/journey');
+  const card = page.locator('[data-cfg-id="canned:activity-logging"]');
+  await card.waitFor();
+  await page.locator('[data-cfg-cat="monitoring"]').click();
+  assert.equal(await card.count(), 1);
+  await page.locator('#cfgSearch').fill('DNSUSER');
+  assert.equal(await page.locator('[data-cfg-id]').count(), 1);
+  assert.match(await card.textContent(), /Attach USB/);
+  await card.locator('[data-cfg-act="preview"]').click();
+  await page.waitForFunction(() => document.querySelector('#cfgDrawerBody')?.textContent?.includes('BEFORE DEPLOYING'));
+  const body = await page.locator('#cfgDrawerBody').textContent();
+  for (const word of ['DNSUserLine', 'NetArchive', 'DNSJoin', 'directory MUST exist', 'dont-require-permissions', '30 days', 'usb1-part1/Log/netlog']) assert.ok(body.includes(word), word);
+  assert.match(body, /Needs your OK/);
+  assert.doesNotMatch(body, /Refused/);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#cfgDrawer').getAttribute('aria-hidden'), 'true');
+  await card.locator('[data-cfg-act="deploy"]').click();
+  await page.waitForFunction(() => document.querySelector('#cfgDepTpl')?.value === 'canned:activity-logging');
+  assert.equal(await page.locator('#cfgDepStart').isDisabled(), true, 'deploy enabled without preview/acknowledgements');
+  assert.equal((await page.locator('#cfgDepTplMeta').textContent()).includes('An addition'), true);
+  await page.locator('[data-cfgtab="library"]').click();
+  for (const [width, theme] of [[1280, 'dark'], [375, 'light']]) {
+    await page.setViewportSize({ width, height: 950 });
+    await page.evaluate((theme) => { document.documentElement.dataset.theme = theme; }, theme);
+    assert.ok(await card.isVisible());
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'library horizontal overflow');
+    await card.locator('[data-cfg-act="preview"]').focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.querySelector('#cfgDrawerBody')?.textContent?.includes('BEFORE DEPLOYING'));
+    assert.ok(await page.locator('#cfgDrawerClose').isVisible());
+    await page.screenshot({ path: '/tmp/mikrodash-activity-library-' + width + '.png', fullPage: true, animations: 'disabled' });
+    await page.keyboard.press('Escape');
+  }
+  assert.deepEqual(errors, []);
+  assert.deepEqual(writes, [], 'browsing the setup changed state');
+  console.log('library: Monitoring/search, actual USB instructions/source/settings, shipped acknowledgements, disabled unreviewed deploy, Enter/Escape, 375/1280 and light/dark passed; zero mutation requests');
+  await browser.close();
+})().catch((error) => { console.error(error); process.exit(1); });

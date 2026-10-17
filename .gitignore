@@ -1,5 +1,8 @@
 .env
 
+# Local development runtime state: database, credentials and router settings.
+/devdata/
+
 # ── Build output ──────────────────────────────────────────────────────────
 /mikrodash
 /mikrodashd

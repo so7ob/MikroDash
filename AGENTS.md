@@ -9,6 +9,10 @@ and it is the one that outranks this. Two documents making the same claim is how
 one of them goes stale - this project has paid for that repeatedly. Read
 `CLAUDE.md` first; come here for the shapes it does not describe.
 
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before any development or GitHub operation. It defines
+Issue → numbered branch from `develop` → tested PR → verified `develop` delivery, and the
+explicit-request-only release path to `main`. The authorization rules in `CLAUDE.md` apply.
+
 Read DESIGN.md before any UI work.
 
 ---

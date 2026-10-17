@@ -258,6 +258,7 @@ func TestOnlyAShippedTemplateMayCarryAScript(t *testing.T) {
 // and a listed id with no body fails. A changed body needs its version bumped
 // in the manifest too; the version is what a clone records as its baseline.
 var cannedLedger = map[string]string{
+	"activity-logging":        "42d7c2588e85e743@v1",
 	"anti-bufferbloat":        "dbbf23da08e5155f@v1",
 	"bridge-vlan":             "6ec9b5eb7aa100f6@v1",
 	"dns-and-time":            "4c410ebe6cd5cff4@v1",
