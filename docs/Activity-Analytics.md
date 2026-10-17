@@ -16,6 +16,99 @@ and analysis filters are preserved when switching views. Selected filters use
 colored chips by filter type; click one to remove it, or use **Clear** to remove
 all selected drilldown filters.
 
+## Router setup from Configuration Library
+
+Open **Config Management > Library > Monitoring > Activity analytics (DNSUSER + USB)**.
+Its Preview contains the complete `DNSUserLine` script and logging configuration,
+with the USB setup checklist at the start of the template source. It is based on a working RouterOS
+**7.24.5** setup, inspected read-only. The router must support logging actions
+with `target=script`; check that capability before using it on another release.
+No scheduler is needed: the logging action supplies the original `$message`.
+
+### Prepare the USB drive
+
+1. Attach a USB flash drive or external drive to the **MikroTik router**. Confirm
+   that RouterOS recognizes and mounts it in **System > Disks** and **Files**.
+   Use the actual mounted name; `usb1-part1` is only the example/default.
+2. In **Files**, create a `Log` directory inside that mounted drive. The directory
+   must exist before the disk logging action is configured. The template does
+   not partition, format, mount or erase storage, or fall back to internal flash.
+3. Set **USB log filename** to `usb1-part1/Log/netlog`, or your mounted directory
+   followed by `/netlog`. Do **not** append `.0.txt`: RouterOS creates
+   `netlog.0.txt`, `netlog.1.txt`, and so on itself.
+4. Choose capacity for your event rate and longest expected MikroDash outage.
+   Defaults match the reference setup: **1,000 lines per file and 1,000 files**,
+   with rotation enabled (`disk-stop-on-full=no`). These are line limits, not a
+   duration or a fixed byte size. Watch the drive's free space and write load.
+   Once the oldest file is overwritten, its unsynchronized rows are unavailable.
+
+### What the template configures
+
+| Component | Settings and purpose |
+| --- | --- |
+| `/system script`: `DNSUserLine` | Parses the incoming DNS query; snapshots HotSpot user/server, DHCP/ARP MAC and device name; writes structured `DNSUSER` JSON. Manual MAC-to-user/device maps start empty. |
+| Logging action `DNSJoin` | `target=script`, `script=DNSUserLine`. |
+| Logging action `NetArchive` | `target=disk`, the chosen USB filename and rotation limits. |
+| DNS rule | `topics=dns`, `regex="query from [0-9.]+: #"`, `action=DNSJoin`. |
+| DNSUSER rule | `topics=script`, `regex="^DNSUSER"`, `action=NetArchive`. |
+| HotSpot archive rule | `topics=script,info`, `regex="^HS_"`, `action=NetArchive`. It preserves messages from existing HotSpot hooks; this template does not create hooks, and Activity does not count `HS_` as DNS events. |
+
+The script reads cached A/AAAA answers and follows up to five CNAME hops, preserving
+`canonical`, `dns_ips`, `ip_basis`, and `device_name` alongside the basic fields.
+The provided DNS rule/script captures **IPv4 query sources**; cached answers can
+include **IPv4 and IPv6**. It does not claim coverage of IPv6 client queries.
+A cache miss can leave `dns_ips` empty: the query is logged before its answer is
+necessarily cached. The optional synchronous resolver fallback stays disabled.
+RouterOS skips matching log messages while a logging script is busy, so these
+are recorded observations, not a complete count of all network DNS traffic.
+
+Clients must already use this router as their resolver. LAN DNS access and WAN
+protection must already be correct. The template does not enable DNS service,
+redirect queries, change DHCP/firewall settings, or reveal DNS sent directly to
+other resolvers or encrypted inside client DoH/DoT. Firewall event logging is
+optional; existing firewall records in the archive are parsed separately.
+
+### Review, deploy and connect Activity
+
+1. Choose **Preview** in the library and review the instructions, script and three
+   settings. The source is a MikroDash template: its `ensure` commands are
+   resolved by the deployment engine, not RouterOS console commands to paste.
+2. For an initial setup, use **Deploy**, select the router, inspect its rendered
+   preview, acknowledge the existing script/code findings and confirm the target.
+   The standard backup, syntax checks and deployment guards still apply.
+   The template sets the existing `DNSUserLine` source and
+   `policy=read,write,test dont-require-permissions=yes`, allowing the logging hook
+   to invoke it. This does not grant rights to MikroDash's API account. Preserve
+   any manual labels before replacing an existing script. A working setup does
+   **not** need to be re-applied just to enable Activity.
+3. Named actions and exact rules are reused. No archive files or unrelated rules
+   are deleted, and repeated application does not add a second matching rule.
+   If you already have extra overlapping rules, review them to avoid duplicate
+   log delivery. A customised clone retains the existing stricter custom-script
+   guard; cloning does not confer shipped-template trust. Optional manual MAC
+   labels can be maintained in the router's script with your normal admin tools.
+4. Query a domain from a LAN client using this router's DNS. Check for
+   `DNSUSER` in **Logs** and an increasing `netlog.0.txt` under the USB folder
+   in **Files**. Running `DNSUserLine` by hand provides no query `$message`.
+5. Open **Activity > Synchronization**, select the router, and explicitly enable
+   synchronization. Enter **the folder only** (`usb1-part1/Log`, without
+   `/netlog`) and the router log timezone. Save, then check the last successful
+   synchronization, files, invalid rows and any read failures. Verify actual
+   `/file/read` access as described above; a group policy list alone is not proof.
+
+MikroDash incrementally reads the files into SQLite; analysis then reads SQLite.
+It resumes from persisted checkpoints after restart/reconnect, imports available
+new records while the page is closed, and retains **30 days** in its database.
+This does not change USB rotation limits or preserve records that RouterOS has
+already overwritten. Disabling synchronization stops collection for that router.
+
+MikroTik references: [logging and script hooks](https://manual.mikrotik.com/docs/diagnostics-monitoring-and-troubleshooting/log/),
+[logging action fields and USB rotation](https://manual.mikrotik.com/docs/cli-reference/system/logging/action/),
+[DNS cache records](https://manual.mikrotik.com/docs/cli-reference/ip/dns/cache/all/),
+and [script permissions](https://manual.mikrotik.com/docs/developer-guides/scripting/scripting-tips-and-tricks/).
+
+## Incremental collection and storage
+
 A held session supplies the existing shared RouterOS connection. Activity's hold
 runs no page collectors: the archive worker lists files every five seconds and
 uses `/file/read` in chunks of at most 32768 bytes. Only `.txt` children of the
