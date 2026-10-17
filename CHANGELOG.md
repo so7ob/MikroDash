@@ -2,6 +2,62 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [1.0.0] - Activity analytics with incremental USB archives
+
+### New
+
+- **Activity analytics** at `/activity`: time charts, service/category/user doughnuts,
+  peak-hour heatmaps and sortable grouped views for services, exact domains, countries,
+  categories, users/devices, days and hours. The original Logs page remains available.
+- **Incremental USB archive synchronization**: opt in per router, select its log folder
+  and timezone, and retain imported activity in SQLite for 30 days. Checkpoints survive
+  application restarts, disconnections and log rotation; available new records are recovered
+  while previously imported records are not counted again. Collection continues with the
+  browser closed, and synchronization reports failures and gaps.
+- **Recorded DNS evidence** in Events and Overview: user/server, IP, MAC, device name,
+  query type, matching method, canonical domain and IPv4/IPv6 DNS answers. DNS answer
+  countries are separate from Firewall destination countries; local GeoIP supplies locations
+  when available and unknown values remain Unknown.
+- **Local classification rules**, filtered CSV export and six optional Activity dashboard
+  cards: Overview, Timeline, Services, Users, Categories and Countries. Reads, exports and
+  settings respect the selected router's permissions.
+- **Activity setup in Configuration Library > Monitoring**: the `DNSUserLine` script,
+  `DNSJoin`/`NetArchive` actions, reusable logging rules and adjustable archive limits, with
+  instructions to attach USB storage and create the log directory. The template is based on
+  a working RouterOS 7.24.5 setup and requires the script logging target. Its installation
+  uses the existing reviewed preview, acknowledgements and guarded deployment flow.
+- **Read-only setup check**: missing required router settings show a link to the exact
+  template with the router and archive filename preselected. Unreadable/offline settings
+  remain unverified. Details and an explicit recheck are in Synchronization; opening the
+  template installs nothing automatically.
+
+### Changed
+
+- Chart labels, doughnut slices, rankings and time bars filter Activity in place. Click a
+  selected item again to remove that filter; a second click on the time bar restores the
+  previous period. **Ctrl + click** opens matching Events.
+- Synchronization has its own tab. Selected filters use colored chips and a distinct
+  **Clear** button; the chart hint is shorter and filters stay in the URL.
+- Project, update-check, container and support references now point to **so7ob/MikroDash**
+  and **So7ob**.
+
+### Documentation
+
+- Added the Activity guide and three real UI screenshots made with synthetic data to the
+  README, plus USB logging, file-read access, timezone and GeoIP setup instructions.
+- Published the project skill library with its catalog and third-party notices.
+
+### Recording limits
+
+- Counts describe **recorded DNSUSER events**, including background requests, rather than
+  confirmed visits, browsing time or bandwidth. No activity is sent to external classification
+  or geolocation services.
+- USB files still rotate. Only records remaining in the available archive can be recovered;
+  records overwritten before synchronization cannot be restored. MikroDash's 30-day retention
+  is separate from USB capacity. The supplied script records IPv4 DNS clients and cached
+  A/AAAA answers; cold-cache answers and queries skipped while its logging hook is busy may
+  be absent.
+
 ## [0.8.74] - More live data streams, and shared streams that serve every reader
 
 ### Changed
