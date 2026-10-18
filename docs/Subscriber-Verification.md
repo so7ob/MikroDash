@@ -1,0 +1,120 @@
+# Subscriber Management verification record
+
+Date: 2026-10-19 (Asia/Aden). Issue: [#38](https://github.com/so7ob/MikroDash/issues/38).
+This is a **development preview, not acceptance-complete**. Passing the checks below does not
+establish live HotSpot sign-in, CoA speed verification, production readiness or deployment.
+See [architecture and remaining work](Subscriber-Management.md) and the
+[lab guide](Subscriber-Lab-Guide.md).
+
+## Source and isolation
+
+Implementation took place in the visible `/root/So7ob/MikroDash` checkout, on
+`feat/38-subscriber-management`, from `develop` at `18a5f7de`. The origin is
+`so7ob/MikroDash`; neither the upstream reference nor `so7ob/web` was modified.
+Unrelated `.vscode/` files and the running debugger binary were preserved and not staged.
+
+Clean detached worktrees were used only for verification and deliberate negative mutations.
+They contained the same committed source, without the operator's ignored runtime directory.
+The visible checkout's baseline `go test ./...` fails `TestNoCommittedCredential` because
+`.temp/geo/cities.json` exceeds that existing check's 8 MiB scan limit. The file and the check
+were retained. A passing clean-checkout result does not mean that local warning disappeared.
+
+## Commands and actual results
+
+| Check | Evidence and limits |
+| --- | --- |
+| `sh tools/verify.sh` | Passed at `90ba843d`, and again after the late-byte correction at `5cdd4515`: gofmt, vet, 62 Go packages, govulncheck, six Go generators, seven generated-table checks, TypeScript, 141 frontend tests and 22 tooling tests. No skipped half in these runs. |
+| Authentication/resource and multiple-limit follow-up | At `f704de47`, focused subscriber/server tests passed for shared credential concurrency, portal routes, simultaneous limits and cross-router budgets. Final branch CI is a separate check on the PR head. |
+| `go test -race ./internal/subscriber ./internal/db -count=1` | Passed after the SQLite URI fix: subscriber 18.268 s, database 48.886 s. |
+| `go test -race ./internal/server -count=1` | Passed at `c958eefa` in 297.350 s after initializing the pre-existing fleet fixture's hub. This is not a RouterOS timing measurement. |
+| Portal race coverage | `go test -race ./internal/server -run '^(TestPortal\|TestShadowCannotIssueHotSpotTicket)' -count=1`: passed, 4.831 s. |
+| Accounting fuzz | `go test ./internal/subscriber -run '^$' -fuzz '^FuzzAccountingMonotoneReplay$' -fuzztime=5s -parallel=2`: passed at `5cdd4515`, 91 executions in the final run. |
+| Period fuzz | Same command with `FuzzPeriodContainsTimestamp`: passed at `5cdd4515`, 41,415 executions in the final run. Five seconds is a bounded probe, not exhaustive exploration. |
+| Browser acceptance | Real Chromium, synthetic TLS server and SQLite: login, persisted speed choice with pending status, shadow connection refusal, logout, LTR, 375/1280, blue/green/purple, no page errors, and axe WCAG 2 A/AA + 2.1 AA checks passed. No real HotSpot was involved. |
+| Patched RouterOS adapter | Existing adapter tests, including `TestNoReplyIsLostBeforeItsTagIsRegistered` and `TestTracingNeverLogsACredential`, remain in the passing Go suite. The vendored module itself has no standalone test files. |
+| Live read-only protocol | Existing `cmd/conformance`: seven protocol cases passed against the configured router. This does not test subscriber RADIUS or internet access. |
+| Existing data compatibility | `go run ./cmd/compat -data ./devdata`: all eleven reported checks passed, including the encryption envelope, bare user array, router credential decryption and audit reads. Password verification was not requested. |
+| Builds | Frontend and host binary built. The additional ARM64 build did not complete during disk exhaustion; no ARM64 success is claimed. |
+
+The browser harness is `tools/subscriber-browser.mjs`, invoked by
+`go test -tags=subscriberbrowser ./internal/server -run '^TestSubscriberBrowserAcceptance$' -count=1 -v`.
+The tested external tooling was Playwright 1.64.1 and @axe-core/playwright 4.14.0, with an
+explicitly selected installed Chromium executable. Only the synthetic test context ignores
+its self-signed certificate; production TLS verification is not disabled.
+
+## Failures found and repaired
+
+- A literal `#` in a SQLite filename was interpreted as URI syntax. The new fuzz seed exposed
+  that defect. Creation and reopening now share escaped absolute URIs, with regression tests
+  for `#`, `?`, `%`, spaces and Unicode. No data-directory contents were deleted to resolve it.
+- One-second protocol-test deadlines were too short for race-instrumented scrypt under load.
+  Correctness tests now retain a five-second bound; they do not assert a latency SLA.
+- A pre-existing fleet-session test created a real asynchronous session manager with a nil hub.
+  Delayed dial failure could panic under race instrumentation. Its fixture now initializes the
+  hub, preserving the assertions and production code.
+- A delayed reading with higher bytes and an older clock could invert a boundary interval.
+  The correction now charges every touched period conservatively and never doubles lifetime
+  counters. A midnight regression pins the case.
+- The first axe run found muted text contrast failures. The portal now uses shared dark-theme
+  attributes and an accessible scoped text token; the subsequent browser run passed.
+- Additional checks and cross-compilation exhausted the host disk. Those runs failed and are
+  not counted as passes. Rebuildable compilation caches were cleaned; the complete verification
+  and both fuzz probes then passed again. Databases, volumes and operator runtime files were
+  not deleted. No performance inference is drawn from these resource-contended runs.
+
+## Negative mutation evidence
+
+Four deliberate, non-equivalent mutations were applied one at a time in an isolated copy and
+restored immediately. All four were killed by a test assertion, not by a compilation error:
+
+| Mutation | Test that failed |
+| --- | --- |
+| Add cumulative seconds instead of taking the high-water mark | `TestDuplicateLateStopDoesNotCloseNewSession` |
+| Ignore outstanding reserved balances | `TestAtomicSharedAdmission` |
+| Delete usage buckets when changing speed | `TestTimeSurvivesSessionsAndSpeed` |
+| Ignore the service disconnect grant | `TestSubscriberServiceGrantIsNarrow` |
+
+The mutation run used `90ba843d`. Its logs do not claim exhaustive mutation coverage of the
+later changes. No test, guard or check was removed to make a failed run green.
+
+## Acceptance coverage
+
+| Requested behavior | Implemented evidence / remaining boundary |
+| --- | --- |
+| One hour before first use; 20-minute reconnect; 109 + 51 seconds | Persistent-ledger tests prove 3600, 2400 and 3440 seconds remaining respectively. |
+| Simultaneous time/download/upload/monthly total | Four independent limits, exhaustion reaching the background decision, denial of re-entry and daily renewal preserving monthly usage are tested. |
+| Speed preserves balance and validity | Persistence and entitlement checks pass. Live speed application/readback is not implemented; the portal says `pending-reconnect`. |
+| Duplicates, reordering, delayed Stop and reused session identity | Journal deduplication, independent counter high-water marks and lease-bound identity are tested. |
+| Midnight, monthly periods and minute-25 hourly anchor | Calendar and conservative boundary-accounting tests pass. Exact byte distribution within an unsampled gap is not claimed. |
+| One-second snapshot skew | Regression keeps known counters and balances; it does not convert the account to Unknown. |
+| Multiple devices/routers share entitlement | Concurrent admission and distinct-router/network reservation tests pass. Multiple networks using the same NAS source address are still refused by runtime configuration. |
+| No browsers open | Real loopback UDP test proves the background worker sends a guarded Disconnect independently of portal presence. Its NAS and API identity callback are synthetic. |
+| Application restart and missing Stop | Actual SQLite close/reopen preserves counters, deduplication and reservations. Missing Stop remains fail-closed until final accounting; automated reconciliation is outstanding. |
+| Exhausted/suspended account can view portal | Credential verification is separate from admission, with ownership and refusal tests. Live post-exhaustion walled-garden reachability is untested. |
+| Unauthorized profile/account/device/ticket | Server ownership, CSRF, Origin, device-bound ticket replay, forged accounting, unknown fields and access to admin routes are tested. |
+| Zero/unknown/unlimited, >4 GiB, Unicode | Quantity/string/BigInt, RADIUS gigawords and escaping tests pass. Import application and approved opening balances remain outstanding. |
+| Existing MikroDash behavior | Full repository gates and data compatibility pass within the stated snapshots; live production behavior was not changed. |
+| English/LTR and local design resources | New UI text is English, user data retains Unicode, existing fonts/tokens/logo are reused, three themes share one stylesheet. No i18n or RTL project was introduced. |
+
+## Performance and artifacts
+
+On the development host (linux/amd64, Xeon E-2176M),
+`BenchmarkDurableDuplicateAccounting-4` measured 182,512 ns/op, 3,854 B/op and 108 allocs/op
+for 6,302 operations. **This is duplicate-event transaction overhead**: it does not append a
+new accounting row on every operation and is not a durable-write, flash-wear or router-load
+benchmark. No measured production CPU, memory, API-channel or enforcement-latency budget is
+claimed. Normal-condition five-second usage freshness is not achieved by the current
+60-second RADIUS observation path.
+
+Synthetic screenshots and local command logs are kept in the ignored workspace directory
+`.screenshots/subscribers-38/`. Six PNGs are named
+`subscriber-synthetic-{375,1280}-{blue,green,purple}.png`. They contain synthetic accounts,
+not subscriber data. Raw live topology and User Manager output remain outside the repository.
+
+The PR's Files changed view is the authoritative changed-file inventory. Runtime changes are
+in `internal/subscriber`, `internal/server/subscriber*`, `internal/db`, `internal/guard`, the
+session hold/RBAC/page integration, the subscriber frontend and build/type generators.
+The two new commands are `cmd/subscribercheck` and `cmd/subscriberconfig`.
+
+No merge, release, image publication, production deployment, router configuration write,
+production Disconnect or authentication cutover is implied by this record.
