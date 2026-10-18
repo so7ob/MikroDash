@@ -64,6 +64,12 @@ export interface ResSchemaField {
   tab: string;
   /** A match RouterOS inverts with a leading `!`: drawn with a "not" toggle. */
   negatable: boolean;
+  /** The router's list is offered under a text box rather than as a select. */
+  suggest: boolean;
+  /** The name shown beside a suggested value: a public resolver's provider. */
+  suggestLabels: Record<string, string>;
+  /** What RouterOS holds when the property is not set; an Add form starts from it. */
+  default: string;
 }
 
 /**
@@ -135,6 +141,11 @@ export interface PageSettings {
   notifIfaceBridge: boolean; notifIfaceVlan: boolean; notifIfaceOther: boolean;
   vpnDashTopN: number;
   displayTimezone: string;
+  /** The optional features, Settings -> Features; see store.FeatureOn. */
+  dnsBulkEnabled: boolean; dnsCacheEnabled: boolean; dnsFleetSyncEnabled: boolean;
+  dnsListsEnabled: boolean; dnsTraceEnabled: boolean; domainRoutingEnabled: boolean;
+  watchListEnabled: boolean; wifiHistoryEnabled: boolean; wifiWeakSpotsEnabled: boolean;
+  capVersionsEnabled: boolean;
 }
 
 export interface HandEvents {

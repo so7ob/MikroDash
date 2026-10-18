@@ -2,6 +2,32 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [1.0.1] - Upstream DNS and monitoring features with Activity compatibility
+
+### New
+
+- Integrate all 18 upstream commits through SecOps-7/MikroDash 0.8.75, preserving their history and the so7ob identity, Activity Analytics and release safeguards.
+- Add **Settings > Features** with ten switches, all disabled by default: DNS bulk editing/export, cache browsing, route tracing, reference-router fleet synchronization, domain list subscriptions, Domain Routing monitoring, device watch lists, Wi-Fi client history, Wi-Fi weak-signal overlays and CAP version comparison/upgrades.
+- Extend DNS configuration with forwarders, adlists, complete static-record fields and named public-resolver suggestions. Domain Routing and the six Activity dashboard cards remain available together.
+
+### Changed
+
+- **Activity Events**: Ctrl-click copies supported event values while ordinary clicks retain their existing filtering behavior; keyboard access and copy feedback are preserved.
+- Queue Tree uses its own live subscription. Logs keep each entry on one line with horizontal scrolling.
+- Add forms start from RouterOS defaults. Wi-Fi maps distinguish device hostnames from comments, and topology fleet merging handles shared loopback addresses.
+- Document the local Go development workflow and reproducible browser acceptance checks.
+
+### Reliability and compatibility
+
+- Long-running DNS jobs retain the initiating identity and feature, recheck authorization and cancellation before each queued write, and report stopped jobs with their reason. Scheduled domain-list work has an explicit system identity.
+- RSC and CSV exports omit dynamic DNS records, including records that become dynamic during the export refresh.
+- Unconfirmed DNS removals remain pending; cleanup cannot discard a newer saved list definition.
+- Publication checks that the version, minor-version and latest image tags share the release build digest and include all three supported architectures before creating the GitHub Release.
+- Schema 37 preserves Activity migration 35, adds domain lists at 36 and device watch/Wi-Fi history at 37. Fresh installs and synthetic upgrades from schemas 34 and 35 are verified, including retained Activity records, grants, settings and safe migration replay.
+- DNS and CAPsMAN table headers and scrolling, plus Wi-Fi history controls, support keyboard access and the dark, light and Nord palettes.
+
+The optional features do not activate automatically on upgrade. Router changes still use the existing permissions, validation, audit and write guards. This release publishes the application and container image; it does not deploy to an operator installation or configure physical routers automatically.
+
 ## [1.0.0] - Activity analytics with incremental USB archives
 
 ### New
@@ -57,6 +83,61 @@ All notable changes to MikroDash will be documented in this file.
   is separate from USB capacity. The supplied script records IPv4 DNS clients and cached
   A/AAAA answers; cold-cache answers and queries skipped while its logging hook is busy may
   be absent.
+
+## [0.8.75] - Optional DNS and monitoring features, and a device watch list
+
+### New
+
+- **Settings -> Features**: a tab of optional features, each off until you switch it on. Off, a
+  feature reads nothing from your routers.
+- **DNS bulk edit and export**: tick static entries on the DNS page, then change their address list,
+  forwarder, TTL or comment, enable, disable or remove them, or export them as `.rsc` or CSV.
+- **DNS fleet sync**: copy the static entries of a reference router to others, with a preview of
+  what each router will get before anything is written.
+- **Domain list subscriptions** (administrators): a list of domains, pasted or fetched from a URL,
+  kept as FWD entries on the routers you pick and synced on a schedule. Entries are removed again
+  from a router you take off the list, and a fetch that shrinks sharply is refused until you accept it.
+- **DNS cache browser and domain route trace** on the DNS page: search the router's cache, or type a
+  domain to see the static entry, address list, mangle rule and route that handle it.
+- **Domain Routing card and alert**: the address list your FWD entries feed, its mangle rules and
+  whether their routes are up, with an alert when that routing goes down.
+- **Device watch list**: watch a client or MAC on Wifi Clients and get a Device Absent alert when it
+  has been gone from Wi-Fi and ARP longer than its grace time.
+- **Wi-Fi client history**: click a client's name for its signal and access point over 6 hours,
+  24 hours or 7 days. Recording is switched on per router.
+- **Wi-Fi map weak spots and CAP versions**: access points coloured by their clients' signal, and
+  CAPs running an older RouterOS than their manager, with an Upgrade button.
+- **DNS public resolvers by name**: the resolver and forwarder fields suggest Cloudflare, Google,
+  Quad9 and others, and the fleet view says which routers already hold a static entry.
+
+### Changed
+
+- **The DNS page covers all of `/ip/dns`**: static entries with address list, regexp and
+  match-subdomain, forwarders and adlists on their own cards, and every resolver setting on tabs.
+- **The queue tree streams** instead of being read on every interval.
+- **The Logs page shows one line per entry**, with a horizontal scrollbar for long ones.
+
+### Fixed
+
+- An Add form started every checkbox unticked, so a new DHCP server was sent with conflict detection
+  off and a new adlist with certificate checks off. Add forms now start from RouterOS's defaults.
+- Wi-Fi map: a client's Name showed its comment instead of its host name.
+- Network Topology: the fleet merge added nothing, because every router shares the loopback MAC.
+
+### Merged contributions
+
+Thanks to [@vasmarfas](https://github.com/vasmarfas) for five pull requests this release:
+
+- [#151](https://github.com/SecOps-7/MikroDash/pull/151) The rest of `/ip/dns`, the Wi-Fi map's two
+  names, and the topology fleet merge
+- [#152](https://github.com/SecOps-7/MikroDash/pull/152) Public resolvers by name, and where else a
+  record is
+- [#153](https://github.com/SecOps-7/MikroDash/pull/153) Settings -> Features, the DNS cache browser
+  and the domain route trace
+- [#154](https://github.com/SecOps-7/MikroDash/pull/154) DNS bulk edit and export, fleet sync and
+  domain list subscriptions
+- [#155](https://github.com/SecOps-7/MikroDash/pull/155) Domain routing, the watch list, Wi-Fi
+  history, weak spots and CAP versions
 
 ## [0.8.74] - More live data streams, and shared streams that serve every reader
 

@@ -647,3 +647,17 @@ the status. There are no new fonts, colors or polling loops. The template opens
 its existing preview drawer, preserving the guarded Deploy flow. Synthetic
 browser verification covers 375/1280, dark/light/Nord, keyboard, stale router
 responses and zero axe violations. No new decorative patterns.
+
+### Copying Activity event values
+
+Inside Events, Ctrl + click copies the individual displayed value without
+activating its filter. Names use their visible text, not internal client keys;
+server/IP/MAC and country/city remain separate targets. Missing placeholders
+and field labels do not copy. Ordinary clicks and Overview Ctrl drilldowns keep
+their existing behavior. A short Events-only hint explains the gesture.
+
+One local, non-interactive notification sits at the bottom right for two seconds
+after the clipboard result. It uses the existing palette/type tokens and a polite
+status live region. Repeated copies replace it; leaving Events clears it. Failed
+copies say so instead of confirming success. The shared clipboard helper retains
+its HTTP/LAN fallback. No extra controls, fonts or decorative motion are added.

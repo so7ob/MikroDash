@@ -35,17 +35,41 @@
           </div>
           <div class="hdr-actions">
             <input id="dnsStaticSearch" class="sform-input sform-sm"
-                   placeholder="Search name or address&hellip;" style="flex:0 1 260px;width:260px"/>
+                   placeholder="Search name, value, list or comment&hellip;" style="flex:0 1 260px;width:260px"/>
+            <span class="topo-tools" id="dnsExportTools" style="display:none" role="group" aria-label="Export">
+              <button class="sbtn sbtn-outline is-sm" id="dnsExportRsc" type="button"
+                      title="The selected entries, or every entry shown, as a RouterOS script">Export .rsc</button>
+              <button class="sbtn sbtn-outline is-sm" id="dnsExportCsv" type="button"
+                      title="The selected entries, or every entry shown, as CSV">CSV</button>
+            </span>
             <span data-res-add="dnsStatic"></span>
           </div>
         </div>
+        <!-- Bulk edit (Settings -> Features): one job for every ticked row. -->
+        <div class="dns-bulk-bar" id="dnsBulkBar" style="display:none">
+          <span class="muted-note" id="dnsBulkCount">0 selected</span>
+          <select class="sform-input sform-sm" id="dnsBulkField" style="width:190px;flex:0 0 auto" aria-label="Property to change">
+            <option value="addressList">Address list</option>
+            <option value="forwardTo">Forward to (FWD only)</option>
+            <option value="matchSubdomain">Match subdomains (yes/no)</option>
+            <option value="ttl">TTL (not FWD)</option>
+            <option value="comment">Comment</option>
+          </select>
+          <input class="sform-input sform-sm" id="dnsBulkValue" placeholder="empty clears it" style="width:180px;flex:0 0 auto" aria-label="New value">
+          <button class="sbtn sbtn-outline is-sm" id="dnsBulkApply" type="button">Apply</button>
+          <button class="sbtn sbtn-outline is-sm" id="dnsBulkEnable" type="button">Enable</button>
+          <button class="sbtn sbtn-outline is-sm" id="dnsBulkDisable" type="button">Disable</button>
+          <button class="sbtn sbtn-danger is-sm" id="dnsBulkRemove" type="button">Remove</button>
+          <button class="sbtn sbtn-outline is-sm" id="dnsBulkClear" type="button">Clear selection</button>
+          <span class="muted-note" id="dnsBulkNote"></span>
+        </div>
         <div class="card-body p-0">
-          <div class="data-scroll" style="max-height:360px;overflow-y:auto">
-            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:720px">
-              <colgroup><col style="width:34%"><col style="width:26%"><col style="width:10%"><col style="width:10%"><col style="width:20%"></colgroup>
+          <div class="data-scroll" tabindex="0" aria-label="Scrollable DNS records" style="max-height:360px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="table-layout:fixed;width:100%;min-width:820px">
+              <colgroup id="dnsStaticCols"><col style="width:28%"><col style="width:20%"><col style="width:8%"><col style="width:14%"><col style="width:8%"><col style="width:22%"></colgroup>
               <thead><tr id="dnsStaticThead"></tr></thead>
               <tbody id="dnsStaticTable" data-res-rows="dnsStatic">
-                <tr><td colspan="5" class="empty-state">Waiting for static entries&hellip;</td></tr>
+                <tr><td colspan="6" class="empty-state">Waiting for static entries&hellip;</td></tr>
               </tbody>
             </table>
           </div>
@@ -69,15 +93,131 @@
                     title="Read every selected router again">Reload</button>
             <button class="sbtn sbtn-outline is-sm" id="dnsFleetSyncAll" type="button"
                     title="Copy every record to every router that is missing it">Sync all missing</button>
+            <span class="topo-tools" id="dnsFleetSyncTools" style="display:none" role="group" aria-label="Sync to a reference">
+              <select class="sform-input sform-sm" id="dnsFleetRef" style="width:160px;flex:0 0 auto" aria-label="Reference router"
+                      title="The router the others are made to match"></select>
+              <button class="chip" id="dnsFleetRemoveExtra" type="button" aria-pressed="false"
+                      title="Also remove what the reference does not hold">remove extras</button>
+              <button class="sbtn sbtn-outline is-sm" id="dnsFleetSyncRef" type="button"
+                      title="Add, change and, if chosen, remove so every router holds what the reference holds">Match reference</button>
+            </span>
           </div>
         </div>
         <div class="dns-fleet-pick" id="dnsFleetPick"></div>
         <div class="card-body p-0">
-          <div class="data-scroll" style="max-height:460px;overflow:auto">
+          <div class="data-scroll" tabindex="0" aria-label="Scrollable DNS records" style="max-height:460px;overflow:auto">
             <table class="table table-vcenter mb-0" style="width:100%;min-width:720px">
               <thead><tr id="dnsFleetThead"></tr></thead>
               <tbody id="dnsFleetTable">
                 <tr><td class="empty-state">Pick the routers to compare.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Named upstream sets: what a FWD entry's Forward To names. -->
+      <div class="card" id="dnsFwdCard" style="margin-top:.85rem;display:none">
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Forwarders</h3>
+            <span id="dnsFwdBadge" class="card-badge active-blue">0</span>
+          </div>
+          <div class="hdr-actions"><span data-res-add="dnsForwarder"></span></div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" tabindex="0" aria-label="Scrollable DNS records" style="max-height:280px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="width:100%;min-width:720px">
+              <thead><tr id="dnsFwdThead"></tr></thead>
+              <tbody id="dnsFwdTable" data-res-rows="dnsForwarder">
+                <tr><td colspan="5" class="empty-state">No forwarders.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="dnsAdlistCard" style="margin-top:.85rem;display:none">
+        <div class="card-header d-flex align-items-center justify-content-between gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Adlists</h3>
+            <span id="dnsAdlistBadge" class="card-badge active-blue">0</span>
+          </div>
+          <div class="hdr-actions"><span data-res-add="dnsAdlist"></span></div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" tabindex="0" aria-label="Scrollable DNS records" style="max-height:280px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="width:100%;min-width:720px">
+              <thead><tr id="dnsAdlistThead"></tr></thead>
+              <tbody id="dnsAdlistTable" data-res-rows="dnsAdlist">
+                <tr><td colspan="5" class="empty-state">No adlists.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Domain lists (Settings -> Features, administrators): FWD entries kept in
+           step with a list of domains (internal/server/dnslists_api.go). -->
+      <div class="card" id="dnsListsCard" style="margin-top:.85rem;display:none">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Domain lists</h3>
+            <span id="dnsListsBadge" class="card-badge active-blue">0</span>
+          </div>
+          <div class="hdr-actions">
+            <span class="muted-note" id="dnsListsNote"></span>
+            <button class="sbtn sbtn-outline is-sm" id="dnsListAdd" type="button" title="Define a new list">+ List</button>
+          </div>
+        </div>
+        <div class="card-body" id="dnsListForm" style="display:none"></div>
+        <div class="card-body p-0">
+          <div class="data-scroll" tabindex="0" aria-label="Scrollable DNS records" style="max-height:320px;overflow:auto">
+            <table class="table table-vcenter mb-0" style="width:100%;min-width:860px">
+              <thead><tr id="dnsListsThead"></tr></thead>
+              <tbody id="dnsListsTable">
+                <tr><td colspan="8" class="empty-state">No domain lists.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -> Features: read only when asked (internal/server/dnstools_api.go). -->
+      <div class="card" id="dnsTraceCard" style="margin-top:.85rem;display:none">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <h3 class="card-title mb-0">Domain route trace</h3>
+          <div class="hdr-actions">
+            <input id="dnsTraceName" class="sform-input sform-sm" placeholder="www.example.com"
+                   style="flex:0 1 260px;width:260px" autocomplete="off"/>
+            <button class="sbtn sbtn-outline is-sm" id="dnsTraceGo" type="button"
+                    title="Which entry catches it, what it resolved to, and whether it takes its route">Trace</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="dnsTraceOut" class="kv-grid"><span class="empty-state">Type a domain a client opened, then Trace.</span></div>
+        </div>
+      </div>
+
+      <div class="card" id="dnsCacheCard" style="margin-top:.85rem;display:none">
+        <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div class="d-flex align-items-center gap-2">
+            <h3 class="card-title mb-0">Cache</h3>
+            <span id="dnsCacheBadge" class="card-badge active-blue">-</span>
+          </div>
+          <div class="hdr-actions">
+            <span class="muted-note" id="dnsCacheNote"></span>
+            <input id="dnsCacheSearch" class="sform-input sform-sm" placeholder="Search name or answer&hellip;"
+                   style="flex:0 1 220px;width:220px"/>
+            <button class="sbtn sbtn-outline is-sm" id="dnsCacheRead" type="button" title="Read the cache now">Read</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="data-scroll" tabindex="0" aria-label="Scrollable DNS records" style="max-height:360px;overflow-y:auto">
+            <table class="table table-vcenter mb-0" style="width:100%;min-width:620px">
+              <thead><tr id="dnsCacheThead"></tr></thead>
+              <tbody id="dnsCacheTable">
+                <tr><td colspan="4" class="empty-state">Not read yet: press Read.</td></tr>
               </tbody>
             </table>
           </div>

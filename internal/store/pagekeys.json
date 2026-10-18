@@ -28,5 +28,15 @@
   "displayTimezone",
   "userNotifyEnabled",
   "aiReady",
-  "hiddenAreas"
+  "hiddenAreas",
+  "dnsCacheEnabled",
+  "dnsTraceEnabled",
+  "dnsBulkEnabled",
+  "dnsFleetSyncEnabled",
+  "dnsListsEnabled",
+  "domainRoutingEnabled",
+  "watchListEnabled",
+  "wifiHistoryEnabled",
+  "wifiWeakSpotsEnabled",
+  "capVersionsEnabled"
 ]

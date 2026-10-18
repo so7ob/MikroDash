@@ -5,6 +5,7 @@ import (
 	"mikrodash/internal/collection"
 	"mikrodash/internal/hub"
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/store"
 )
 
 // Which collectors a session runs, given why it is being kept alive.
@@ -67,6 +68,12 @@ type Reasons struct {
 	// It is what let `internal/alertpool` be deleted without the red cards
 	// coming back.
 	Warm bool
+	// Watch is a router with a device on the watch list (Settings -> Features):
+	// presence is read from its Wi-Fi clients, leases and ARP.
+	Watch bool
+	// WifiHistory is a router whose Wi-Fi clients are being recorded (Settings
+	// -> Features). Only routers that have shown clients are held for it.
+	WifiHistory bool
 }
 
 // historyFeeds are the two collectors continuous history is written from.
@@ -87,6 +94,13 @@ var historyFeeds = []string{"traffic", "ping"}
 // in the fleet. Measured before the change: the page alone cost ~41 commands a
 // minute and 7 open streams across four routers.
 var devicesFeeds = []string{"system"}
+
+// watchFeeds are where a watched device can be seen: a Wi-Fi client or a live
+// ARP entry. A lease stays bound after the device has gone, so it is not read.
+var watchFeeds = []string{"wireless", "arp"}
+
+// wifiHistoryFeeds is what a Wi-Fi client sample is written from.
+var wifiHistoryFeeds = []string{"wireless"}
 
 // Needs reports whether a collector should run, given why the session is alive.
 //
@@ -124,17 +138,33 @@ func Needs(key string, why Reasons) bool {
 			}
 		}
 	}
+	if why.Watch {
+		for _, k := range watchFeeds {
+			if k == key {
+				return true
+			}
+		}
+	}
+	if why.WifiHistory {
+		for _, k := range wifiHistoryFeeds {
+			if k == key {
+				return true
+			}
+		}
+	}
 	return false
 }
 
 // reasons reads the session's current holders. The caller holds s.mu.
 func (s *Session) reasonsLocked() Reasons {
 	return Reasons{
-		Viewer:  s.refs > 0,
-		Alerts:  s.holds["alerts"],
-		History: s.holds["history"],
-		Devices: s.holds["devices"],
-		Warm:    s.holds["warm"] || s.holds["activity"],
+		Viewer:      s.refs > 0,
+		Alerts:      s.holds["alerts"],
+		History:     s.holds["history"],
+		Devices:     s.holds["devices"],
+		Warm:        s.holds["warm"] || s.holds["activity"],
+		Watch:       s.holds["watch"],
+		WifiHistory: s.holds["wifi-history"],
 	}
 }
 
@@ -184,6 +214,16 @@ func NewForTestWithExec(h *hub.Hub, routerID string,
 		"wifi": false, "capsman": false, "ppp": false, "ifStatus": false, "netwatch": false,
 	}})
 	return s
+}
+
+// SetWatchForTest gives a test session a connected state and the collectors
+// needed to drive presence checks.
+func (s *Session) SetWatchForTest(connected bool, wifi *collect.Wireless, arp *collect.ARP) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.connected = connected
+	s.wireless = wifi
+	s.arp = arp
 }
 
 // Wants is THE collector gate, and there is one of it.
@@ -332,4 +372,16 @@ func (s *Session) NeededForHolds(key string) bool {
 	// The viewer half is the caller's question now, not this one's.
 	why.Viewer = false
 	return Needs(key, why)
+}
+
+// NewManagerForTest holds scripted sessions as viewed connections. It exercises
+// the real fleet hold/release path without dialing hardware or starting collectors.
+func NewManagerForTest(st *store.Store, h *hub.Hub, sessions ...*Session) *Manager {
+	m := NewManager(st, h)
+	for _, s := range sessions {
+		s.refs = 1
+		s.connected = true
+		m.live[s.RouterID] = s
+	}
+	return m
 }

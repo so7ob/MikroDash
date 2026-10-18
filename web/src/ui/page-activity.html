@@ -26,6 +26,7 @@
    <div class="activity-toolbar" id="activityCustomRange" hidden><label>From (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityFrom"></label><label>To (browser timezone)<input type="datetime-local" class="sform-input sform-sm" id="activityTo"></label><button type="button" class="sbtn sbtn-outline is-sm" id="activityApplyRange">Apply range</button></div>
    <div id="activityFilters" class="activity-filter-trail"></div>
    <div id="activityError" role="alert" hidden></div>
+   <div id="activityCopyNotice" class="activity-copy-notice" role="status" aria-live="polite" aria-atomic="true"></div>
    <div id="activitySetupPrompt" class="activity-source activity-setup-prompt" role="status" hidden><span id="activitySetupPromptText"></span><a id="activitySetupLink" class="sbtn sbtn-primary is-sm" hidden>Set up Activity</a></div>
    <div id="activityOverview">
     <p class="activity-note">Ctrl + click to open events.</p>
@@ -44,7 +45,7 @@
     <div class="activity-donut-layout"><section class="activity-panel"><h4>Query types</h4><div id="activityQueryTypes"></div></section><section class="activity-panel"><h4>User matching methods</h4><div id="activityMatchMethods"></div></section><section class="activity-panel"><h4>Address evidence</h4><div id="activityIPBases"></div></section></div>
     <section class="activity-panel"><div class="activity-panel-header"><h4>Hours of activity</h4><span class="activity-muted" id="activityHeatZone"></span></div><div id="activityHeat" class="activity-heat" aria-label="DNSUSER activity by weekday and hour"></div></section>
    </div>
-   <div id="activityTablePane" hidden><div class="activity-table-scroll"><table class="table"><thead><tr id="activityTableHead"></tr></thead><tbody id="activityTableBody"></tbody></table></div>
+   <div id="activityTablePane" hidden><p id="activityCopyHint" class="activity-note" hidden>Ctrl + click a value to copy.</p><div class="activity-table-scroll"><table class="table"><thead><tr id="activityTableHead"></tr></thead><tbody id="activityTableBody"></tbody></table></div>
     <div class="activity-pager"><button type="button" class="sbtn sbtn-outline is-sm" id="activityPrev">Previous</button><span id="activityPageLabel"></span><button type="button" class="sbtn sbtn-outline is-sm" id="activityNext">Next</button></div>
    </div>
    <div id="activityRulesPane" hidden>

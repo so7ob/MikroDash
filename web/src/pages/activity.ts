@@ -1,4 +1,4 @@
-import { el, esc, debounce, renderSortHeader, sortRows, protoPill, type SortState, type SortCol } from '../dom';
+import { el, esc, copyText, debounce, renderSortHeader, sortRows, protoPill, type SortState, type SortCol } from '../dom';
 import { fmtTs, browserTimezone } from '../timefmt';
 import { getDisplayTimezone } from '../caps';
 import { mountActivitySetup } from './activity-setup';
@@ -45,10 +45,19 @@ export function donutMarkup(rows: ActivityRanking[], kind: string, label: string
 
 const countryName = (cc: string): string => { if(cc === 'Unknown') return 'Unknown'; try { return new Intl.DisplayNames(['en'], {type:'region'}).of(cc) || cc; } catch { return cc; } };
 const evidenceGroups: Record<string, string> = { dnsIP: 'DNS answer IP', deviceName: 'Device name', canonical: 'Canonical name', domain: 'Requested domain', server: 'Hotspot server' };
-const evidenceButton = (kind: string, value: string): string => value ? `<button type="button" class="sbtn sbtn-ghost is-sm" data-filter="${kind}" data-value="${esc(value)}"><bdi>${esc(value)}</bdi></button>` : '—';
+// Keep the displayed copy value separate from internal drilldown keys.
+const copyAttrs = (value: string): string => value && !['-', '—', '?'].includes(value) ? ` data-activity-copy="${esc(value)}" title="Ctrl + click to copy"` : '';
+const eventCell = (value: string): string => `<bdi${copyAttrs(value)}>${esc(value || '—')}</bdi>`;
+const eventPill = (value: string): string => `<span${copyAttrs(value)}>${pill(value)}</span>`;
+const evidenceButton = (kind: string, value: string): string => value ? `<button type="button" class="sbtn sbtn-ghost is-sm" data-filter="${kind}" data-value="${esc(value)}"${copyAttrs(value)}>${cell(value)}</button>` : '—';
 export function dnsEvidenceMarkup(e: ActivityEvent): string {
   if (e.kind !== 'dns') return '';
-  return `<dl class="activity-dns-details"><div><dt>Device name</dt><dd>${evidenceButton('deviceName', e.deviceName)}</dd></div><div><dt>Canonical name</dt><dd>${evidenceButton('canonical', e.canonical)}</dd></div><div><dt>IP basis</dt><dd>${evidenceButton('ipBasis', e.ipBasis)}</dd></div><div><dt>DNS answers</dt><dd class="activity-dns-ips">${e.dnsAnswers.length ? e.dnsAnswers.map(a => `<span class="activity-dns-answer">${evidenceButton('dnsIP', a.ip)}<button type="button" class="sbtn sbtn-ghost is-sm" data-filter="dnsCountry" data-value="${esc(a.country)}" title="${esc([countryName(a.country), a.city].filter(Boolean).join(' · '))}">${cell([countryName(a.country), a.city].filter(Boolean).join(' · '))}</button></span>`).join('') : '<span class="activity-muted">Not recorded</span>'}</dd></div></dl>`;
+  return `<dl class="activity-dns-details"><div><dt>Device name</dt><dd>${evidenceButton('deviceName', e.deviceName)}</dd></div><div><dt>Canonical name</dt><dd>${evidenceButton('canonical', e.canonical)}</dd></div><div><dt>IP basis</dt><dd>${evidenceButton('ipBasis', e.ipBasis)}</dd></div><div><dt>DNS answers</dt><dd class="activity-dns-ips">${e.dnsAnswers.length ? e.dnsAnswers.map(a => `<span class="activity-dns-answer">${evidenceButton('dnsIP', a.ip)}<button type="button" class="sbtn sbtn-ghost is-sm" data-filter="dnsCountry" data-value="${esc(a.country)}" title="Ctrl + click a value to copy">${eventCell(countryName(a.country))}${a.city ? ` · ${eventCell(a.city)}` : ''}</button></span>`).join('') : '<span class="activity-muted">Not recorded</span>'}</dd></div></dl>`;
+}
+
+export function eventMarkup(e: ActivityEvent): string {
+  const clientLabel = e.user || e.mac || e.ip;
+  return `<tr><td class="activity-mono">${eventCell(fmtTs(e.at))}${e.timeCertain ? '' : `<span class="pill pill-warn"${copyAttrs('Uncertain time')}>Uncertain time</span>`}</td><td>${eventPill(e.kind === 'dns' ? 'DNSUSER' : 'Firewall')}</td><td><button type="button" class="sbtn sbtn-ghost" data-filter="client" data-value="${esc(e.client)}"${copyAttrs(clientLabel)}>${cell(clientLabel)}</button>${!e.user ? `<span class="pill pill-warn"${copyAttrs('Unmapped')}>Unmapped</span>` : ''}<div class="activity-muted">Server: ${eventCell(e.server)} · IP: ${eventCell(e.ip)} · MAC: ${eventCell(e.mac)}</div></td><td>${e.domain ? `<button type="button" class="sbtn sbtn-ghost" data-filter="domain" data-value="${esc(e.domain)}"${copyAttrs(e.domain)}>${cell(e.domain)}</button><div>${eventCell(e.service)}</div>` : eventCell(e.destination)}</td><td>${e.kind === 'dns' ? `${eventPill(e.qtype || '?')} Match: ${eventCell(e.match)} ${eventPill(e.category)}${dnsEvidenceMarkup(e)}` : `<span${copyAttrs(e.protocol)}>${protoPill(e.protocol)}</span> ${eventPill(e.country)} ${eventCell(e.city)} ${eventCell(e.in)} → ${eventCell(e.out)}<div class="activity-muted">Packet length: ${eventCell(e.length || '?')} bytes</div>`}</td><td class="activity-number">${eventCell(n(e.count))}</td></tr>`;
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -71,6 +80,25 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   let timer: ReturnType<typeof setTimeout> | undefined;
   let controller: AbortController | undefined;
   let busy = false;
+  let copyTimer: ReturnType<typeof setTimeout> | undefined;
+  let copyRequest = 0;
+  function clearCopyNotice(): void {
+    copyRequest++;
+    if (copyTimer !== undefined) clearTimeout(copyTimer);
+    copyTimer = undefined;
+    el('activityCopyNotice')!.textContent = '';
+  }
+  function copyValue(value: string): void {
+    clearCopyNotice();
+    const current = copyRequest;
+    copyText(value, ok => {
+      if (current !== copyRequest || view() !== 'events') return;
+      const notice = el('activityCopyNotice')!;
+      notice.classList.toggle('activity-copy-failed', !ok);
+      notice.textContent = ok ? 'Copied to clipboard' : 'Could not copy';
+      copyTimer = setTimeout(clearCopyNotice, 2000);
+    });
+  }
   const rulesSort: SortState = { col: 'domain', dir: 'asc' };
 
   function saveURL(): void { history.replaceState(null, '', location.pathname + (state.size ? '?' + state.toString() : '')); }
@@ -91,6 +119,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     }
   }
   function update(key: string, value: string): void {
+    if (key === 'tab' && value !== 'events') clearCopyNotice();
     if (key === 'country' && !value) clearFilter(key);
     if (key === 'kind') state.delete('countrySource');
     if (value) state.set(key, value); else state.delete(key);
@@ -106,6 +135,8 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   }
   function syncControls(): void {
     const v = view();
+    el('activityCopyHint')!.hidden = v !== 'events';
+    if (v !== 'events') clearCopyNotice();
     root!.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b => { const on = b.dataset.view === v; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
     select('activityDays').value = state.has('from') ? 'custom' : state.get('days') || '1';
     el('activityCustomRange')!.hidden = select('activityDays').value !== 'custom';
@@ -202,7 +233,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     else cols = [{ key: 'label', label: v === 'clients' ? 'User / device' : groupTitle[group] || evidenceGroups[group] || ({ qtype: 'Query type', match: 'User matching method', ipBasis: 'Address evidence' } as Record<string, string>)[group] || 'Service' }, { key: 'category', label: v === 'clients' ? 'Identity' : 'Category' }, { key: 'count', label: group === 'dnsCountry' && v === 'domains' ? 'DNS answers' : 'Events' }, { key: 'domains', label: 'Domains' }, { key: 'devices', label: 'Devices' }, { key: 'last', label: 'Last activity' }];
     renderSortHeader('activityTableHead', cols, sort, () => { state.set('sort', sort.col); state.set('dir', sort.dir); state.delete('page'); saveURL(); void load(); });
     keyboardSort('activityTableHead');
-    const rows = v === 'events' ? d.events.map(e => `<tr><td class="activity-mono">${esc(fmtTs(e.at))}${e.timeCertain ? '' : '<span class="pill pill-warn">Uncertain time</span>'}</td><td>${pill(e.kind === 'dns' ? 'DNSUSER' : 'Firewall')}</td><td><button type="button" class="sbtn sbtn-ghost" data-filter="client" data-value="${esc(e.client)}">${cell(e.user || e.mac || e.ip)}</button>${!e.user ? '<span class="pill pill-warn">Unmapped</span>' : ''}<div class="activity-muted">Server: ${cell(e.server)} · IP: ${cell(e.ip)} · MAC: ${cell(e.mac)}</div></td><td>${e.domain ? `<button type="button" class="sbtn sbtn-ghost" data-filter="domain" data-value="${esc(e.domain)}">${cell(e.domain)}</button><div>${cell(e.service)}</div>` : cell(e.destination)}</td><td>${e.kind === 'dns' ? `${pill(e.qtype || '?')} Match: ${cell(e.match)} ${pill(e.category)}${dnsEvidenceMarkup(e)}` : `${protoPill(e.protocol)} ${pill(e.country)} ${cell(e.city)} ${cell(e.in)} → ${cell(e.out)}<div class="activity-muted">Packet length: ${esc(e.length || '?')} bytes</div>`}</td><td class="activity-number">${n(e.count)}</td></tr>`) : d.rows.map(r => `<tr><td><button type="button" class="sbtn sbtn-ghost" data-filter="${v === 'clients' ? 'client' : group}" data-value="${esc(r.key)}">${cell(r.label)}</button>${v === 'clients' ? `<div class="activity-muted">${cell(r.server)} · ${cell(r.ip)}</div>` : ''}</td><td>${v === 'clients' ? (r.user ? pill('Named user') : '<span class="pill pill-warn">Unmapped</span>') : pill(r.category)}</td><td class="activity-number">${n(r.count)}</td><td class="activity-number">${n(r.domains)}</td><td class="activity-number">${n(r.devices)}</td><td class="activity-mono">${esc(fmtTs(r.last))}</td></tr>`);
+    const rows = v === 'events' ? d.events.map(eventMarkup) : d.rows.map(r => `<tr><td><button type="button" class="sbtn sbtn-ghost" data-filter="${v === 'clients' ? 'client' : group}" data-value="${esc(r.key)}">${cell(r.label)}</button>${v === 'clients' ? `<div class="activity-muted">${cell(r.server)} · ${cell(r.ip)}</div>` : ''}</td><td>${v === 'clients' ? (r.user ? pill('Named user') : '<span class="pill pill-warn">Unmapped</span>') : pill(r.category)}</td><td class="activity-number">${n(r.count)}</td><td class="activity-number">${n(r.domains)}</td><td class="activity-number">${n(r.devices)}</td><td class="activity-mono">${esc(fmtTs(r.last))}</td></tr>`);
     el('activityTableBody')!.innerHTML = rows.join('') || '<tr><td colspan="6" class="activity-empty">No matching activity. Enable archive sync or adjust the filters.</td></tr>';
     const page = Number(state.get('page') || 1); const pages = Math.max(1, Math.ceil(d.totalRows / d.filter.limit));
     el('activityPageLabel')!.textContent = `${page} / ${pages} · ${n(d.totalRows)} ${v === 'events' ? 'event groups' : 'rows'}`;
@@ -218,7 +249,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     el('activityRulesBody')!.innerHTML = sortRows(data.rules, rulesSort.col, rulesSort.dir).map(r => `<tr><td class="activity-mono">${cell(r.domain)}</td><td>${cell(r.service)}</td><td>${pill(r.category)}</td><td>${r.subdomains ? 'Domain + subdomains' : 'Exact domain'}</td><td>${pill(r.custom ? 'Local' : 'Built-in')}</td><td><button type="button" class="sbtn sbtn-outline" data-edit-rule="${esc(r.domain)}" data-custom="${r.custom}" ${data?.canWrite ? '' : 'disabled'}>Edit</button>${r.custom ? `<button type="button" class="sbtn sbtn-danger" data-remove-rule="${esc(r.domain)}" ${data?.canWrite ? '' : 'disabled'}>Remove override</button>` : ''}</td></tr>`).join('');
   }
   function clearData(): void {
-    data=null; setup.stop();
+    data=null; setup.stop(); clearCopyNotice();
     ['activityMetrics','activityServices','activityClients','activityCategories','activityServiceDonut','activityUserDonut','activityCountryDonut','activityTimeline','activityHeat','activityTableBody','activityRulesBody','activityDNSMetrics','activityQueryTypes','activityMatchMethods','activityIPBases','activityEvidenceBody','activityEvidencePage'].forEach(id=>{el(id)!.innerHTML='';});
     ['activityEnabled','activityFolder','activityTimezone','activitySaveSettings','activityRuleDomain','activityRuleService','activityRuleCategory','activityRuleSubdomains','activitySaveRule'].forEach(id=>{el<HTMLInputElement | HTMLButtonElement>(id)!.disabled=true;});
     el<HTMLButtonElement>('activityEvidencePrev')!.disabled = true; el<HTMLButtonElement>('activityEvidenceNext')!.disabled = true;
@@ -242,6 +273,13 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     finally { busy = false; if (data) render(); }
   }
   root.addEventListener('click', e => {
+    if (e.ctrlKey && view() === 'events' && e.target instanceof Element && e.target.closest('#activityTableBody')) {
+      e.preventDefault();
+      const value = e.target.closest<HTMLElement>('[data-activity-copy]')?.dataset.activityCopy;
+      if (value) copyValue(value);
+      // Ctrl on a label or a missing value must not trigger its parent filter.
+      return;
+    }
     const target = e.target instanceof Element ? e.target.closest<HTMLElement | SVGElement>('button, .activity-donut-slice[data-filter]') : null; if (!target) return;
     if (target.dataset.view) update('tab', target.dataset.view);
     if (target.dataset.filter) {
@@ -308,8 +346,8 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   el('activityNext')!.addEventListener('click', () => update('page', String(Number(state.get('page') || 1) + 1)));
   el('activitySaveSettings')!.addEventListener('click', () => { void mutate('settings', 'PUT', { enabled: input('activityEnabled').checked, folder: input('activityFolder').value.trim(), timezone: input('activityTimezone').value.trim() }); });
   el('activityRuleForm')!.addEventListener('submit', e => { e.preventDefault(); const rule: ActivityRule = { domain: input('activityRuleDomain').value, service: input('activityRuleService').value, category: input('activityRuleCategory').value, subdomains: input('activityRuleSubdomains').checked, custom: true }; void mutate('rules', 'PUT', rule); });
-  document.addEventListener('mikrodash:pagechange', () => { if (visible('activity')) void load(); else { setup.stop(); controller?.abort(); request++; if (timer) clearTimeout(timer); } });
-  window.addEventListener('popstate', () => { state = new URLSearchParams(location.search); void load(); });
+  document.addEventListener('mikrodash:pagechange', () => { if (visible('activity')) void load(); else { clearCopyNotice(); setup.stop(); controller?.abort(); request++; if (timer) clearTimeout(timer); } });
+  window.addEventListener('popstate', () => { state = new URLSearchParams(location.search); if (view() !== 'events') clearCopyNotice(); void load(); });
   socket.on('activity:changed', d => { if (!visible('activity') || d.routerId !== select('activityRouter').value || busy || timer) return; timer = setTimeout(() => { timer = undefined; void load(); }, 500); });
   socket.on('connect', () => { setup.stop(); void load(); });
   socket.on('routers:update', () => { void load(); });

@@ -154,6 +154,13 @@ var All = []Card{
 	{ID: "dc-card-activity-users", Label: "Activity Users", Page: "activity", X: 1, Y: 1, W: 8, H: 6},
 	{ID: "dc-card-activity-categories", Label: "Activity Categories", Page: "activity", X: 1, Y: 1, W: 8, H: 6},
 	{ID: "dc-card-activity-countries", Label: "Activity Countries", Page: "activity", X: 1, Y: 1, W: 8, H: 6},
+	// Domain Routing (Settings -> Features): the address list the static DNS
+	// entries feed, its mangle rules and their routes. Fed by the server's
+	// feature loop, and gated on the DNS page, whose entries it is about; the
+	// parts that belong to the Address Lists, Firewall and Routing pages are
+	// sent only to a viewer granted them (internal/server/dnsrouting_api.go).
+	{ID: "dc-card-domainroute", Label: "Domain Routing", Room: "domainroute", Page: "dns",
+		X: 1, Y: 1, W: 8, H: 6},
 }
 
 // PageFor is the page a card room borrows its data from, and therefore the
