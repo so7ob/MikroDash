@@ -6,6 +6,10 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');const path=require('node:path');const http=require('node:http');
 const {execFileSync}=require('node:child_process');
 const root=path.resolve(__dirname,'../../..');
+// Use the production head's complete stylesheet list and cascade order.
+const head=fs.readFileSync(path.join(root,'cmd/webbuild/main.go'),'utf8').match(/const head = `([\s\S]*?)`/)[1];
+const styles=[...head.matchAll(/<link rel="stylesheet"[^>]+>/g)].map(m=>m[0]).join('');
+assert.equal((styles.match(/stylesheet/g)||[]).length,6);
 const dir=fs.mkdtempSync('/tmp/mikrodash-optional-');
 execFileSync(path.join(root,'web/node_modules/.bin/esbuild'),[path.join(__dirname,'optional-features-entry.ts'),'--bundle','--format=esm','--outfile='+dir+'/entry.js','--log-level=error']);
 const now=Date.now();let recording=false;let lists=[];let watches=[];const requests=[];
@@ -34,7 +38,7 @@ const server=http.createServer(async(req,res)=>{
  if(u.pathname==='/journey'){
  const p=u.searchParams.get('page');let markup=fs.readFileSync(path.join(root,'web/src/ui/page-'+p+'.html'),'utf8');
  if(p==='dashboard')markup='<div id="page-dashboard"><div id="dash-grid-root">'+markup.slice(markup.indexOf('<div id="dc-card-domainroute"'),markup.indexOf('<!-- dc-card-secscore:')).replace('id="dc-card-domainroute"','id="dc-card-domainroute" style="grid-column:1 / span 24;grid-row:1 / span 8"')+'</div></div>';
- res.setHeader('Content-Type','text/html');return res.end('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Optional features verification</title><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/css/dashboard-grid.css"></head><body>'+markup+'<script type="module" src="/entry.js"></script></body></html>');}
+ res.setHeader('Content-Type','text/html');return res.end('<!doctype html><html lang="en" data-bs-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Optional features verification</title>'+styles+'</head><body>'+markup+'<script type="module" src="/entry.js"></script></body></html>');}
  const file=path.join(root,'web/public',u.pathname);if(!file.startsWith(root+'/web/public/'))throw Error('invalid path');
  res.setHeader('Content-Type',u.pathname.endsWith('.css')?'text/css':u.pathname.endsWith('.woff2')?'font/woff2':'application/octet-stream');res.end(fs.readFileSync(file));
  }catch(e){res.statusCode=500;res.end(String(e));}
