@@ -625,9 +625,10 @@ go run ./cmd/webbuild -dir web -watch
 
 The watcher rebuilds the main application TypeScript bundle when its sources
 change. Refresh the browser to see the result. It does not automatically reload
-the browser or rebuild HTML templates. After editing HTML or standalone login
-or preflight entrypoints, rerun the one-off frontend build. After editing Go
-code, stop the server with Ctrl+C and rerun the server command.
+the browser, rebuild HTML templates or recopy `web/public/app.css`. After editing
+HTML templates, `web/public/app.css`, or standalone login or preflight entrypoints,
+rerun the one-off frontend build. After editing Go code, stop the server with
+Ctrl+C and rerun the server command.
 
 ### Run the checks
 
