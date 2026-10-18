@@ -466,3 +466,60 @@ func TestLateByteCorrectionAcrossMidnightCannotEscapePeriodCharge(t *testing.T) 
 		}
 	}
 }
+
+func TestAllLimitsRemainIndependentWhenDownloadIsExhausted(t *testing.T) {
+	s, a := setup(t, plan())
+	now := at("2026-10-01T10:00:00+03:00")
+	lease := reserve(t, s, a, "device", now)
+	e := event(lease, "device", "interim", 20, 2<<30, 32, now.Add(20*time.Second))
+	if err := s.Account(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	v := snapshot(t, s, a, now.Add(20*time.Second))
+	if v.Decision.Allowed || !v.Decision.Disconnect || len(v.Decision.Limits) != 4 {
+		t.Fatal(v.Decision)
+	}
+	due, err := s.Due(ctx, now.Add(20*time.Second))
+	if err != nil || len(due) != 1 || due[0].Reason != "policy-disconnect" {
+		t.Fatal("exhaustion did not reach background enforcement", due, err)
+	}
+	e.Status = "stop"
+	if err = s.Account(ctx, e); err != nil {
+		t.Fatal(err)
+	}
+	v = snapshot(t, s, a, now.Add(21*time.Second))
+	if remain(v, "time") != 3580 || remain(v, "download") != 0 || remain(v, "upload") != (512<<20)-32 || remain(v, "total") != (8<<30)-32 {
+		t.Fatal("one limit changed another limit", v.Decision)
+	}
+	if _, err = s.Reserve(ctx, a.ID, "router-lab", "C", "new-device", ID(), now.Add(22*time.Second)); err == nil {
+		t.Fatal("exhausted daily download admitted a new connection")
+	}
+	next := snapshot(t, s, a, now.Add(24*time.Hour))
+	if remain(next, "time") != 3600 || remain(next, "download") != 2<<30 || remain(next, "total") != (8<<30)-32 {
+		t.Fatal("daily renewal reset monthly usage")
+	}
+}
+
+func TestDifferentRoutersAndNetworksShareOneEntitlement(t *testing.T) {
+	p := plan()
+	p.Policies[0].Limits[0].Amount = 80
+	s, a := setup(t, p)
+	now := at("2026-10-01T10:00:00+03:00")
+	first, err := s.Reserve(ctx, a.ID, "router-one", "C", "device-one", ID(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := s.Reserve(ctx, a.ID, "router-two", "D", "device-two", ID(), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Decision.Timeout != 40 || second.Decision.Timeout != 40 {
+		t.Fatal("routers received duplicated time budgets")
+	}
+	if _, err = s.Reserve(ctx, a.ID, "router-three", "C", "device-three", ID(), now); err == nil {
+		t.Fatal("router boundary bypassed account session limit")
+	}
+	if remain(snapshot(t, s, a, now), "time") != 0 {
+		t.Fatal("reserved time remains spendable")
+	}
+}

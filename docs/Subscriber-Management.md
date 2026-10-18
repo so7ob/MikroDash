@@ -99,7 +99,9 @@ admission; active CoA rate changes are not implemented. Speed state remains
 The dedicated TLS listener serves only the subscriber document, bundle, selected local assets,
 owned account routes and its own WebSocket hub. It has no administration fallback. Cookies
 use a separate `__Host-` name, Secure, HttpOnly and SameSite=Lax. Origin and CSRF token checks
-protect mutations; WebSockets recheck portal session validity at each send. A CSP restricts
+protect mutations; WebSockets recheck portal session validity at each send. Portal and RADIUS
+share a two-operation credential-verification bound, so an allowed rate-limit burst cannot
+start unbounded concurrent scrypt allocations. A CSP restricts
 resources and HotSpot form destinations. The existing configured trusted proxy chain controls
 client IP attribution; never trust arbitrary browser MAC/IP fields.
 

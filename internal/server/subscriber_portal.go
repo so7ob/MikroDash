@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -79,7 +80,12 @@ func (s *Server) subscriberPortalLogin(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, 400, "Invalid credentials")
 		return
 	}
-	a, err := s.subscribers.radius.Store.Authenticate(r.Context(), in.Username, in.Password)
+	a, err := s.subscribers.radius.Authenticate(r.Context(), in.Username, in.Password)
+	if errors.Is(err, subscriber.ErrAuthenticationBusy) {
+		w.Header().Set("Retry-After", "2")
+		writeJSONErr(w, 429, "Sign-in is busy. Try again shortly.")
+		return
+	}
 	if err != nil {
 		writeJSONErr(w, 401, "Invalid credentials")
 		return

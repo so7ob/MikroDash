@@ -40,8 +40,32 @@ type RadiusService struct {
 	PilotAccounts map[string]bool
 	mu            sync.Mutex
 	servers       []*radius.PacketServer
+	authSlots     chan struct{}
 	attempts      map[string]attempt
 }
+
+var ErrAuthenticationBusy = errors.New("subscriber authentication is busy")
+
+// Authenticate bounds the memory used by concurrent scrypt work across the
+// portal and RADIUS. Rate limits alone do not bound an allowed initial burst.
+func (s *RadiusService) Authenticate(ctx context.Context, username, password string) (Account, error) {
+	s.mu.Lock()
+	if s.authSlots == nil {
+		s.authSlots = make(chan struct{}, 2)
+	}
+	slots := s.authSlots
+	s.mu.Unlock()
+	select {
+	case slots <- struct{}{}:
+		defer func() { <-slots }()
+	case <-ctx.Done():
+		return Account{}, ctx.Err()
+	default:
+		return Account{}, ErrAuthenticationBusy
+	}
+	return s.Store.Authenticate(ctx, username, password)
+}
+
 type attempt struct {
 	Since time.Time
 	Count int
@@ -175,7 +199,7 @@ func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) 
 	if strings.HasPrefix(password, "mdt_") {
 		a, err = s.Store.RedeemTicket(r.Context(), password, c.Network, device, request, time.Now())
 	} else {
-		a, err = s.Store.Authenticate(r.Context(), user, password)
+		a, err = s.Authenticate(r.Context(), user, password)
 	}
 	if err != nil || a.Username != user || (s.Mode == "pilot" && !s.PilotAccounts[a.ID]) {
 		reject()

@@ -247,3 +247,45 @@ func BenchmarkDurableDuplicateAccounting(b *testing.B) {
 		}
 	}
 }
+
+func TestRADIUSAndPortalAuthenticationShareBoundedWork(t *testing.T) {
+	s, service, _, addr := protocolFixture(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	held, err := s.sql.Conn(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close()
+	done := make(chan error, 2)
+	for i := 0; i < 2; i++ {
+		go func() { _, err := radius.Exchange(ctx, access("synthetic-password"), addr); done <- err }()
+	}
+	// Holding the sole SQL connection makes the two real UDP handlers remain
+	// inside credential verification without using timing assumptions about scrypt.
+	deadline := time.Now().Add(time.Second)
+	for {
+		service.mu.Lock()
+		count := len(service.authSlots)
+		service.mu.Unlock()
+		if count == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("RADIUS did not acquire the shared authentication guard")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if _, err := service.Authenticate(ctx, "synthetic-user", "synthetic-password"); err != ErrAuthenticationBusy {
+		t.Fatal("portal credential path bypassed the shared bound", err)
+	}
+	if response := exchange(t, access("synthetic-password"), addr); response.Code != radius.CodeAccessReject {
+		t.Fatal("RADIUS burst was not bounded")
+	}
+	held.Close()
+	for i := 0; i < 2; i++ {
+		if err = <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
