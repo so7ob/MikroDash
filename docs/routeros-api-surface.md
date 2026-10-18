@@ -594,3 +594,17 @@ prints. Proplists are `/system/script/print`: `name,invalid,policy,dont-require-
 not requested. No live connection means an unverified result, not a fresh dial
 or a claim that configuration is missing. Read-only live metadata on the
 reference 7.24.5 router satisfied all six checks; no configuration was applied.
+
+## Subscriber Management preview
+
+`internal/server/subscribers.go` uses `/ip/hotspot/host/print` with
+`address,mac-address,server`, and `/ip/hotspot/active/print` with
+`user,mac-address,server,uptime`, through the shared session. These reads verify
+ticket and disconnect ownership; neither mutates RouterOS.
+
+`internal/subscriber/readiness.go` declares the exact non-secret proplists for
+readiness and User Manager previews. Read-only inspection covered those menus on
+RouterOS 7.24.5. The source is [the official RADIUS/HotSpot manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/)
+and [User Manager limitations](https://manual.mikrotik.com/docs/cli-reference/user-manager/limitation/).
+No new RouterOS API write path was introduced; optional disconnect uses RADIUS
+with the dedicated subscriber service guard.

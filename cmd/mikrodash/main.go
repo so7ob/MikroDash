@@ -25,7 +25,8 @@ import (
 
 func main() {
 	var (
-		listen = flag.String("listen", ":3082", "address to serve on")
+		subscriberConfig = flag.String("subscriber-config", "", "explicit subscriber runtime configuration; disabled when empty")
+		listen           = flag.String("listen", ":3082", "address to serve on")
 		// ── RETIRED: THE NODE COEXISTENCE MODE ─────────────────────────────
 		//
 		// `-node` named a Node MikroDash to proxy unported routes to and ask for
@@ -323,6 +324,10 @@ func main() {
 			terr)
 	} else if n > 0 {
 		log.Printf("[mikrodash] carried alert thresholds onto %d channel(s)", n)
+	}
+
+	if err := srv.StartSubscribers(*subscriberConfig, *webDir); err != nil {
+		log.Fatalf("subscriber startup: %v", err)
 	}
 
 	hs := &http.Server{

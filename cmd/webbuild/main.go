@@ -159,6 +159,7 @@ func appOpts(here, dist string) api.BuildOptions {
 // is what tells them apart, and they read this list rather than guessing.
 var classic = []struct{ src, out string }{
 	{"entry/login.ts", "login.js"},
+	{"entry/subscriber.ts", "subscriber.js"},
 	{"entry/preflight.ts", "preflight.js"},
 }
 
@@ -233,6 +234,10 @@ func main() {
 	}
 	// login.html is markup in web/src/ui like the page bodies. It ships to dist
 	// so the whole served document set comes from one directory.
+	if err := copyFile(filepath.Join(ui, "subscriber.html"), filepath.Join(dist, "subscriber.html")); err != nil {
+		fmt.Fprintln(os.Stderr, "webbuild: subscriber document:", err)
+		os.Exit(1)
+	}
 	if err := copyFile(filepath.Join(ui, "login.html"), filepath.Join(dist, "login.html")); err != nil {
 		fmt.Fprintln(os.Stderr, "webbuild: copying login.html:", err)
 		os.Exit(1)

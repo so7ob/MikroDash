@@ -10,6 +10,7 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.7.0
 	golang.org/x/crypto v0.58.0
 	golang.zx2c4.com/wireguard v0.0.0-20261006164505-2631ce99a06f
+	layeh.com/radius v0.0.0-20231213012653-1006025d24f8
 	modernc.org/sqlite v1.60.1
 )
 

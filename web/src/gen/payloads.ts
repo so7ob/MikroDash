@@ -1343,6 +1343,117 @@ export interface Site {
   created_at: number;
 }
 
+export interface SubscriberPeriod {
+  kind: string;
+  zone: string;
+  anchor: string;
+}
+
+export interface SubscriberLimit {
+  id: string;
+  kind: string;
+  state: string;
+  amount: string;
+  period: SubscriberPeriod;
+  action: string;
+  down: string;
+  up: string;
+}
+
+export interface SubscriberWindow {
+  days: number[];
+  from: number;
+  until: number;
+  zone: string;
+}
+
+export interface SubscriberPolicy {
+  id: string;
+  limits: SubscriberLimit[];
+  windows: SubscriberWindow[];
+}
+
+export interface SubscriberSpeed {
+  id: string;
+  name: string;
+  down: string;
+  up: string;
+}
+
+export interface SubscriberPlan {
+  id: string;
+  version: number;
+  name: string;
+  validSeconds: string;
+  start: string;
+  maxSessions: number;
+  networks: string[];
+  policies: SubscriberPolicy[];
+  speeds: SubscriberSpeed[];
+  down: string;
+  up: string;
+}
+
+export interface SubscriberSubscription {
+  id: string;
+  accountId: string;
+  plan: SubscriberPlan;
+  assignedAt: string;
+  activatedAt: string;
+  expiresAt: string;
+  status: string;
+  speedId: string;
+  speedState: string;
+}
+
+export interface SubscriberLimitView {
+  limit: SubscriberLimit;
+  used: string;
+  remaining: string;
+  reserved: string;
+  periodStart: string;
+  nextReset: string;
+  quality: string;
+}
+
+export interface SubscriberDecision {
+  allowed: boolean;
+  disconnect: boolean;
+  reasons: string[];
+  limits: SubscriberLimitView[];
+  down: string;
+  up: string;
+  timeout: number;
+}
+
+export interface SubscriberLease {
+  id: string;
+  routerId: string;
+  network: string;
+  device: string;
+  sessionId: string;
+  state: string;
+  createdAt: string;
+  deadline: string;
+  observedAt: string;
+  seconds: string;
+  download: string;
+  upload: string;
+}
+
+export interface SubscriberSnapshot {
+  version: string;
+  subscription: SubscriberSubscription;
+  decision: SubscriberDecision;
+  observedAt: string;
+  lastSyncedAt: string;
+  quality: string;
+  lifetimeSeconds: string;
+  lifetimeDownload: string;
+  lifetimeUpload: string;
+  sessions: SubscriberLease[];
+}
+
 export interface SystemPayload {
   ts: number;
   uptimeRaw: string;
@@ -2363,6 +2474,7 @@ export interface Events {
   'secscan:result': SecScanPayload;
   'secscore:state': SecScorePayload;
   'sites:update': Site[];
+  'subscriber:snapshot': SubscriberSnapshot;
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
   'term:complete': TermCompletePayload;

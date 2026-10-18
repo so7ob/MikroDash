@@ -158,13 +158,13 @@ table.
 - **"More efficient" means fewer router channels, not faster payload assembly.** The bottleneck is
   concurrent API channels on the MikroTik, not CPU here.
 - **Go stdlib first, but not stdlib-only.** A dependency needs a reason better than convenience.
-  Eight are in: `golang.org/x/crypto` (scrypt, which the user store's key derivation demands),
+  Nine are in: `golang.org/x/crypto` (scrypt, which the user store's key derivation demands),
   `modernc.org/sqlite` (pure Go, no cgo, so the binary stays static), `github.com/coder/websocket`,
   `github.com/go-routeros/routeros/v3` (a patched copy, `third_party/go-routeros`: see
   "Three things about `internal/routeros`"), `github.com/go-pdf/fpdf`,
   `github.com/oschwald/maxminddb-golang/v2` (the DB-IP geo reader), `github.com/evanw/esbuild` and
   `golang.zx2c4.com/wireguard` (zero-touch provisioning's tunnel: userspace WireGuard with gVisor's
-  netstack, so the container needs no NET_ADMIN or tun device; `internal/ztp`).
+  netstack, so the container needs no NET_ADMIN or tun device; `internal/ztp`), and `layeh.com/radius` (standard RADIUS protocol and MikroTik attributes for Subscriber Management).
   - **esbuild runs through its Go API** in `cmd/webbuild`, so the image needs no JavaScript
     runtime. Node is a development dependency only: `tsc --noEmit` and the tests in `web/test/`.
   - **fpdf walks bytes against a cp1252 table**, so `reportpdf.EncodeText` is mandatory on every
@@ -329,7 +329,7 @@ move together:
 | | |
 |---|---|
 | `internal/verify/` | 113 Go tests. Static checks over the current source: credentials, cited paths, the WebSocket vocabulary both ways, endpoints, selectors, module reachability, identity columns, the blur-suspend guard, the fast/slow poll ledger, the shared-menu ledger, fixture schemas, that each geo database is fetched, shipped and credited, that every font family that ships is credited in the OFL notice, counted truthfully and offered by the branding picker, that every page-key literal names a real page, that the alert-type catalogue matches the rules that raise the alerts, that `docs/Collector-Architecture.md` describes the collector layer the code has, that every path writing a RouterOS account names the lockout guard, and that the numbers in this file are true. Test-only, so nothing links them into the binary. |
-| `web/test/` | 110 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
+| `web/test/` | 111 test files that bundle the app's TypeScript with esbuild and run it against a DOM shim. See `web/test/README.md` for why they are executed rather than type-checked. |
 | package tests | `go test ./...`, standard library `testing` only. |
 
 **Two rules every check follows:**

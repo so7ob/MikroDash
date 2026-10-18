@@ -264,3 +264,11 @@ entry left behind.
 
 For the avoidance of doubt, these are MikroDash's own and are not covered above:
 `web/public/css/*`, `web/public/logo.png`, `preflight.js`, and the login page.
+
+## RADIUS
+
+Subscriber Management links [layeh.com/radius](https://github.com/layeh/radius),
+pinned in go.mod. Its source files are licensed under MPL-2.0; the unmodified
+source and license are available at the pinned upstream revision. It supplies
+RADIUS framing, PAP attribute encoding, request/response authenticators and
+MikroTik vendor attributes. No FreeRADIUS sidecar is required.

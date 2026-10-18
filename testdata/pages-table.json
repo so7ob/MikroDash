@@ -140,6 +140,11 @@
       "key": "settings",
       "title": "Settings",
       "settingsKey": null
+    },
+    {
+      "key": "subscribers",
+      "title": "Subscriber Management",
+      "settingsKey": null
     }
   ],
   "categories": [
@@ -223,6 +228,7 @@
     "bandwidth",
     "queues",
     "connections",
+    "subscribers",
     "security-scan",
     "firewall",
     "users",

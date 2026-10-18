@@ -1,5 +1,7 @@
 package db
 
+import "mikrodash/internal/subscriber"
+
 // The schema a fresh install starts from.
 //
 // ── WHY THIS FILE EXISTS ────────────────────────────────────────────────────
@@ -278,4 +280,4 @@ CREATE INDEX idx_report_schedules_router ON report_schedules (router_id);
 
 CREATE INDEX idx_traffic_router_iface_ts
           ON traffic_samples(router_id, interface, ts);
-` + cfgTablesDDL + ztpTablesDDL + rollupTablesDDL + notifyTablesDDL + ssoTablesDDL + credProfTablesDDL + monitorRunsDDL + activityDDL + dnsListsDDL + clientWatchDDL
+` + cfgTablesDDL + ztpTablesDDL + rollupTablesDDL + notifyTablesDDL + ssoTablesDDL + credProfTablesDDL + monitorRunsDDL + activityDDL + dnsListsDDL + clientWatchDDL + subscriber.Schema
