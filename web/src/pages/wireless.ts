@@ -257,7 +257,7 @@ export function initWirelessPage(socket: Socket, isVisible: (page: string) => bo
     return '<tr>' +
       '<td>' +
         '<div style="font-weight:600;font-size:.78rem">' +
-          (extras.nameAttrs(c) ? '<button type="button"' + extras.nameAttrs(c) + '>' + esc(clientTitle(c)) + '</button>' : esc(clientTitle(c))) +
+          (extras.nameAttrs(c) ? '<button type="button" class="wl-hist-link"' + extras.nameAttrs(c) + '>' + esc(clientTitle(c)) + '</button>' : esc(clientTitle(c))) +
           extras.watchCell(c) + '</div>' +
         hostStr + ipStr + macStr +
       '</td>' +

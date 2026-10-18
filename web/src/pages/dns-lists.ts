@@ -21,6 +21,7 @@ interface DnsList {
   forwardTo: string;
   matchSubdomain: boolean;
   routerIds: string[];
+  dropped: string[];
   intervalHours: number;
   lastSyncAt: number;
   lastResult: string;

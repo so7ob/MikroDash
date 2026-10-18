@@ -10,8 +10,11 @@ const dir=fs.mkdtempSync('/tmp/mikrodash-optional-');
 execFileSync(path.join(root,'web/node_modules/.bin/esbuild'),[path.join(__dirname,'optional-features-entry.ts'),'--bundle','--format=esm','--outfile='+dir+'/entry.js','--log-level=error']);
 const now=Date.now();let recording=false;let lists=[];let watches=[];const requests=[];
 const routes=(p,method,b)=>{
- if(p==='/api/routers')return {routers:[{id:'synthetic',label:'Synthetic router',host:'198.51.100.1'}]};
+ if(p==='/api/routers')return {routers:[{id:'synthetic',label:'Synthetic router',host:'198.51.100.1'},{id:'synthetic-two',label:'Synthetic router two',host:'198.51.100.3'}]};
  if(p==='/api/dns/lists'){if(method==='POST')lists=[{...b,id:1,routerIds:b.routerIds||[],lastResult:'',lastSyncAt:0,dropped:[]}];return {lists,ok:true};}
+ if(p==='/api/dns/fleet')return {routers:[{id:'synthetic',label:'Synthetic router',ok:true,entries:dns.staticEntries.map(e=>({...e,values:e}))},{id:'synthetic-two',label:'Synthetic router two',ok:true,entries:[]}]};
+ if(p==='/api/dns/fleet-sync')return {ok:true,routers:[{routerId:'synthetic-two',label:'Synthetic router two',add:1,change:0,remove:0,code:'',jobId:b.dryRun?'':'job1'}]};
+ if(p==='/api/router-doc')return {doc:{metresPerUnit:0,objects:[],aps:[{ap:'',ifaces:['wifi1'],label:'Synthetic AP',x:100,y:100,floor:1}]}};
  if(p==='/api/dns/cache')return {total:1,cached:1,rows:[{name:'synthetic.example',type:'A',data:'198.51.100.2',ttl:'1m'}]};
  if(p==='/api/dns/trace')return {name:'synthetic.example',matches:[],answering:[],steps:[{step:'Route',state:'ok',text:'Synthetic route is active'}]};
  if(p==='/api/dns/bulk')return {id:'job1',state:'stopped',total:2,done:1,added:1,changed:0,removed:0,failed:1,unconfirmed:1,waitingUntil:0,errors:['stopped: permission no longer granted']};
@@ -57,12 +60,14 @@ try{
  await page.locator('#dnsListAdd').click();await page.locator('#dnsListName').fill('Synthetic list');await page.locator('#dnsListDomains').fill('synthetic.example');await page.locator('#dnsListAddr').fill('synthetic-vpn');await audit('dns');
  await page.locator('#dnsListSave').focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#dnsListsTable').textContent.includes('Synthetic list'));
  await page.locator('.dns-pick').check();await page.locator('#dnsBulkDisable').click();await page.waitForFunction(()=>document.querySelector('#dnsBulkNote').textContent.includes('stopped'));
+ await page.locator('#dnsScopeFleet').click();await page.waitForFunction(()=>document.querySelector('#dnsFleetRef').options.length===2);page.once('dialog',d=>d.accept());await page.locator('#dnsFleetSyncRef').focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#dnsFleetNote').textContent.includes('stopped'));assert.deepEqual(requests.filter(r=>r.path==='/api/dns/fleet-sync').map(r=>r.body.dryRun),[true,false]);await audit('dns','#dnsFleetCard');
  await page.evaluate(()=>fixture.enable(false));assert.equal(await page.locator('#dnsListsCard').isVisible(),false);assert.equal(await page.locator('#dnsCacheCard').isVisible(),false);
  await open('wifi-clients');await page.evaluate(()=>fixture.enable(true));
  await send('wireless:update',{ts:now,pollMs:30000,mode:'wifi',capsmanAvailable:false,clients:[{mac:'02:00:00:00:00:01',signal:-55,iface:'wifi1',txRate:'866Mbps',rxRate:'866Mbps',band:'5GHz',standard:'Wi-Fi 6',ip:'198.51.100.2',uptime:'1h',ssid:'Synthetic',name:'Synthetic client'}],ssids:[],ssidsManagedElsewhere:0});
  await page.locator('[data-watch]').focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#wlWatchBadge').textContent==='1');
  await page.locator('#wlRecToggle').click();await page.waitForFunction(()=>document.querySelector('#wlRecToggle').textContent==='Stop recording');
  await page.locator('[data-wlhist]').focus();await page.keyboard.press('Enter');await page.waitForSelector('#wlHistBody svg');await audit('wifi-clients');
+ await open('wifi-map');await page.waitForSelector('#wmAps .wm-ap');await page.evaluate(()=>fixture.enable(true));await send('wireless:update',{clients:[{mac:'02:00:00:00:00:01',signal:-80,iface:'wifi1',name:'Synthetic weak client',ssid:'Synthetic',txRate:'12Mbps'}],ssids:[]});await page.waitForFunction(()=>document.querySelector('#wmFoot').textContent.includes('below -75'));await audit('wifi-map');await page.evaluate(()=>fixture.enable(false));assert.ok(!(await page.locator('#wmFoot').textContent()).includes('below -75'));
  await open('capsman');await page.evaluate(()=>fixture.enable(true));
  await send('capsman:update',{ts:now,pollMs:10000,available:true,caps:[{identity:'Synthetic CAP',version:'7.23',boardName:'Synthetic',state:'Run',radios:[],clients:[],clientCount:0,legacy:false}],role:'manager',manager:{enabled:true},cap:{},totals:{caps:1,radios:0,clients:0},localRadios:[],profiles:{configuration:[],security:[],channel:[],datapath:[]},provisioning:[]});
  await page.waitForSelector('[data-capupgrade]');await audit('capsman');page.once('dialog',d=>d.accept());await page.locator('[data-capupgrade]').focus();await page.keyboard.press('Enter');await page.waitForFunction(()=>document.querySelector('#capsmanTable').textContent.includes('upgrading'));

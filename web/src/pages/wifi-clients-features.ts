@@ -276,7 +276,7 @@ export function initClientFeatures(socket: Socket, rerender: () => void): Client
     },
     nameAttrs(c) {
       if (!featureOn('wifiHistoryEnabled')) return '';
-      return ' data-wlhist="' + esc(c.mac) + '" class="wl-hist-link" title="Open its history"';
+      return ' data-wlhist="' + esc(c.mac) + '" title="Open its history"';
     },
   };
 }

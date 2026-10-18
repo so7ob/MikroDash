@@ -2,6 +2,7 @@
 import { applyPalette } from '../../src/appearance';
 import { applyPageVisibility } from '../../src/caps';
 import { initDnsPage } from '../../src/pages/dns';
+import { initWifiMapPage } from '../../src/pages/wifi-map';
 import { initWirelessPage } from '../../src/pages/wireless';
 import { initCapsmanPage } from '../../src/pages/capsman';
 import { initDomainRouteCard } from '../../src/pages/dashboard-card-domainroute';
@@ -13,6 +14,7 @@ const page = new URL(location.href).searchParams.get('page') || 'dns';
 document.getElementById('page-'+page)?.classList.add('active');
 if (page === 'dns') initDnsPage(socket as any, () => true);
 if (page === 'wifi-clients') initWirelessPage(socket as any, () => true);
+if (page === 'wifi-map') initWifiMapPage(socket as any, () => true);
 if (page === 'capsman') initCapsmanPage(socket as any, () => true);
 if (page === 'dashboard') initDomainRouteCard(socket as any);
 if (page === 'settings') { mountSettingsTabs(); activateSettingsTab('features'); }

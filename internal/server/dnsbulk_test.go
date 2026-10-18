@@ -295,17 +295,17 @@ func TestAJobLeavesTheFormsAllowanceAlone(t *testing.T) {
 	}
 }
 
-// TestTheJobEndpointFollowsItsSwitches. Asking after a job needs one of the two
-// features that submit jobs from the page, and a signed-in user.
-func TestTheJobEndpointFollowsItsSwitches(t *testing.T) {
+// Status remains available after switch-off so an authorized owner can see
+// the stopped reason. Missing jobs still disclose nothing, signed in or not.
+func TestTheJobEndpointKeepsStatusAfterSwitchOff(t *testing.T) {
 	for _, c := range []struct {
 		name, settings string
 		signedIn       bool
 		want           int
 	}{
 		{"signed out", `{"dnsBulkEnabled":true}`, false, 401},
-		{"both off", `{}`, true, 403},
-		{"lists only", `{"dnsListsEnabled":true}`, true, 403},
+		{"both off", `{}`, true, 404},
+		{"lists only", `{"dnsListsEnabled":true}`, true, 404},
 		{"bulk on", `{"dnsBulkEnabled":true}`, true, 404},
 		{"fleet sync on", `{"dnsFleetSyncEnabled":true}`, true, 404},
 	} {
