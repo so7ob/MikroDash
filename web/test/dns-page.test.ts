@@ -21,7 +21,7 @@ const ENTRY = path.join(ROOT, 'testdata', '.dnspage-entry.ts');
 fs.writeFileSync(ENTRY, "export { initDnsPage } from '../web/src/pages/dns.js';\n" +
   "export { buildRows } from '../web/src/pages/dns-fleet.js';\n" +
   "export { heldElsewhere } from '../web/src/pages/dns-fleet.js';\n" +
-  "export { rscLine, rscValue, csvCell, jobProgress } from '../web/src/pages/dns-bulk.js';\n");
+  "export { initDnsBulk, rscLine, rscValue, csvCell, jobProgress } from '../web/src/pages/dns-bulk.js';\n");
 const OUT = path.join(ROOT, 'testdata', '.dnspage.cjs');
 execFileSync(path.join(ROOT, 'web', 'node_modules', '.bin', 'esbuild'),
   [ENTRY, '--bundle', '--format=cjs', '--platform=node', '--outfile=' + OUT, '--log-level=warning'],
@@ -213,6 +213,45 @@ function boot() {
   say('ok  names line up without case, a round-robin pair by value');
 }
 
+// Drive the actual export buttons: default exports must omit both a displayed
+// dynamic row and a row that becomes dynamic in the refreshed fleet response.
+async function exportsOmitDynamicRows() {
+  const { initDnsBulk } = require(OUT);
+  const doc = makeDoc(['dnsBulkNote','dnsBulkBar','dnsBulkCount','dnsExportTools','dnsExportRsc','dnsExportCsv',
+    'dnsBulkApply','dnsBulkEnable','dnsBulkDisable','dnsBulkRemove','dnsBulkClear','dnsStaticTable','dnsStaticThead']);
+  const previous = { document:global.document, fetch:global.fetch, create:URL.createObjectURL, revoke:URL.revokeObjectURL };
+  const blobs: Blob[] = [];
+  doc.body = { appendChild: () => {} };
+  doc.createElement = () => ({ click: () => {}, remove: () => {} });
+  global.document = doc;
+  global.fetch = async (url) => {
+    assert.ok(url.includes('/api/dns/fleet?'));
+    return { json: async () => ({ routers: [{ok:true, entries:[
+      {id:'*1',dynamic:false,values:{name:'static.example',type:'A',address:'198.51.100.1'}},
+      {id:'*2',dynamic:true,values:{name:'dhcp.example',type:'A',address:'198.51.100.2'}},
+      {id:'*3',dynamic:true,values:{name:'changed.example',type:'A',address:'198.51.100.3'}},
+    ]}] }) };
+  };
+  URL.createObjectURL = (blob) => { blobs.push(blob); return 'blob:synthetic'; };
+  URL.revokeObjectURL = () => {};
+  try {
+    const bulk=initDnsBulk(()=>'synthetic',()=>{});
+    bulk.setRows([entry({id:'*1',name:'static.example'}),entry({id:'*2',name:'dhcp.example',dynamic:true}),entry({id:'*3',name:'changed.example'})]);
+    for (const id of ['dnsExportRsc','dnsExportCsv']) {
+      doc.nodes[id].fire('click');
+      await new Promise(resolve=>setImmediate(resolve));
+      assert.equal(blobs.length,1,'export handler did not generate a download');
+      const text=await blobs.shift()!.text();
+      assert.match(text,/static\.example/);
+      assert.doesNotMatch(text,/dhcp\.example|changed\.example/,'dynamic row became a static export');
+    }
+    say('ok  RSC and CSV export handlers omit dynamic rows, including changed read-back rows');
+  } finally {
+    global.document=previous.document;global.fetch=previous.fetch;
+    URL.createObjectURL=previous.create;URL.revokeObjectURL=previous.revoke;
+  }
+}
+
 // ── 6. a slow read of the router that was selected is not drawn under the next one
 {
   const { doc, handlers, restore } = boot();
@@ -230,7 +269,7 @@ function boot() {
   pending[0].resolve(answer([{ name: 'from-a.example', type: 'A', data: '198.51.100.1', ttl: '1m' }]));
   pending[1].resolve({ ok: true, statusText: '', json: () => Promise.resolve({ name: 'www.example.com', matches: [],
     answering: [], steps: [{ step: 'Static entry', state: 'ok', text: 'from A' }] }) });
-  setTimeout(() => {
+  setTimeout(async () => {
     const table = String(doc.nodes['dnsCacheTable'].innerHTML);
     global.fetch = prevFetch;
     restore();
@@ -238,6 +277,7 @@ function boot() {
     assert.ok(!String(doc.nodes['dnsTraceOut'].innerHTML).includes('from A'),
       'router A\'s trace was drawn under router B');
     say('ok  a read of the router that was selected is dropped when another is');
+    await exportsOmitDynamicRows();
     fs.rmSync(OUT, { force: true });
     say('dns-page: all checks passed');
   }, 20);

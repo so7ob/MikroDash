@@ -247,7 +247,9 @@ export function initDnsBulk(activeRouter: () => string, rerender: () => void): D
   function exportRows(kind: 'rsc' | 'csv'): void {
     const routerId = activeRouter();
     if (!routerId) return;
-    const want = new Set((picked.size ? chosen() : shown).map((e) => e.id));
+    // Dynamic rows belong to their producer (for example DHCP); exporting them
+    // as ordinary static records would give them a different lifetime on import.
+    const want = new Set((picked.size ? chosen() : shown).filter((e) => !e.dynamic).map((e) => e.id));
     note('reading the entries…');
     // The fleet read carries every property of every row; the page's own
     // payload folds nine of them into one value column.
@@ -256,8 +258,8 @@ export function initDnsBulk(activeRouter: () => string, rerender: () => void): D
       .then((d) => {
         const router = ((d && d.routers) || [])[0];
         if (!router || !router.ok) throw new Error((router && router.error) || 'no answer');
-        const rows = (router.entries as Array<{ id: string; values: Record<string, unknown> }>)
-          .filter((e) => want.has(e.id));
+        const rows = (router.entries as Array<{ id: string; dynamic: boolean; values: Record<string, unknown> }>)
+          .filter((e) => !e.dynamic && want.has(e.id));
         const stamp = new Date().toISOString().slice(0, 10);
         if (kind === 'rsc') {
           saveFile('dns-static-' + stamp + '.rsc',
