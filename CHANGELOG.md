@@ -22,6 +22,7 @@ All notable changes to MikroDash will be documented in this file.
 - Long-running DNS jobs retain the initiating identity and feature, recheck authorization and cancellation before each queued write, and report stopped jobs with their reason. Scheduled domain-list work has an explicit system identity.
 - RSC and CSV exports omit dynamic DNS records, including records that become dynamic during the export refresh.
 - Unconfirmed DNS removals remain pending; cleanup cannot discard a newer saved list definition.
+- Publication checks that the version, minor-version and latest image tags share the release build digest and include all three supported architectures before creating the GitHub Release.
 - Schema 37 preserves Activity migration 35, adds domain lists at 36 and device watch/Wi-Fi history at 37. Fresh installs and synthetic upgrades from schemas 34 and 35 are verified, including retained Activity records, grants, settings and safe migration replay.
 - DNS and CAPsMAN table headers and scrolling, plus Wi-Fi history controls, support keyboard access and the dark, light and Nord palettes.
 

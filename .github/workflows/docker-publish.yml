@@ -101,6 +101,7 @@ jobs:
       # geodata stage's download and the QEMU emulation itself, so building all
       # three on main remains worth the minutes.
       - name: Build and push multi-arch image
+        id: image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -115,6 +116,25 @@ jobs:
           # blocked the v0.5.54 publish.
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: ${{ startsWith(github.ref, 'refs/tags/v') && format('type=registry,ref={0}/{1}:buildcache,mode=max', env.REGISTRY, env.IMAGE_NAME) || '' }}
+
+      - name: Set up Node for registry verification
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      - name: Verify published image tags and architectures
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          EXPECTED_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for tag in "$version" "${version%.*}" latest; do
+            image="$REGISTRY/$IMAGE_NAME:$tag"
+            docker buildx imagetools inspect "$image" --format '{{json .Manifest}}' > "$RUNNER_TEMP/published-image.json"
+            node tools/image-check.mjs "$EXPECTED_DIGEST" "$RUNNER_TEMP/published-image.json"
+            echo "Verified $image"
+          done
 
   # Create a GitHub Release on version tags, using the matching CHANGELOG section
   # as the release body. Only runs after the Docker image is successfully published.
