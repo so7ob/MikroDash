@@ -275,11 +275,19 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 				// The bytes inside an unsampled boundary gap are unknowable. Charge the
 				// full delta to every touched period, conservatively, and label it. The
 				// lifetime counter remains exact and is never this sum of period buckets.
-				endTime := until
-				if !endTime.After(from) {
+				byteFrom, endTime := from, until
+				if e.Seconds < oldSec {
+					// A delayed correction can carry more bytes but an earlier clock.
+					// Cover the uncertain interval; never produce an inverted range
+					// that updates lifetime bytes without charging a period bucket.
+					byteFrom = time.Unix(started+int64(e.Seconds), 0)
+				} else if !endTime.After(byteFrom) {
 					endTime = e.At
+					if endTime.Before(byteFrom) {
+						byteFrom, endTime = endTime, byteFrom
+					}
 				}
-				first, _, berr := l.Period.Bounds(from)
+				first, _, berr := l.Period.Bounds(byteFrom)
 				if berr != nil {
 					return berr
 				}

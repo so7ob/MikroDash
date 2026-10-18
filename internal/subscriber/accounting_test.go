@@ -443,3 +443,26 @@ func TestRestartRetainsLedgerReservationsAndDeduplication(t *testing.T) {
 	}
 	reserve(t, s, a, "device", now.Add(72*time.Second))
 }
+
+func TestLateByteCorrectionAcrossMidnightCannotEscapePeriodCharge(t *testing.T) {
+	s, a := setup(t, plan())
+	now := at("2026-10-01T23:59:50+03:00")
+	lease := reserve(t, s, a, "device", now)
+	if err := s.Account(ctx, event(lease, "device", "interim", 20, 100, 0, now.Add(20*time.Second))); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Account(ctx, event(lease, "device", "interim", 5, 200, 0, now.Add(5*time.Second))); err != nil {
+		t.Fatal(err)
+	}
+	for _, when := range []time.Time{now, now.Add(20 * time.Second)} {
+		v := snapshot(t, s, a, when)
+		for _, limit := range v.Decision.Limits {
+			if limit.Limit.ID == "download" && (limit.Used != 200 || limit.Quality != "boundary-conservative") {
+				t.Fatal("late correction escaped daily charge", limit)
+			}
+		}
+		if v.LifetimeDownload != 200 || v.LifetimeSeconds != 20 {
+			t.Fatal("correction duplicated lifetime usage")
+		}
+	}
+}
