@@ -3995,3 +3995,8 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
 .activity-setup-panel { margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:1rem; }
 .activity-setup-checks { display:grid; gap:.5rem; list-style:none; padding:0; margin:.75rem 0; }
 .activity-setup-checks li { display:flex; align-items:center; gap:.5rem; }
+
+/* Activity's local clipboard feedback overlays the page without intercepting input. */
+.activity-copy-notice { position:fixed; right:1rem; bottom:1rem; z-index:1000; max-width:calc(100vw - 2rem); padding:.5rem .75rem; border:1px solid var(--accent-ok); border-radius:6px; background:var(--bg-card); color:var(--text-main); font-family:var(--font-ui); font-size:.8rem; pointer-events:none; }
+.activity-copy-notice:empty { opacity:0; }
+.activity-copy-notice.activity-copy-failed { border-color:var(--accent-err); }

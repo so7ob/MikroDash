@@ -35,11 +35,13 @@ const assert=require('node:assert/strict');
  for(const id of ['activityEnabled','activityFolder','activityTimezone','activitySaveSettings'])assert.equal(await page.locator('#'+id).isDisabled(),true,'read-only source controls enabled');
  await page.unroute('**/api/activity/query?**');await page.locator('#activityRefresh').click();await settled();
  await page.locator('#activityEnabled').check();await page.locator('#activityTimezone').fill('UTC');await page.locator('#activitySaveSettings').click();
- await page.waitForTimeout(1200);await page.evaluate(()=>window.dispatchEvent(new Event('fixture-invalidate')));
+ await page.waitForTimeout(1200);
+ await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname==='/api/activity/query'&&r.status()===200),page.evaluate(()=>window.dispatchEvent(new Event('fixture-invalidate')))]);
  await page.waitForFunction(()=>document.querySelector('#activityCount')?.textContent==='130');
  await page.locator('#activityDays').selectOption('1');await settled();
  await page.locator('[data-view="summary"]').click();await settled();
  assert.equal(await page.locator('#activityState').isVisible(),false,'source save exposed status outside sync tab');
+ await require('./activity-copy-journey.cjs')(page,context,settled);
  await page.screenshot({path:'/tmp/mikrodash-activity-desktop.png',fullPage:true});
  // Every overview chart/ranking filters in place; only Ctrl opens Events.
  const resetOverview=async()=>{
