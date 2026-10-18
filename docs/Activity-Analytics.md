@@ -300,8 +300,18 @@ hardware. With Playwright and @axe-core/playwright available to Node, run:
 
 ```sh
 NODE_PATH=/usr/lib/node_modules MIKRODASH_ACTIVITY_BROWSER=1 \
-  go test ./internal/server -run TestActivityBrowserJourney -v -timeout 90s
+  go test ./internal/server -run TestActivityBrowserJourney -v -timeout 180s
 ```
+
+In Events, Ctrl + click copies only the displayed value under the pointer;
+ordinary clicks still filter. Server/IP/MAC and country/city can each be copied
+separately. A small notification confirms success or failure for two seconds.
+The clipboard helper also supports HTTP/LAN origins without the async Clipboard
+API. Labels and missing-value placeholders are not copy targets.
+
+The Activity journey includes actual clipboard reads, the HTTP fallback, failure
+feedback, redraws, and 375/1280 dark/light/Nord accessibility checks. Clipboard
+screenshots are written under `/tmp/mikrodash-activity-copy-*.png`.
 
 The same browser command with `-run TestActivityDashboardBrowserJourney` verifies
 the optional cards through the real editor and APIs, including layout portability,

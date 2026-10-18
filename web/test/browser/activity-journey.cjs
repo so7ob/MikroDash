@@ -40,6 +40,7 @@ const assert=require('node:assert/strict');
  await page.locator('#activityDays').selectOption('1');await settled();
  await page.locator('[data-view="summary"]').click();await settled();
  assert.equal(await page.locator('#activityState').isVisible(),false,'source save exposed status outside sync tab');
+ await require('./activity-copy-journey.cjs')(page,context,settled);
  await page.screenshot({path:'/tmp/mikrodash-activity-desktop.png',fullPage:true});
  // Every overview chart/ranking filters in place; only Ctrl opens Events.
  const resetOverview=async()=>{
