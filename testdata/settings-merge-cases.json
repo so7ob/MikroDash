@@ -107,7 +107,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -219,7 +231,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -331,7 +355,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -444,7 +480,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -557,7 +605,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -670,7 +730,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -783,7 +855,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -896,7 +980,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1007,7 +1103,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1118,7 +1226,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1229,7 +1349,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1342,7 +1474,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1453,7 +1597,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1564,7 +1720,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1675,7 +1843,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1786,7 +1966,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -1898,7 +2090,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -2010,7 +2214,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -2121,7 +2337,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -2232,7 +2460,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -2343,7 +2583,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     },
     {
@@ -2454,7 +2706,19 @@
         "ztpLanUrl": "",
         "ztpPrivateKey": "",
         "ztpInstanceId": "",
-        "hiddenAreas": []
+        "hiddenAreas": [],
+        "dnsCacheEnabled": false,
+        "dnsTraceEnabled": false,
+        "dnsBulkEnabled": false,
+        "dnsFleetSyncEnabled": false,
+        "dnsListsEnabled": false,
+        "domainRoutingEnabled": false,
+        "watchListEnabled": false,
+        "wifiHistoryEnabled": false,
+        "wifiWeakSpotsEnabled": false,
+        "capVersionsEnabled": false,
+        "domainRoutingList": "",
+        "dbWifiHistoryRetentionDays": 7
       }
     }
   ]

@@ -208,7 +208,19 @@ function fieldHtml(f: SchemaField, value: unknown, choices?: string[]): string {
   if (neg) value = neg.value;
   let body: string;
 
-  if (choices && choices.length) {
+  if (choices && choices.length && f.suggest) {
+    // A list the value is usually from but need not be: a FWD entry forwards
+    // to a named forwarder or to any address.
+    const listId = 'resl_' + f.name;
+    const v = value === undefined || value === null ? '' : String(value);
+    body = '<input class="sform-input" id="' + id + '" type="text" list="' + listId + '"' +
+      ' value="' + esc(v) + '" placeholder="' + esc(f.placeholder || '') + '" autocomplete="off">' +
+      '<datalist id="' + listId + '">' +
+      choices.map((o) => {
+        const name = f.suggestLabels[o];
+        return '<option value="' + esc(o) + '"' + (name ? ' label="' + esc(name) + '"' : '') + '></option>';
+      }).join('') + '</datalist>';
+  } else if (choices && choices.length) {
     // THE ROUTER TOLD US WHAT THIS FIELD MAY BE, so offer that rather than a
     // blank box - even for a field whose declared type is free text. That is
     // what the live form does, and without it the VLAN parent and both
@@ -328,6 +340,20 @@ function countTabs(schema: Schema): void {
   });
 }
 
+/**
+ * What a field shows when the form opens: the row's value on Edit, and on Add
+ * RouterOS's own default.
+ *
+ * A checkbox with nothing to read is unticked, and an unticked box is SENT as
+ * `no`: a new DHCP server went out with `conflict-detection=no` and a new adlist
+ * with `ssl-verify=no`, both defaulting to yes on the router. A display field
+ * shows a row's state, and a new row has none.
+ */
+export function initialValue(f: SchemaField, values: Record<string, unknown> | null): unknown {
+  if (values) return values[f.name];
+  return f.default && !f.display ? f.default : undefined;
+}
+
 /** How a field renders differs between Add and Edit; `values` says which. */
 function decorate(f: SchemaField, values: Record<string, unknown> | null): SchemaField {
   if (values) return f.createOnly ? { ...f, display: true } : f;
@@ -347,7 +373,7 @@ function buildForm(schema: Schema, values: Record<string, unknown> | null,
   // server refuses it either way - this is the label agreeing with the refusal
   // rather than the operator finding out on save.
   const draw = (f: SchemaField): string => fieldHtml(decorate(f, values),
-    values ? values[f.name] : undefined, options ? options[f.name] : undefined);
+    initialValue(f, values), options ? options[f.name] : undefined);
   const tabs = formTabs(schema.fields, values !== null);
   host.innerHTML = tabs.length
     ? '<div class="modal-tabs" id="res_tabs"><div class="stab-bar" role="tablist">' +
@@ -1203,9 +1229,8 @@ export function mountRows(socket: Socket): void {
  *
  * An existing row is NOT rendered from the list payload. The collector reads
  * with a proplist narrow enough for the page it feeds, so a form filled from it
- * would blank every property the page does not display - on dnsStatic that is
- * match-subdomain, cname, forward-to and text. The server is asked for a fresh
- * read instead, and answers on `res:row`.
+ * would blank every property the page does not display. The server is asked for
+ * a fresh read instead, and answers on `res:row`.
  */
 export function openResource(socket: Socket, key: string,
                              row: { id: string; name?: string } | null): void {

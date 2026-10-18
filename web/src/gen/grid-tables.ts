@@ -283,6 +283,14 @@ export const DEFAULT_LAYOUT: readonly GridCard[] = [
     "w": 8,
     "h": 6,
     "visible": false
+  },
+  {
+    "id": "dc-card-domainroute",
+    "x": 1,
+    "y": 1,
+    "w": 8,
+    "h": 6,
+    "visible": false
   }
 ];
 
@@ -318,7 +326,8 @@ export const CARD_LABELS: Readonly<Record<string, string>> = {
   "dc-card-activity-services": "Activity Services",
   "dc-card-activity-users": "Activity Users",
   "dc-card-activity-categories": "Activity Categories",
-  "dc-card-activity-countries": "Activity Countries"
+  "dc-card-activity-countries": "Activity Countries",
+  "dc-card-domainroute": "Domain Routing"
 };
 
 /**
@@ -336,7 +345,8 @@ export const CARD_ROOMS: Readonly<Record<string, string>> = {
   "dc-card-diagnostics": "diagnostics",
   "dc-card-agent": "agent",
   "dc-card-secscore": "secscore",
-  "dc-card-wanflow": "wan"
+  "dc-card-wanflow": "wan",
+  "dc-card-domainroute": "domainroute"
 };
 
 /** Source-page permissions also gate cards that read over HTTP. */
@@ -356,5 +366,6 @@ export const CARD_PAGES: Readonly<Record<string, string>> = {
   "dc-card-activity-services": "activity",
   "dc-card-activity-users": "activity",
   "dc-card-activity-categories": "activity",
-  "dc-card-activity-countries": "activity"
+  "dc-card-activity-countries": "activity",
+  "dc-card-domainroute": "dns"
 };
