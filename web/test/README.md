@@ -30,3 +30,20 @@ shows up as a failure rather than a warning.
 
 `tsc --noEmit` still covers every module they import, because those live in
 `src/`.
+
+
+## Upstream optional-feature browser acceptance
+
+With Chromium, `playwright` and `@axe-core/playwright` installed:
+
+```sh
+NODE_PATH=/usr/lib/node_modules node web/test/browser/optional-features-journey.cjs
+```
+
+Run from the repository root. This starts a loopback HTTP fixture, bundles the real
+DNS, Wi-Fi, CAPsMAN, Settings and Domain Routing modules, and serves their actual
+markup and styles. All endpoint responses and socket payloads are synthetic;
+RouterOS writes are never sent. It checks disabled defaults, keyboard interactions,
+375/1280 layouts and dark/light/Nord palettes, fails on axe violations, and prints
+the temporary directory containing screenshots and per-view axe results. It is an
+explicit browser acceptance command, separate from `npm test` and the default CI.

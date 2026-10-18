@@ -79,6 +79,26 @@ export function getVpnDashTopN(): number {
   return vpnDashTopN;
 }
 
+/** The optional features, Settings -> Features. */
+export type FeatureKey = 'dnsBulkEnabled' | 'dnsCacheEnabled' | 'dnsFleetSyncEnabled' | 'dnsListsEnabled' |
+  'dnsTraceEnabled' | 'domainRoutingEnabled' | 'watchListEnabled' | 'wifiHistoryEnabled' |
+  'wifiWeakSpotsEnabled' | 'capVersionsEnabled';
+
+const featureListeners: Array<() => void> = [];
+
+/**
+ * Whether an optional feature is switched on. Off until `settings:pages` says
+ * otherwise; a page that draws a feature registers with `onFeatures`, which is
+ * called after every payload, so a save in Settings shows or hides it at once.
+ */
+export function featureOn(key: FeatureKey): boolean {
+  return pageInstall[key] === true;
+}
+
+export function onFeatures(fn: () => void): void {
+  featureListeners.push(fn);
+}
+
 const caps = (): Caps => ((globalThis as unknown as { _caps?: Caps })._caps) || {};
 
 /**
@@ -116,7 +136,10 @@ export function settingsAllowed(): boolean {
  * last one is reused - which is what lets caps arriving later re-run it.
  */
 export function applyPageVisibility(pages?: Record<string, unknown>): void {
-  if (pages) pageInstall = pages;
+  if (pages) {
+    pageInstall = pages;
+    featureListeners.forEach((fn) => fn());
+  }
   const p = pageInstall;
 
   // `!= null` rather than a truthiness test, and `|| ''` after it: an explicitly

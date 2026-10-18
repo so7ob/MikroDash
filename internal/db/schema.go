@@ -23,7 +23,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 35
+const schemaVersion = 37
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -299,6 +299,12 @@ var portMigrations = map[int][]string{
 	// was not running. See monitorruns_schema.go.
 	34: {monitorRunsDDL},
 	35: {activityDDL},
+	// 36: domain lists, an optional feature (Settings -> Features). See
+	// dnslists_schema.go.
+	36: {dnsListsDDL},
+	// 37: watched devices and Wi-Fi client samples, two optional features
+	// (Settings -> Features). See clientwatch_schema.go.
+	37: {clientWatchDDL},
 }
 
 // createSchema builds a new database at `path`.

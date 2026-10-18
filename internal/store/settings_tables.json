@@ -102,7 +102,19 @@
     "ztpLanUrl": "",
     "ztpPrivateKey": "",
     "ztpInstanceId": "",
-    "hiddenAreas": []
+    "hiddenAreas": [],
+    "dnsCacheEnabled": false,
+    "dnsTraceEnabled": false,
+    "dnsBulkEnabled": false,
+    "dnsFleetSyncEnabled": false,
+    "dnsListsEnabled": false,
+    "domainRoutingEnabled": false,
+    "watchListEnabled": false,
+    "wifiHistoryEnabled": false,
+    "wifiWeakSpotsEnabled": false,
+    "capVersionsEnabled": false,
+    "domainRoutingList": "",
+    "dbWifiHistoryRetentionDays": 7
   },
   "defaultsOrder": [
     "routerHost",
@@ -206,7 +218,19 @@
     "ztpLanUrl",
     "ztpPrivateKey",
     "ztpInstanceId",
-    "hiddenAreas"
+    "hiddenAreas",
+    "dnsCacheEnabled",
+    "dnsTraceEnabled",
+    "dnsBulkEnabled",
+    "dnsFleetSyncEnabled",
+    "dnsListsEnabled",
+    "domainRoutingEnabled",
+    "watchListEnabled",
+    "wifiHistoryEnabled",
+    "wifiWeakSpotsEnabled",
+    "capVersionsEnabled",
+    "domainRoutingList",
+    "dbWifiHistoryRetentionDays"
   ],
   "encrypted": [
     "routerPass",

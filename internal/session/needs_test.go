@@ -419,3 +419,22 @@ func TestAnOccupiedDemandRoomIsAReasonToRun(t *testing.T) {
 		t.Error("a modal open on r2 let r1's ifStatus run")
 	}
 }
+
+func TestActivityHoldSurvivesMonitoringIntegration(t *testing.T) {
+	s := &Session{holds: map[string]bool{"activity": true, "watch": true, "wifi-history": true}}
+	why := s.reasonsLocked()
+	if !why.Warm || !why.Watch || !why.WifiHistory {
+		t.Fatalf("lost integration hold: %+v", why)
+	}
+	delete(s.holds, "watch")
+	delete(s.holds, "wifi-history")
+	why = s.reasonsLocked()
+	if !why.Warm {
+		t.Fatal("Activity lost its connection hold")
+	}
+	for _, key := range []string{"wireless", "arp", "dns", "traffic", "system"} {
+		if Needs(key, why) {
+			t.Fatalf("Activity unnecessarily starts %s", key)
+		}
+	}
+}

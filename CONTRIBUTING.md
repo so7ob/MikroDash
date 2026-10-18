@@ -100,7 +100,7 @@ It **discovers** what to check rather than working from a list, so a new check r
 | | |
 |---|---|
 | `internal/verify/` | 113 Go tests - static checks over the current source. Picked up by `go test ./...`. |
-| `web/test/` | 107 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test` in `web/`. |
+| `web/test/` | 110 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test` in `web/`. |
 
 Package tests use the standard library `testing` package only.
 
@@ -136,6 +136,9 @@ The collector layer - how data is read from the router, turned into payloads and
    Do not use an admin bypass or weaken protection. A pending, failed, skipped or stale check
    is not sufficient evidence, even when GitHub would permit a skipped check.
 5. **Squash merge** an issue branch into `develop` using its Conventional Commit PR title.
+   Exception authorized for Issue #31: use a **merge commit** for the upstream synchronization
+   PR, preserving SecOps-7/MikroDash history through `edff3060446582d75159cedbe2560a4466c38b84`.
+   This exception does not change the squash policy for other issue PRs.
    Verify the resulting `develop` SHA and wait for its post-merge Tests run to succeed.
 6. Explicitly close the issue with the PR link, merge SHA and CI evidence after delivery.
    GitHub closing keywords only auto-close on the default branch, which remains `main`.

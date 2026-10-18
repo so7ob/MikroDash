@@ -645,6 +645,7 @@ export interface DNSSettings {
   queryTotalTimeout: string;
   mdnsRepeatIfaces: string[];
   vrf: string;
+  addressListExtraTime: string;
 }
 
 export interface DNSStaticEntry {
@@ -656,6 +657,31 @@ export interface DNSStaticEntry {
   ttl: string;
   disabled: boolean;
   comment: string;
+  addressList: string;
+  matchSubdomain: boolean;
+  dynamic: boolean;
+}
+
+export interface DNSForwarderEntry {
+  id: string;
+  name: string;
+  dnsServers: string[];
+  dohServers: string[];
+  verifyDohCert: boolean;
+  comment: string;
+  disabled: boolean;
+  usedBy: number;
+}
+
+export interface DNSAdlistEntry {
+  id: string;
+  url: string;
+  file: string;
+  sslVerify: boolean;
+  comment: string;
+  disabled: boolean;
+  nameCount: number | null;
+  matchCount: number | null;
 }
 
 export interface DNSPayload {
@@ -664,6 +690,40 @@ export interface DNSPayload {
   settings: DNSSettings;
   staticEntries: DNSStaticEntry[];
   available: boolean;
+  forwarders: DNSForwarderEntry[];
+  forwardersAvailable: boolean;
+  adlists: DNSAdlistEntry[];
+  adlistsAvailable: boolean;
+}
+
+export interface DomainRoutingRule {
+  id: string;
+  chain: string;
+  mark: string;
+  packets: string;
+  disabled: boolean;
+  comment: string;
+}
+
+export interface DomainRoutingRoute {
+  table: string;
+  dst: string;
+  gateway: string;
+  active: boolean;
+}
+
+export interface DomainRoutingStatus {
+  routerId: string;
+  list: string;
+  feeding: number;
+  entries: number;
+  rules: DomainRoutingRule[];
+  routes: DomainRoutingRoute[];
+  ok: boolean;
+  why: string;
+  error: string;
+  withheld: string[];
+  ts: number;
 }
 
 export interface FilesContentPayload {
@@ -2281,6 +2341,7 @@ export interface Events {
   'device:live': Live;
   'diagnostics:update': Diagnostics;
   'dns:update': DNSPayload;
+  'dnsrouting:state': DomainRoutingStatus;
   'files:content': FilesContentPayload;
   'files:fetched': FilesFetchPayload;
   'firewall:update': FirewallPayload;
