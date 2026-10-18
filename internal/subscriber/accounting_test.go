@@ -387,3 +387,59 @@ func TestSnapshotReflectsAdmissionStateAndActualObservation(t *testing.T) {
 		t.Fatal("expired subscription rendered active")
 	}
 }
+
+func TestRestartRetainsLedgerReservationsAndDeduplication(t *testing.T) {
+	dir := t.TempDir()
+	d, err := db.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := d.Subscribers()
+	a, _, err := s.CreateAccount(ctx, "test-admin", "restart-fixture", "Synthetic restart fixture", "synthetic-password", "test", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := plan()
+	if err = s.SavePlan(ctx, "test-admin", "test", p); err != nil {
+		t.Fatal(err)
+	}
+	now := at("2026-10-01T10:00:00+03:00")
+	if _, err = s.Assign(ctx, "test-admin", a.ID, p.ID, p.Version, "test", now); err != nil {
+		t.Fatal(err)
+	}
+	lease := reserve(t, s, a, "device", now)
+	reading := event(lease, "device", "interim", 20, 100, 200, now.Add(20*time.Second))
+	if err = s.Account(ctx, reading); err != nil {
+		t.Fatal(err)
+	}
+	before := snapshot(t, s, a, now.Add(20*time.Second))
+	if err = d.Close(); err != nil {
+		t.Fatal(err)
+	}
+	d, err = db.Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	s = d.Subscribers()
+	if err = s.Account(ctx, reading); err != nil {
+		t.Fatal(err)
+	}
+	after := snapshot(t, s, a, now.Add(20*time.Second))
+	if before.Version != after.Version || after.LifetimeSeconds != 20 || after.LifetimeDownload != 100 || after.LifetimeUpload != 200 {
+		t.Fatal("restart or retransmission changed durable accounting")
+	}
+	// Losing Stop or rebooting the NAS does not free a live delegation's slot.
+	if _, err = s.Reserve(ctx, a.ID, "router-lab", "C", "device", ID(), now.Add(70*time.Second)); err == nil {
+		t.Fatal("missing Stop freed an unreconciled reservation")
+	}
+	reading.Status = "stop"
+	if err = s.Account(ctx, reading); err != nil {
+		t.Fatal(err)
+	}
+	final := snapshot(t, s, a, now.Add(71*time.Second))
+	if remain(final, "time") != 3580 {
+		t.Fatal("late Stop lost remaining time")
+	}
+	reserve(t, s, a, "device", now.Add(72*time.Second))
+}
