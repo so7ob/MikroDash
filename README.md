@@ -568,13 +568,79 @@ Geo-IP data comes from [DB-IP](https://db-ip.com) - City Lite for country and ci
 
 ## 💻 Development
 
-Go runs in a container, so Docker is the only hard requirement. Node is needed only to type-check and test the frontend.
+### Install Go and dependencies
+
+Install **Go 1.27 or newer**, as required by `go.mod`, using the
+[official installation guide](https://go.dev/doc/install) for Linux, macOS or
+Windows. Choose the download for your operating system and CPU architecture,
+then reopen your terminal. On Linux, ensure `/usr/local/go/bin` is on your
+`PATH` as described in that guide. Confirm the installed version:
+
+```bash
+go version
+```
+
+Clone the development branch, or use your existing checkout. Run the remaining
+commands from the repository root:
+
+```bash
+git clone --branch develop https://github.com/so7ob/MikroDash.git
+cd MikroDash
+go mod download
+```
+
+Go downloads the backend and frontend-builder dependencies. Node and Docker are
+not required to build and run this local server. **Node 24** is needed for the
+frontend type checker and tests; Docker runs the Go checks in the full
+verification command below.
+
+### Run the development server
+
+Build the frontend, then start the server:
+
+```bash
+go run ./cmd/webbuild -dir web
+go run ./cmd/mikrodash -listen 127.0.0.1:3082 -data ./devdata -web web/dist -static web/public -geo ./.temp/geo/
+```
+
+Open **[http://localhost:3082](http://localhost:3082)**. This matches the local
+`-listen` address; the Docker quick start uses port 3081. On first run, create an
+administrator account in the setup wizard. Local settings and data live in
+`./devdata`, and the scheduled-worker flags remain off by default.
+
+The `-geo` directory is optional and is not populated by the frontend build.
+For country/city lookups, place a decompressed DB-IP City Lite database at
+`./.temp/geo/dbip-city-lite.mmdb`; see [GeoIP for local runs](docs/Activity-Analytics.md#geoip-for-local-runs).
+You can omit `-geo ./.temp/geo/` when geolocation is not needed. Restart the
+server after installing the database.
+
+### Watch TypeScript changes
+
+Keep the server running. In a second terminal, open the same repository root
+and run:
+
+```bash
+go run ./cmd/webbuild -dir web -watch
+```
+
+The watcher rebuilds the main application TypeScript bundle when its sources
+change. Refresh the browser to see the result. It does not automatically reload
+the browser, rebuild HTML templates or recopy `web/public/app.css`. After editing
+HTML templates, `web/public/app.css`, or standalone login or preflight entrypoints,
+rerun the one-off frontend build. After editing Go code, stop the server with
+Ctrl+C and rerun the server command.
+
+### Run the checks
 
 ```bash
 (cd web && npm ci)          # once: TypeScript and esbuild for the frontend checks
-sh tools/verify.sh          # everything: gofmt, vet, go test, generated code, tsc, web tests
-sh tools/verify.sh --no-docker   # frontend half only
+sh tools/verify.sh          # full suite, including Go checks in Docker
+sh tools/verify.sh --no-docker   # skips Go format/vet/tests/vulnerability checks
 ```
+
+With local Go installed, `--no-docker` still checks the Go generators, alongside
+the TypeScript, generated-table, frontend and tooling checks. A skipped check is
+not a completed verification.
 
 `tools/verify.sh` discovers what to check rather than working from a list, so a new Go test or `*.test.ts` file runs without being registered anywhere. You do not need a MikroTik to contribute: MikroDash starts without one and shows the setup wizard.
 

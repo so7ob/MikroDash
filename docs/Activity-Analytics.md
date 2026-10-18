@@ -216,11 +216,11 @@ country, a user's location or evidence that an answer was actually contacted.
 ### GeoIP for local runs
 
 The standard Docker image downloads DB-IP City Lite at image build and includes
-`/app/geo/dbip.mmdb`. A plain Go build does not include the data. Pass `-geo` a
-local directory containing `dbip.mmdb` (DB-IP City Lite), or the compatible legacy
+`/app/geo/dbip-city-lite.mmdb`. A plain Go build does not include the data. Pass `-geo` a
+local directory containing `dbip-city-lite.mmdb` (DB-IP City Lite), or the compatible legacy
 `.dat` files. The database is loaded once at startup; placing a file after startup
 requires restarting the application. For example, after obtaining and decompressing
-the City Lite database into `./devdata/geo/dbip.mmdb`:
+the City Lite database into `./devdata/geo/dbip-city-lite.mmdb`:
 
 ```sh
 ./mikrodash -listen 127.0.0.1:3082 -data ./devdata \
