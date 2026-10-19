@@ -147,3 +147,10 @@ Full clean-checkout verification and exact PR/post-merge CI are delivery gates;
 the final PR/issue receipts record their actual runs. This fix enables preparation
 and inspection. It does not claim live HTTPS HotSpot sign-in, NAS capability proof,
 authentication cutover or Internet connectivity.
+
+
+The first full #47 sweep passed Go (62 packages), generators, 145 frontend tests
+and 22 tooling tests, but failed TypeScript: `info` is not a valid `PillTone`.
+The status now uses the existing `rx` tone. The failed sweep is retained as a
+failure; a complete rerun is required on the corrected source. The final synthetic
+browser run before that type correction passed in 4.728 seconds.

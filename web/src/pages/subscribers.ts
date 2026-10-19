@@ -28,7 +28,7 @@ export function initSubscribersPage(): void {
       managed:'Network admission is configured in Managed mode. Inspect the subscriber session and enforcement results to verify connectivity and applied limits.',
     };
     const labels:Record<string,string>={disabled:'Disabled',shadow:'Shadow',pilot:'Pilot',managed:'Managed'};
-    status.innerHTML=`<p class="mb-1">Network runtime: ${pill(labels[data.mode]||'Unknown',data.mode==='disabled'?'warn':'info')}</p><p class="text-secondary mb-0">${esc(explanations[data.mode]||'Runtime state is unavailable. Check the server startup log before connecting a subscriber.')}</p>`;
+    status.innerHTML=`<p class="mb-1">Network runtime: ${pill(labels[data.mode]||'Unknown',data.mode==='disabled'?'warn':'rx')}</p><p class="text-secondary mb-0">${esc(explanations[data.mode]||'Runtime state is unavailable. Check the server startup log before connecting a subscriber.')}</p>`;
   }
   function rows():void {
     runtimeStatus();
