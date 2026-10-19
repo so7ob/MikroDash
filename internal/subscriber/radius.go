@@ -22,17 +22,20 @@ import (
 )
 
 type NAS struct {
-	RouterID        string `json:"routerId"`
-	Network         string `json:"network"`
-	Address         string `json:"address"`
-	CalledStationID string `json:"calledStationId"`
-	Secret          string `json:"-"`
-	SecretSealed    string `json:"secretSealed"`
-	DisconnectPort  int    `json:"disconnectPort"`
-	LoginURL        string `json:"loginUrl"`
+	Capabilities    Capabilities `json:"capabilities"`
+	RouterID        string       `json:"routerId"`
+	Network         string       `json:"network"`
+	Address         string       `json:"address"`
+	CalledStationID string       `json:"calledStationId"`
+	Secret          string       `json:"-"`
+	SecretSealed    string       `json:"secretSealed"`
+	DisconnectPort  int          `json:"disconnectPort"`
+	LoginURL        string       `json:"loginUrl"`
 }
 
 type RadiusService struct {
+	Observe       func(context.Context, string) (RouterObservation, error)
+	AllowCoA      bool
 	Store         *Store
 	VerifySession func(context.Context, Enforcement) bool
 	Mode          string
@@ -156,7 +159,7 @@ func signResponse(p *radius.Packet) error {
 	return rfc2869.MessageAuthenticator_Set(p, mac.Sum(nil))
 }
 func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) {
-	c, ok := s.client(r.RemoteAddr)
+	c, ok := s.packetClient(r.RemoteAddr, r.Packet)
 	if !ok {
 		return
 	}
@@ -276,7 +279,12 @@ func (s *RadiusService) Start(auth, accounting string) error {
 	if s.Store == nil || len(s.Clients) == 0 {
 		return errors.New("RADIUS requires ledger and explicit NAS allowlist")
 	}
+	peers := map[string]NAS{}
 	for _, c := range s.Clients {
+		if prev, ok := peers[c.Address]; ok && (prev.RouterID != c.RouterID || prev.Secret != c.Secret) {
+			return errors.New("NAS networks must share one router identity and secret")
+		}
+		peers[c.Address] = c
 		if net.ParseIP(c.Address) == nil || len(c.Secret) < 16 || c.RouterID == "" || c.Network == "" || c.CalledStationID == "" {
 			return errors.New("invalid NAS configuration")
 		}
@@ -306,3 +314,30 @@ func (s *RadiusService) Close(ctx context.Context) {
 }
 
 func (s *RadiusService) LimitPortal(key string) bool { return s.limited("portal:" + key) }
+
+// Source address and shared secret authenticate the router. Called-Station-Id
+// selects its enrolled HotSpot. Accounting without that attribute may use only
+// an already-owned Class lease, never the first configured network.
+func (s *RadiusService) packetClient(addr net.Addr, p *radius.Packet) (NAS, bool) {
+	base, ok := s.client(addr)
+	if !ok {
+		return NAS{}, false
+	}
+	called := rfc2865.CalledStationID_GetString(p)
+	if called == "" && p.Code == radius.CodeAccountingRequest {
+		var router, network string
+		if err := s.Store.sql.QueryRow(`SELECT router_id,network FROM subscriber_leases WHERE id=?`, rfc2865.Class_GetString(p)).Scan(&router, &network); err != nil || router != base.RouterID {
+			return NAS{}, false
+		}
+		return findNAS(s.Clients, router, network)
+	}
+	var found NAS
+	count := 0
+	for _, n := range s.Clients {
+		if n.Address == base.Address && n.RouterID == base.RouterID && n.CalledStationID == called {
+			found = n
+			count++
+		}
+	}
+	return found, count == 1
+}

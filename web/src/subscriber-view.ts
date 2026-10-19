@@ -26,7 +26,7 @@ export function limitCard(v: SubscriberLimitView): string {
   const percent = percentage(v.used, l.amount);
   return `<section class="card"><div class="card-header"><h2 class="card-title">${esc(l.id)}</h2>${pill(l.kind, 'rx')}</div><div class="card-body">
     <dl class="subscriber-values"><dt>Limit</dt><dd>${esc(amount)}</dd><dt>Used</dt><dd>${esc(quantity(v.used, l.kind))}</dd><dt>Remaining</dt><dd>${esc(remaining)}</dd>
-    <dt>Reserved for connected devices</dt><dd>${esc(quantity(v.reserved, l.kind))}</dd><dt>Period</dt><dd>${esc(l.period.kind)}</dd>
+    <dt>Reserved or awaiting reconciliation</dt><dd>${esc(quantity(v.reserved, l.kind))}</dd><dt>Available for new connections</dt><dd>${esc(l.state === 'limited' ? quantity(v.remaining, l.kind) : l.state)}</dd><dt>Period</dt><dd>${esc(l.period.kind)}</dd>
     <dt>Period starts</dt><dd>${esc(instant(v.periodStart))}</dd><dt>Next reset</dt><dd>${l.period.kind === 'none' ? 'Does not reset' : esc(instant(v.nextReset))}</dd>
     <dt>Data quality</dt><dd>${pill(v.quality, v.quality === 'fresh' ? 'ok' : 'warn')}</dd></dl>
     <progress max="100" value="${percent}" aria-label="${esc(l.id)} usage">${percent}%</progress></div></section>`;
@@ -35,7 +35,7 @@ export function snapshotCards(v: SubscriberSnapshot): string {
   return v.decision.limits.map(limitCard).join('');
 }
 export function boundedElapsed(v: SubscriberSnapshot, now: number): number {
-  if (v.quality !== 'fresh' || !v.sessions.some(s => s.state === 'active')) return 0;
+  if (v.quality !== 'fresh' || !v.sessions.some(s => s.connectionState === 'connected')) return 0;
   const elapsed = Math.max(0, Math.floor((now - Date.parse(v.observedAt)) / 1000));
   return Math.min(5, elapsed);
 }

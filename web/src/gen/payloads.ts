@@ -1427,6 +1427,11 @@ export interface SubscriberDecision {
 }
 
 export interface SubscriberLease {
+  connectionState: string;
+  appliedDown: string;
+  appliedUp: string;
+  rateState: string;
+  rateObservedAt: string;
   id: string;
   routerId: string;
   network: string;

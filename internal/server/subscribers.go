@@ -69,7 +69,7 @@ func (s *Server) StartSubscribers(configPath, webDir string) error {
 	if err != nil {
 		return err
 	}
-	service := &subscriber.RadiusService{Store: ledger, VerifySession: s.subscriberVerifySession, Mode: cfg.Mode, Clients: cfg.Clients, PilotAccounts: map[string]bool{}}
+	service := &subscriber.RadiusService{Store: ledger, Observe: s.subscriberObserveRouter, AllowCoA: cfg.AllowCoA, VerifySession: s.subscriberVerifySession, Mode: cfg.Mode, Clients: cfg.Clients, PilotAccounts: map[string]bool{}}
 	for _, id := range cfg.PilotAccounts {
 		service.PilotAccounts[id] = true
 	}
@@ -283,25 +283,12 @@ func exactOrigin(r *http.Request, origin string) bool {
 }
 
 func (s *Server) subscriberVerifySession(ctx context.Context, e subscriber.Enforcement) bool {
-	rs := s.sessions.Live()[e.RouterID]
-	if rs == nil || !rs.Connected() {
+	if s.subscribers == nil {
 		return false
 	}
-	rows, err := rs.Exec(routeros.Cmd{Path: "/ip/hotspot/active/print", Args: []string{"=.proplist=user,mac-address,server,uptime"}, Timeout: 3 * time.Second})
-	if err != nil {
-		return false
-	}
-	var server string
 	for _, n := range s.subscribers.cfg.Clients {
 		if n.RouterID == e.RouterID && n.Network == e.Network {
-			server = n.CalledStationID
-		}
-	}
-	for _, row := range rows {
-		if row["user"] == e.Username && row["mac-address"] == e.Device && row["server"] == server && row["uptime"] != "" {
-			start := time.Now().Add(-time.Duration(routeros.DurationSeconds(row["uptime"])) * time.Second)
-			skew := start.Sub(e.StartedAt)
-			return skew >= -5*time.Second && skew <= 5*time.Second
+			return s.subscribers.radius.Store.VerifyObservedSession(ctx, e, n.CalledStationID, time.Now())
 		}
 	}
 	return false

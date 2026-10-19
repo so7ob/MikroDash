@@ -20,7 +20,7 @@ import (
 
 const testSecret = "synthetic-radius-test-secret-only"
 
-func protocolFixture(t *testing.T) (*Store, *RadiusService, Account, string) {
+func protocolFixture(t *testing.T, configure ...func(*RadiusService)) (*Store, *RadiusService, Account, string) {
 	t.Helper()
 	h, err := sql.Open("sqlite", "file:"+filepath.Join(t.TempDir(), "ledger.db")+"?_pragma=foreign_keys(1)&_txlock=immediate")
 	if err != nil {
@@ -45,6 +45,9 @@ func protocolFixture(t *testing.T) (*Store, *RadiusService, Account, string) {
 		t.Fatal(err)
 	}
 	service := &RadiusService{Store: s, VerifySession: func(context.Context, Enforcement) bool { return true }, Mode: "pilot", Clients: []NAS{{RouterID: "lab", Network: "C", Address: "127.0.0.1", CalledStationID: "hs-lab", Secret: testSecret, DisconnectPort: 3799}}, PilotAccounts: map[string]bool{a.ID: true}}
+	for _, configureService := range configure {
+		configureService(service)
+	}
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -287,5 +290,53 @@ func TestRADIUSAndPortalAuthenticationShareBoundedWork(t *testing.T) {
 		if err = <-done; err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestSameNASNetworksAreResolvedFromAuthenticatedPacket(t *testing.T) {
+	s, _, a, addr := protocolFixture(t, func(service *RadiusService) {
+		n := service.Clients[0]
+		n.Network = "D"
+		n.CalledStationID = "hs-second"
+		service.Clients = append(service.Clients, n)
+	})
+	plans, err := s.Plans(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := plans[0]
+	p.Version++
+	p.Networks = []string{"C", "D"}
+	if err = s.SavePlan(t.Context(), "synthetic-admin", "same NAS lab", p); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Assign(t.Context(), "synthetic-admin", a.ID, p.ID, p.Version, "same NAS lab", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	req := access("synthetic-password")
+	rfc2865.CalledStationID_SetString(req, "hs-second")
+	signResponse(req)
+	reply := exchange(t, req, addr)
+	if reply.Code != radius.CodeAccessAccept {
+		t.Fatal(reply.Code)
+	}
+	lease := rfc2865.Class_GetString(reply)
+	var network string
+	if err = s.sql.QueryRow(`SELECT network FROM subscriber_leases WHERE id=?`, lease).Scan(&network); err != nil || network != "D" {
+		t.Fatal(network, err)
+	}
+	acct := radius.New(radius.CodeAccountingRequest, []byte(testSecret))
+	rfc2865.Class_SetString(acct, lease)
+	rfc2865.CallingStationID_SetString(acct, "02:00:00:00:00:01")
+	rfc2866.AcctSessionID_SetString(acct, "same-nas-session")
+	rfc2866.AcctStatusType_Set(acct, rfc2866.AcctStatusType_Value_Start)
+	if exchange(t, acct, addr).Code != radius.CodeAccountingResponse {
+		t.Fatal("Class-owned accounting rejected")
+	}
+	rfc2865.CalledStationID_SetString(acct, "hs-lab")
+	ctx, cancel := context.WithTimeout(t.Context(), 80*time.Millisecond)
+	defer cancel()
+	if out, err := radius.Exchange(ctx, acct, addr); err == nil || out != nil {
+		t.Fatal("forged network accounting accepted")
 	}
 }

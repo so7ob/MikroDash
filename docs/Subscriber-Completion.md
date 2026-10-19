@@ -1,0 +1,110 @@
+# Subscriber Management completion ledger
+
+This ledger tracks the full completion contract and the original Subscriber Management
+requirements. It does not replace them. Baseline: `4ed68ee3`, Issue #38, existing visible
+checkout. Foundation PR #39 landed in `develop` at `430337cb`; session renewal and
+observation continue independently in Issue #40. No live router writes or production cutover are authorized by this ledger.
+
+States: `partial`, `implemented`, `passed`, `pending`, `blocked`. Automated evidence does
+not imply target-router verification. All target-router acceptance remains pending until
+a specifically authorized C pilot is executed. Hardware details in older reports are snapshots.
+
+| ID | Required behavior / acceptance | Current evidence and actual gap | Dependencies / affected implementation | Code | Automated | Target / blocker |
+| --- | --- | --- | --- | --- | --- | --- |
+| AC-01 | 0/3600 before and after first connection | Accounting regression; fast observations pending | subscriber accounting/storage, portal | partial | prior pass | pending: C pilot |
+| AC-02 | Reconnect preserves 2400; 109+51 leaves 3440 | Durable ledger regression | accounting | implemented | prior pass | pending: C pilot |
+| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles and post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
+| AC-04 | Concurrent daily/monthly time/byte limits | Pure/ledger tests; live exhaustion pending | policy/accounting/runtime | partial | prior pass | pending: traffic test |
+| AC-05 | Live rate switch/throttle, correct device | Real UDP rate switch and active throttle with exact-device queue readback pass; burst/minimum/priority/network ceilings pending | persistent CoA operations, queue readback, capabilities | partial | passed: UDP + queue readback | pending: rate probe |
+| AC-06 | Reordered/retried accounting, reused IDs | High-water journal tests; more retransmission faults needed | radius/accounting | partial | prior pass | pending: retransmission capture |
+| AC-07 | API/RADIUS unified debit, one-second skew | Shared capability-bound API observations use the cumulative ledger; overlapping older RADIUS sample regression passes | observation matching and accounting | partial | passed: shared ledger regression | pending: direction proof |
+| AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Admin settlement and byte-gap adjustments pending | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
+| AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; conservative byte settlement and continuous hard-edge renewal pending | policy, journal adjustments | partial | passed: calendar anchors; settlement pending | pending: boundary observations |
+| AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
+| AC-11 | No browsers required | Background Disconnect UDP test | explicit runtime lifecycle and observer | partial | partial | pending: closed-browser run |
+| AC-12 | Local outage bounds and fail-closed admission | Initial 60-second/byte delegation | verified renewal and local limits | partial | partial | pending: service outage probe |
+| AC-13 | Single C sign-in and safe exhausted portal | Isolated portal/ticket server tests | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
+| AC-14 | Ownership/device/network/ticket isolation | Existing portal and RADIUS tests | expanded runtime/operations security | partial | prior pass | pending: C isolation |
+| AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/storage failure tests | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
+| AC-16 | Complete admin/portal/browser workflows | Initial three tabs only | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
+| AC-17 | Idempotent import/opening/cutover/rollback | Read-only User Manager preview | transactional mapping/apply/approval | partial | missing | pending: approved live batch |
+| AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
+| AC-19 | Target build and existing app compatibility | Previous CI/compat; ARM64 incomplete | build/regression gates and isolated data | partial | prior pass | pending: target build |
+
+## Capability matrix
+
+| Capability | Official reference | Implementation baseline | Lab | Target |
+| --- | --- | --- | --- | --- |
+| RADIUS PAP/Class/accounting | RouterOS RADIUS; RFC 2866 | implemented | UDP tests passed | pending |
+| Session-Timeout at admission | RouterOS RADIUS | implemented, max 60 seconds | attributes tested | enforcement pending |
+| Session-Timeout CoA total/remaining meaning | RouterOS lists writable attribute; meaning needs probe | durable total-session implementation | five-cycle UDP pass | pending |
+| CoA rate change | RouterOS RADIUS Change of Authorization | durable rate operations and capability gate | synthetic UDP/readback passed | pending |
+| Dynamic queue identity/rate verification | RouterOS queue and HotSpot active menus | exact unique dynamic host queue parser | parser + rate readback passed | pending |
+| API HotSpot octet direction | Conflicting service-specific wording requires one-way traffic | explicit per-source capability mapping | synthetic direction/overlap passed | one-way probe pending |
+| Shared NAS source distinguished by HotSpot server | Called-Station-Id documented as HotSpot server | authenticated Called-Station-Id and owned Class mapping | UDP isolation passed | pending |
+| Interim >=60 seconds | RFC 2869 section 5.16 | implemented | attribute test passed | local 5s compatibility unverified now |
+
+References: [RADIUS](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/),
+[HotSpot](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/),
+[RFC 2866](https://www.rfc-editor.org/rfc/rfc2866), [RFC 2869](https://www.rfc-editor.org/rfc/rfc2869),
+[RFC 5176](https://www.rfc-editor.org/rfc/rfc5176). Documentation is not target proof.
+
+## Progress and resume
+
+- Initial audit: verified existing immutable plans, atomic admission, Class-bound cumulative
+  accounting, isolated portal, 2-second worker, and narrow Disconnect guard. Confirmed missing
+  renewal, rate application, shared observation and automatic settlement. Work begins with
+  persistent session operations and shared observation; later AC rows remain in scope.
+- Delivery sequence: foundation PR #39, independent session/observation Issue #40,
+  then provisional exposure reconciliation Issue #41. Each issue branch starts from
+  current `develop` and requires its own PR, exact-head CI and post-merge CI.
+
+### Continuation checkpoint: session operations and observation
+
+Implemented additive migration 39, durable CoA intent/retry/readback state, service change
+grants, own-reservation-aware renewal, shared API observations, a single cumulative debit
+path, explicit source timestamps, exact-device queue readback, active throttle application,
+absence settlement with unresolved quota holds, same-NAS network routing, and clamped
+calendar anchors. Selection does not reset subscription identity, validity, usage or quota.
+The portal shows observed connection state and applied queue ceilings separately.
+
+Actual verification (development host, isolated synthetic accounts):
+- `go test ./internal/subscriber ./internal/guard ./internal/db`: exit 0.
+- `go test ./internal/server -run 'Test(Portal|ShadowCannot|Subscriber)' -count=1`: exit 0.
+- `go test -race ./internal/subscriber ./internal/guard -count=1`: exit 0; 48.359 s / 2.639 s.
+- TypeScript and 142 frontend tests: exit 0. Frontend build: exit 0.
+- Tagged `TestSubscriberBrowserAcceptance`: exit 0; actual Chromium, synthetic TLS/SQLite,
+  login/choice/shadow refusal/logout, 375/1280, three themes and axe. No target HotSpot involved.
+- Timeout extension, shortening and relative-mode refusal tests pass. The current reservation
+  model enables only proven total-session CoA semantics; relative delayed retries need more
+  implementation. Hard calendar-edge continuous renewal is also still a code gap.
+
+Read-only target refresh at 2026-10-19T20:37:38Z found RouterOS `7.24.5 (stable)`,
+`L009UiGS-2HaxD`, clock `manual` with `+00:00` offset, and no unavailable readiness menus.
+This contradicts assuming the old Asia/Aden router setting is current. No clock or other
+router setting was changed. Raw topology remains private outside the repository.
+
+A compiler-cache expansion reduced free disk below 300 MiB. Only exact rebuildable cache
+artifacts created during this goal were removed; data directories, volumes and operator files
+were preserved. The earlier Alpine race attempt could not run without cgo; it is not a pass.
+The native compiler race run above replaced it. A multi-network fixture race was fixed by
+configuring clients before starting UDP handlers; no production lock was weakened.
+
+Remaining independent work continues with auditable administrative reconciliation, byte-gap
+settlement and the administration/simulator workflows. The original AC-01..AC-19 scope remains
+active; this checkpoint is not implementation completion or target acceptance.
+
+### Delivery review for Issue #40
+
+The full-suite command-source census caught a missing diagnostics label for the new
+observer; it is now named in `commandSources`. This was a real failing gate and was
+not waived. Persisted CoA packets also recheck current capability evidence before
+retry, including total/gigaword support. Revocation regressions cover both rate and
+renewal packets. Unsupported relative timeout/byte encoding is refused explicitly.
+
+Focused `go test ./internal/subscriber ./internal/guard ./internal/db` passed after
+this review. Full exact-source verification and PR/post-merge CI are recorded on
+the scoped PR; the earlier `93aa15fe` checkpoint is not reported as fully verified.
+The host's disk constraint was mitigated by removing only task-created rebuildable
+compiler-cache entries and using a RAM directory for subsequent compiler caches.
+Test databases and journals continue to use the ordinary filesystem.

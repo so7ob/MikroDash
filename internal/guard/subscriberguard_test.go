@@ -24,3 +24,26 @@ func TestSubscriberServiceGrantIsNarrow(t *testing.T) {
 		t.Fatal("missing write grant")
 	}
 }
+
+func TestSubscriberChangeGrantIsNarrow(t *testing.T) {
+	g := SubscriberAuthority{Identity: "service:subscriber", Mode: "pilot", RouterID: "lab", Network: "C", Change: true}
+	if !CheckSubscriberChange(g, "lab", "C", "lease", "session") {
+		t.Fatal("valid change refused")
+	}
+	for _, mode := range []string{"disabled", "shadow", ""} {
+		v := g
+		v.Mode = mode
+		if CheckSubscriberChange(v, "lab", "C", "lease", "session") {
+			t.Fatal(mode)
+		}
+	}
+	for _, target := range [][4]string{{"other", "C", "lease", "session"}, {"lab", "B", "lease", "session"}, {"lab", "C", "", "session"}, {"lab", "C", "lease", ""}} {
+		if CheckSubscriberChange(g, target[0], target[1], target[2], target[3]) {
+			t.Fatal(target)
+		}
+	}
+	g.Change = false
+	if CheckSubscriberChange(g, "lab", "C", "lease", "session") {
+		t.Fatal("missing grant allowed")
+	}
+}
