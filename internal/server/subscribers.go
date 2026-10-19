@@ -163,8 +163,8 @@ func (s *Server) subscriberAdmin(w http.ResponseWriter, r *http.Request) *Sessio
 		writeJSONErr(w, 403, "Subscriber administration permission required")
 		return nil
 	}
-	if s.subscribers == nil {
-		writeJSONErr(w, 503, "Subscriber Management is disabled")
+	if s.auditDB == nil || s.auditDB.Subscribers() == nil {
+		writeJSONErr(w, 503, "Subscriber ledger unavailable. Check the database startup log.")
 		return nil
 	}
 	if r.Method != "GET" {
@@ -174,13 +174,14 @@ func (s *Server) subscriberAdmin(w http.ResponseWriter, r *http.Request) *Sessio
 			return nil
 		}
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	return sess
 }
 func (s *Server) subscribersGet(w http.ResponseWriter, r *http.Request) {
 	if s.subscriberAdmin(w, r) == nil {
 		return
 	}
-	store := s.subscribers.radius.Store
+	store := s.auditDB.Subscribers()
 	accounts, err := store.Accounts(r.Context())
 	if err != nil {
 		subscriberError(w, err)
@@ -191,13 +192,17 @@ func (s *Server) subscribersGet(w http.ResponseWriter, r *http.Request) {
 		subscriberError(w, err)
 		return
 	}
-	writeJSON(w, map[string]any{"accounts": accounts, "plans": plans, "mode": s.subscribers.cfg.Mode})
+	mode := "disabled"
+	if s.subscribers != nil {
+		mode = s.subscribers.cfg.Mode
+	}
+	writeJSON(w, map[string]any{"accounts": accounts, "plans": plans, "mode": mode})
 }
 func (s *Server) subscribersSnapshot(w http.ResponseWriter, r *http.Request) {
 	if s.subscriberAdmin(w, r) == nil {
 		return
 	}
-	v, err := s.subscribers.radius.Store.Snapshot(r.Context(), r.URL.Query().Get("account"), time.Now())
+	v, err := s.auditDB.Subscribers().Snapshot(r.Context(), r.URL.Query().Get("account"), time.Now())
 	if err != nil {
 		subscriberError(w, err)
 		return
@@ -226,7 +231,7 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	actor := s.userIDFor(sess.Username)
-	store := s.subscribers.radius.Store
+	store := s.auditDB.Subscribers()
 	var err error
 	var result any = map[string]bool{"ok": true}
 	switch in.Action {

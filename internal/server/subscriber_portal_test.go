@@ -34,7 +34,7 @@ func portalFixture(t *testing.T) (*Server, subscriber.Account, *http.Cookie, str
 	if _, err = ledger.Assign(context.Background(), "synthetic-admin", a.ID, p.ID, 1, "test", time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	s := &Server{subscribers: &subscriberRuntime{cfg: subscriber.Config{Mode: "shadow", PortalOrigin: "https://portal.example.test"}, radius: &subscriber.RadiusService{Store: ledger, Mode: "shadow"}, hub: hub.New()}}
+	s := &Server{auditDB: d, subscribers: &subscriberRuntime{cfg: subscriber.Config{Mode: "shadow", PortalOrigin: "https://portal.example.test"}, radius: &subscriber.RadiusService{Store: ledger, Mode: "shadow"}, hub: hub.New()}}
 	r := httptest.NewRequest("POST", "https://portal.example.test/api/login", strings.NewReader(`{"username":"synthetic-account","password":"synthetic-password"}`))
 	r.Header.Set("Origin", "https://portal.example.test")
 	w := httptest.NewRecorder()

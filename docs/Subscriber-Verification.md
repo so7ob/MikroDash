@@ -118,3 +118,32 @@ The two new commands are `cmd/subscribercheck` and `cmd/subscriberconfig`.
 
 No merge, release, image publication, production deployment, router configuration write,
 production Disconnect or authentication cutover is implied by this record.
+
+
+## Administration without network runtime (Issue #47, 2026-10-20)
+
+This independent fix starts from verified `develop` `dcf1e161`. The actual
+running debugger has no subscriber configuration; no subscriber TLS/configuration
+files were present in its data directory. No runtime was enabled or restarted.
+A fresh read-only NAS inspection still reports 7.24.5 and C RADIUS accounting;
+this does not constitute a subscriber hardware test.
+
+The new HTTP/SQLite regression first reproduced the reported 503. After separating
+administration from the optional runtime, focused subscriber server tests passed.
+They exercise durable account creation, Unicode, immutable plan/assignment,
+simultaneous time/download limits, zero-usage pending activation, status changes,
+reconciliation and existing auth/Origin/storage guards with no running runtime.
+Frontend tests passed: 145 tests, zero failures/skips.
+
+Actual Chromium against protected HTTP handlers and SQLite passed (4.151 seconds),
+including account creation while Disabled, persistent status after success,
+375/1280 screenshots, axe and the existing reconciliation journey. The first new
+browser sweep failed table-header contrast (2.76:1). Extending the existing
+optional-page header token rule fixed the product; axe was not suppressed.
+Synthetic evidence lives under `.screenshots/subscriber-offline-47/`, including
+`subscriber-admin-offline-synthetic-{375,1280}.png`. These are not live accounts.
+
+Full clean-checkout verification and exact PR/post-merge CI are delivery gates;
+the final PR/issue receipts record their actual runs. This fix enables preparation
+and inspection. It does not claim live HTTPS HotSpot sign-in, NAS capability proof,
+authentication cutover or Internet connectivity.

@@ -24,7 +24,8 @@ func TestSubscriberAdminReconciliationBrowserAcceptance(t *testing.T) {
 		t.Fatal("configure browser module and evidence directory")
 	}
 	s, mux, id := reconciliationFixture(t)
-	ledger := s.subscribers.radius.Store
+	ledger := s.auditDB.Subscribers()
+	s.subscribers = nil // Administration must work before portal/RADIUS enrollment.
 	plans, err := ledger.Plans(t.Context())
 	if err != nil || len(plans) != 1 {
 		t.Fatal(plans, err)

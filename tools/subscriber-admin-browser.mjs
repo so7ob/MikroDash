@@ -15,6 +15,26 @@ try {
  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(origin);
  await page.getByText('Unicode fixture: اختبار',{exact:true}).waitFor();
+ await page.locator('#subscriberRuntimeStatus').getByText('Disabled',{exact:true}).waitFor();
+ await page.getByLabel('Username',{exact:true}).fill('synthetic-offline-browser');
+ await page.getByLabel('Display name',{exact:true}).fill('Synthetic offline: تجربة');
+ await page.getByLabel('Password',{exact:true}).fill('synthetic-password');
+ await page.getByLabel('Change reason',{exact:true}).first().fill('Synthetic offline browser setup');
+ const created=page.waitForResponse(r=>r.url().endsWith('/api/subscribers')&&r.request().method()==='POST');
+ await page.getByRole('button',{name:'Create subscriber',exact:true}).click();
+ assert.equal((await created).status(),200);
+ await page.getByRole('cell',{name:'Synthetic offline: تجربة',exact:true}).waitFor();
+ await page.getByText('Subscriber created.',{exact:true}).waitFor();
+ assert.match(await page.locator('#subscriberRuntimeStatus').innerText(),/portal and RADIUS are disabled/);
+ for(const width of [375,1280]) {
+  await page.setViewportSize({width,height:1000});
+  assert.equal(await page.locator('html').getAttribute('dir'),'ltr');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'offline setup overflow');
+  const accessibility=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+  assert.deepEqual(accessibility.violations,[]);
+  await page.screenshot({path:`${out}/subscriber-admin-offline-synthetic-${width}.png`,fullPage:true});
+ }
+
  await page.getByRole('tab',{name:'Subscribers',exact:true}).focus();
  await page.keyboard.press('End');
  assert.equal(await page.getByRole('tab',{name:'Reconciliation'}).getAttribute('aria-selected'),'true');

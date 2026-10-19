@@ -162,7 +162,7 @@ verification for #44 is pending until delivery; target proof remains pending.
 
 Known software follow-ups still include incomplete RADIUS payload receipts, hard
 calendar continuity, relative-mode replay safety, complete policy/admin/import/setup,
-separate business balance versus new-session availability in the portal, and large
+and large
 pending-operation queue recovery. These are part of the original contract, not
 hardware-only acceptance exceptions. No completed full-module claim is made.
 
@@ -174,3 +174,37 @@ escapes literal paths. The fixture and its benchmark now construct an escaped UR
 so every seed uses its own actual SQLite file. No data was deleted to make the test
 pass. The failed sweeps and the separately passing 32-execution short fuzz probe
 remain distinct results; full/race verification is rerun on the corrected source.
+
+
+### Administration-first trial (Issue #47)
+
+The running development command was inspected on 2026-10-20 (Asia/Aden): it has
+no `-subscriber-config`, and its data directory contains no subscriber configuration
+or portal TLS assets. Only the loopback admin listener is running. This explains
+the reported disabled error; merging code does not activate a runtime.
+
+The protected administration path now uses the existing auditDB subscriber ledger
+without requiring the optional RADIUS/portal service. Real HTTP/SQLite regressions
+exercise account creation with Unicode, immutable plans, simultaneous time/download
+limits, first-login assignment, snapshot, status changes and reconciliation. They
+also assert that no runtime is started and retain auth/Origin/storage refusal.
+A new regression reproduced the former HTTP 503 before the correction.
+
+The latest read-only NAS inspection at 2026-10-19T23:34:37Z found RouterOS
+7.24.5 (stable), L009UiGS-2HaxD, Asia/Aden (+03:00), HTTPS/RADIUS/accounting on C,
+incoming RADIUS on 3799, disabled IPv6 and no enabled FastTrack rule. A and B
+still do not use RADIUS. This is a readiness snapshot, not target acceptance.
+The current application is a development host with a loopback-only HTTP listener;
+client-to-portal and NAS-to-application UDP reachability are not established.
+No certificate, firewall, RADIUS order, existing account or runtime was changed.
+
+A real C trial still needs an exact scoped HTTPS/NAS configuration and rollback,
+approved live writes and a client behind C. Local-limit and CoA semantics must be
+measured before their capability flags can be enabled. The accounting-receipt
+follow-up (#46) is preserved on its independent branch; it is not included in
+this setup correction. Full-module Issue #38 remains open.
+
+Source audit correction: the portal already separates business Remaining from
+Available for new connections. The earlier follow-up list overstated that gap.
+Full local/PR/post-merge evidence for #47 will be recorded at delivery; this entry
+does not claim a live HotSpot acceptance result.

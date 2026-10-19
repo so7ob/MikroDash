@@ -19,7 +19,19 @@ export function initSubscribersPage(): void {
   async function api<T>(path:string,body?:unknown):Promise<T>{const r=await fetch(path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-MikroDash-Request':'subscriber-admin'},body:body===undefined?undefined:JSON.stringify(body)});const v=await r.json();if(!r.ok)throw new Error(v.error||'Request failed');return v;}
   function tab(name:string):void{for(const key of ['accounts','plans','inspect','reconciliation']){const n=el('subAdmin-'+key);if(n)n.hidden=name!==key;}document.querySelectorAll<HTMLButtonElement>('[data-subtab]').forEach(b=>{b.classList.toggle('active',b.dataset.subtab===name);b.setAttribute('aria-selected',String(b.dataset.subtab===name));b.tabIndex=b.dataset.subtab===name?0:-1;});}
   const reconcileAccounts=initSubscriberReconciliation(api);
+  function runtimeStatus():void {
+    const status=el('subscriberRuntimeStatus');if(!status)return;
+    const explanations:Record<string,string>={
+      disabled:'You can prepare subscribers, vouchers and plans here. The subscriber portal and RADIUS are disabled. An approved -subscriber-config file and a separate HTTPS portal listener are required before a C pilot. Preparing accounts here does not change router settings.',
+      shadow:'Shadow mode blocks new Internet connections through MikroDash. Portal sign-in and policy inspection do not prove a HotSpot connection. Complete the C pilot checks before enabling admission.',
+      pilot:'Pilot admission is limited to the configured account and network. Portal sign-in is separate from a confirmed HotSpot connection. Target-router acceptance is still required.',
+      managed:'Network admission is configured in Managed mode. Inspect the subscriber session and enforcement results to verify connectivity and applied limits.',
+    };
+    const labels:Record<string,string>={disabled:'Disabled',shadow:'Shadow',pilot:'Pilot',managed:'Managed'};
+    status.innerHTML=`<p class="mb-1">Network runtime: ${pill(labels[data.mode]||'Unknown',data.mode==='disabled'?'warn':'info')}</p><p class="text-secondary mb-0">${esc(explanations[data.mode]||'Runtime state is unavailable. Check the server startup log before connecting a subscriber.')}</p>`;
+  }
   function rows():void {
+    runtimeStatus();
     reconcileAccounts(data.accounts);
     renderSortHeader('subscriberAccountHead',[{key:'username',label:'Username'},{key:'name',label:'Name'},{key:'status',label:'Status'},{key:'',label:'Actions'}],sort,rows);
     const body=el('subscriberAccountRows');if(body)body.innerHTML=sortRows(data.accounts,sort.col,sort.dir).map(a=>`<tr><td>${esc(a.username)}</td><td>${esc(a.name)}</td><td>${pill(a.status,a.status==='active'?'ok':'warn')}</td><td><button class="sbtn sbtn-outline" data-sub-inspect="${esc(a.id)}">Inspect</button> <button class="sbtn sbtn-outline" data-sub-assign="${esc(a.id)}">Assign plan</button> <button class="sbtn sbtn-warn" data-sub-status="${esc(a.id)}" data-status="${a.status==='active'?'suspended':'active'}">${a.status==='active'?'Suspend':'Reactivate'}</button></td></tr>`).join('');
