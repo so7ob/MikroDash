@@ -55,7 +55,7 @@ func portalFixture(t *testing.T) (*Server, subscriber.Account, *http.Cookie, str
 func TestPortalDoesNotExposeAdminRoutes(t *testing.T) {
 	s, _, cookie, _ := portalFixture(t)
 	handler := s.subscriberPortal(t.TempDir())
-	for _, path := range []string{"/api/routers", "/api/users", "/api/auth/status", "/api/subscribers", "/app.js", "/settings"} {
+	for _, path := range []string{"/api/routers", "/api/users", "/api/auth/status", "/api/subscribers", "/api/subscribers/reconciliation", "/app.js", "/settings"} {
 		r := httptest.NewRequest("GET", path, nil)
 		r.AddCookie(cookie)
 		w := httptest.NewRecorder()

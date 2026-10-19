@@ -105,6 +105,12 @@ var templateIDsUnbound = map[string]string{
 	// that opens the SAME dialog: matching on an id would have meant two elements
 	// sharing one id, or two dialogs. The id stays because it is the slot
 	// button's handle in the markup and in web/test/update-seam.test.ts.
+	// Reconciliation fields append an immutable record id and a field suffix.
+	// The delegated submit handler reads form.dataset.fields and binds them
+	// through el(id+'-'+suffix), rather than a literal per-record id.
+	"gap-":             "constructed byte-gap field prefix; bound through data-fields and value(suffix) in subscriber-reconciliation.ts",
+	"legacy-":          "constructed legacy review field prefix; bound through data-fields and value(suffix) in subscriber-reconciliation.ts",
+	"session-":         "constructed missing-Stop field prefix; bound through data-fields and value(suffix) in subscriber-reconciliation.ts",
 	"sysUpdateBtn":     "found by [data-upgrade-open], which two buttons carry",
 	"dvmName":          "the device modal's heading; #deviceModal's aria-labelledby names it, which is markup's binding rather than code's",
 	"s_":               "constructed: `s_<pollKey>` per slider, bound by el('s_' + cfg.key) in settings-poll.ts",

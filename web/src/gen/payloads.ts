@@ -1407,6 +1407,7 @@ export interface SubscriberSubscription {
 }
 
 export interface SubscriberLimitView {
+  provisional: string;
   limit: SubscriberLimit;
   used: string;
   remaining: string;

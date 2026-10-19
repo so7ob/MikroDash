@@ -201,12 +201,20 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 	if _, err := add(e.Download, e.Upload); err != nil {
 		return err
 	}
-	key := Digest(fmt.Sprintf("%s:%s:%s:%d:%d:%d", e.LeaseID, e.SessionID, e.Status, e.Seconds, e.Download, e.Upload))
 	tx, err := s.sql.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	if err = s.accountTx(tx, e); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) accountTx(tx *sql.Tx, e Accounting) error {
+	var err error
+	key := Digest(fmt.Sprintf("%s:%s:%s:%d:%d:%d", e.LeaseID, e.SessionID, e.Status, e.Seconds, e.Download, e.Upload))
 	var subID, router, network, device, session, state, raw string
 	var oldSec, oldDown, oldUp Quantity
 	var started, created int64
@@ -225,7 +233,7 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 		return err
 	}
 	if exists > 0 {
-		return tx.Commit()
+		return nil
 	}
 	var p Plan
 	if err = json.Unmarshal([]byte(raw), &p); err != nil {
@@ -243,6 +251,9 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 	from := time.Unix(started+int64(oldSec), 0)
 	until := time.Unix(started+int64(sec), 0)
 	quality := "fresh"
+	if e.Source == "admin" {
+		quality = "approved-settlement"
+	}
 	if e.Seconds < oldSec && (e.Download > oldDown || e.Upload > oldUp) {
 		quality = "reconciling"
 	}
@@ -313,7 +324,7 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 				}
 				q := quality
 				if !first.Equal(last) {
-					q = "boundary-conservative"
+					q = "boundary-provisional"
 					quality = q
 				}
 				cursor := first
@@ -323,7 +334,22 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 					if count > 10000 {
 						return errors.New("accounting gap requires reconciliation")
 					}
-					if err = charge(tx, subID, e.LeaseID, l.ID, cursor, delta, q); err != nil {
+					if !first.Equal(last) {
+						gapID := Digest("byte-gap:" + key + ":" + l.ID)
+						if _, err = tx.Exec(`INSERT OR IGNORE INTO subscriber_byte_gaps(id,event_key,lease_id,limit_id,from_at,until_at,amount) VALUES(?,?,?,?,?,?,?)`, gapID, key, e.LeaseID, l.ID, byteFrom.Unix(), endTime.Unix(), delta); err != nil {
+							return err
+						}
+						holdID := gapID + ":" + fmt.Sprint(cursor.Unix())
+						if _, err = tx.Exec(`INSERT INTO subscriber_holds(id,lease_id,limit_id,period_start,amount) VALUES(?,?,?,?,?)`, holdID, e.LeaseID, l.ID, cursor.Unix(), delta); err != nil {
+							return err
+						}
+						if _, err = tx.Exec(`INSERT INTO subscriber_gap_periods VALUES(?,?,?)`, gapID, cursor.Unix(), holdID); err != nil {
+							return err
+						}
+						if _, err = tx.Exec(`UPDATE subscriber_reservations SET amount=max(0,amount-?) WHERE lease_id=? AND limit_id=? AND period_start=?`, delta, e.LeaseID, l.ID, cursor.Unix()); err != nil {
+							return err
+						}
+					} else if err = charge(tx, subID, e.LeaseID, l.ID, cursor, delta, q); err != nil {
 						return err
 					}
 					_, next, berr := l.Period.Bounds(cursor)
@@ -346,7 +372,7 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 	}
 	if state == "stopped" {
 		if e.Status == "stop" && e.Seconds >= oldSec && e.Download >= oldDown && e.Upload >= oldUp {
-			if _, err = tx.Exec(`UPDATE subscriber_holds SET resolved_at=? WHERE lease_id=? AND resolved_at=0`, e.At.Unix(), e.LeaseID); err != nil {
+			if _, err = tx.Exec(`UPDATE subscriber_holds SET resolved_at=? WHERE lease_id=? AND resolved_at=0 AND id NOT IN (SELECT hold_id FROM subscriber_gap_periods)`, e.At.Unix(), e.LeaseID); err != nil {
 				return err
 			}
 		}
@@ -358,7 +384,7 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 	if err != nil {
 		return err
 	}
-	return tx.Commit()
+	return nil
 }
 func charge(tx *sql.Tx, sub, lease, limit string, start time.Time, delta Quantity, quality string) error {
 	var old Quantity

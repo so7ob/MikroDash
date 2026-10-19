@@ -18,18 +18,18 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-05 | Live rate switch/throttle, correct device | Real UDP rate switch and active throttle with exact-device queue readback pass; burst/minimum/priority/network ceilings pending | persistent CoA operations, queue readback, capabilities | partial | passed: UDP + queue readback | pending: rate probe |
 | AC-06 | Reordered/retried accounting, reused IDs | High-water journal tests; more retransmission faults needed | radius/accounting | partial | prior pass | pending: retransmission capture |
 | AC-07 | API/RADIUS unified debit, one-second skew | Shared capability-bound API observations use the cumulative ledger; overlapping older RADIUS sample regression passes | observation matching and accounting | partial | passed: shared ledger regression | pending: direction proof |
-| AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Admin settlement and byte-gap adjustments pending | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
-| AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; conservative byte settlement and continuous hard-edge renewal pending | policy, journal adjustments | partial | passed: calendar anchors; settlement pending | pending: boundary observations |
+| AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Audited admin settlement and explicit byte-gap allocations implemented; incomplete telemetry review remains pending | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
+| AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; approved byte-gap settlement implemented; continuous hard-edge renewal pending | policy, journal adjustments | partial | passed: calendar anchors and approved settlement | pending: boundary observations |
 | AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
 | AC-11 | No browsers required | Background Disconnect UDP test | explicit runtime lifecycle and observer | partial | partial | pending: closed-browser run |
 | AC-12 | Local outage bounds and fail-closed admission | Initial 60-second/byte delegation | verified renewal and local limits | partial | partial | pending: service outage probe |
 | AC-13 | Single C sign-in and safe exhausted portal | Isolated portal/ticket server tests | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
 | AC-14 | Ownership/device/network/ticket isolation | Existing portal and RADIUS tests | expanded runtime/operations security | partial | prior pass | pending: C isolation |
-| AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/storage failure tests | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
-| AC-16 | Complete admin/portal/browser workflows | Initial three tabs only | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
+| AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/storage failure tests; incomplete counter-payload validation remains a software gap | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
+| AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation; full editors/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
 | AC-17 | Idempotent import/opening/cutover/rollback | Read-only User Manager preview | transactional mapping/apply/approval | partial | missing | pending: approved live batch |
 | AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
-| AC-19 | Target build and existing app compatibility | Previous CI/compat; ARM64 incomplete | build/regression gates and isolated data | partial | prior pass | pending: target build |
+| AC-19 | Target build and existing app compatibility | Verified foundation/session develop CI and static ARM64 cross-build; target execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
 
 ## Capability matrix
 
@@ -108,3 +108,37 @@ the scoped PR; the earlier `93aa15fe` checkpoint is not reported as fully verifi
 The host's disk constraint was mitigated by removing only task-created rebuildable
 compiler-cache entries and using a RAM directory for subsequent compiler caches.
 Test databases and journals continue to use the ordinary filesystem.
+
+### Independent delivery checkpoints
+
+- Foundation: PR #39, `develop` `430337cb1fca53467d7393c09536c7766a344a95`;
+  [exact-head CI](https://github.com/so7ob/MikroDash/actions/runs/39309462140) and
+  [post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39332843908) passed.
+- Session renewal/observation: Issue #40 / PR #42, `develop`
+  `8931effdda23da84d14c340ea5158bbe37caf8eb`;
+  [exact-head CI](https://github.com/so7ob/MikroDash/actions/runs/39333701987) and
+  [post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39334260634) passed.
+  Exact implementation head `8225eff7` also passed full local verification,
+  race checks, synthetic browser acceptance, a capability-revocation mutation and
+  a static ARM64 cross-build. Native supplemental race/browser runs used tmpfs;
+  full verification's SQLite tests used the ordinary filesystem. Neither proves
+  media durability under power loss or execution on the target router.
+- Reconciliation: Issue #41 on its independent branch from `develop`. Migration 40,
+  provisional exposure, transactional audited approval APIs and the fourth admin
+  tab are implemented. Focused ledger/API checks and actual HTTP/SQLite Chromium
+  journey passed on the working source. Full PR-head/post-merge evidence remains
+  pending until this milestone's delivery. See [reconciliation](Subscriber-Reconciliation.md).
+
+Browser overflow was traced to a synthetic shell missing MikroDash's actual `#main`
+flex container. The harness now uses that container. The four product tabs wrap with
+existing utilities and are individually checked within the mobile viewport. Approval
+returns focus after removing its form. No new font, direction, global palette or
+localization framework was introduced. Full module and target acceptance remain open.
+
+
+The first full reconciliation sweep stopped at `TestTemplateIDsAreBound`: its
+literal scanner cannot resolve the three per-record field prefixes read through
+`data-fields` and the shared submit handler. Their actual delegated bindings are
+now recorded in the existing bidirectional constructed-ID ledger, as other dynamic
+fields are. The check remains enabled, and its stale-entry/empty-set assertions
+are unchanged. This initial full sweep is a failed run, not a passing result.

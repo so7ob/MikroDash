@@ -128,7 +128,7 @@ func (s *Store) Due(ctx context.Context, at time.Time) ([]Enforcement, error) {
 				// enforcement using only durable usage, not other devices' reservations.
 				usage := map[string]Usage{}
 				for _, v := range snap.Decision.Limits {
-					usage[Key(v.Limit.ID, v.PeriodStart)] = Usage{Used: v.Used, Quality: v.Quality}
+					usage[Key(v.Limit.ID, v.PeriodStart)] = Usage{Used: v.Used, Reserved: v.Provisional, Provisional: v.Provisional, Quality: v.Quality}
 				}
 				d := Evaluate(snap.Subscription.Plan, snap.Subscription.SpeedID, at, snap.Subscription.ExpiresAt, usage)
 				if d.Disconnect {

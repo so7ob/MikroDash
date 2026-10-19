@@ -25,8 +25,8 @@ export function limitCard(v: SubscriberLimitView): string {
   const remaining = l.state === 'limited' ? quantity((BigInt(l.amount) > BigInt(v.used) ? BigInt(l.amount) - BigInt(v.used) : 0n).toString(), l.kind) : l.state;
   const percent = percentage(v.used, l.amount);
   return `<section class="card"><div class="card-header"><h2 class="card-title">${esc(l.id)}</h2>${pill(l.kind, 'rx')}</div><div class="card-body">
-    <dl class="subscriber-values"><dt>Limit</dt><dd>${esc(amount)}</dd><dt>Used</dt><dd>${esc(quantity(v.used, l.kind))}</dd><dt>Remaining</dt><dd>${esc(remaining)}</dd>
-    <dt>Reserved or awaiting reconciliation</dt><dd>${esc(quantity(v.reserved, l.kind))}</dd><dt>Available for new connections</dt><dd>${esc(l.state === 'limited' ? quantity(v.remaining, l.kind) : l.state)}</dd><dt>Period</dt><dd>${esc(l.period.kind)}</dd>
+    <dl class="subscriber-values"><dt>Limit</dt><dd>${esc(amount)}</dd><dt>Confirmed usage</dt><dd>${esc(quantity(v.used, l.kind))}</dd><dt>Remaining</dt><dd>${esc(remaining)}</dd>
+    <dt>Reserved for devices</dt><dd>${esc(quantity((BigInt(v.reserved)-BigInt(v.provisional||'0')).toString(), l.kind))}</dd><dt>Unresolved exposure</dt><dd>${esc(quantity(v.provisional || '0',l.kind))}</dd><dt>Available for new connections</dt><dd>${esc(l.state === 'limited' ? quantity(v.remaining, l.kind) : l.state)}</dd><dt>Period</dt><dd>${esc(l.period.kind)}</dd>
     <dt>Period starts</dt><dd>${esc(instant(v.periodStart))}</dd><dt>Next reset</dt><dd>${l.period.kind === 'none' ? 'Does not reset' : esc(instant(v.nextReset))}</dd>
     <dt>Data quality</dt><dd>${pill(v.quality, v.quality === 'fresh' ? 'ok' : 'warn')}</dd></dl>
     <progress max="100" value="${percent}" aria-label="${esc(l.id)} usage">${percent}%</progress></div></section>`;
