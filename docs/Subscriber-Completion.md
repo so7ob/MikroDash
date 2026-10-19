@@ -134,3 +134,11 @@ flex container. The harness now uses that container. The four product tabs wrap 
 existing utilities and are individually checked within the mobile viewport. Approval
 returns focus after removing its form. No new font, direction, global palette or
 localization framework was introduced. Full module and target acceptance remain open.
+
+
+The first full reconciliation sweep stopped at `TestTemplateIDsAreBound`: its
+literal scanner cannot resolve the three per-record field prefixes read through
+`data-fields` and the shared submit handler. Their actual delegated bindings are
+now recorded in the existing bidirectional constructed-ID ledger, as other dynamic
+fields are. The check remains enabled, and its stale-entry/empty-set assertions
+are unchanged. This initial full sweep is a failed run, not a passing result.
