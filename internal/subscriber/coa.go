@@ -88,8 +88,9 @@ func operationVerified(o Operation, row ObservedSession, at time.Time) bool {
 	if o.Kind == "rate" {
 		return row.RateKnown && row.Down == o.Request.Admission.Decision.Down && row.Up == o.Request.Admission.Decision.Up
 	}
-	actual := at.Unix() + row.TimeLeft
-	return row.TimeoutKnown && actual >= o.TargetDeadline.Unix()-2 && actual <= o.TargetDeadline.Unix()+2 && row.LimitsKnown && row.DownloadLimit == o.Request.DownloadCeiling && row.UploadLimit == o.Request.UploadCeiling && (o.Request.TotalCeiling == 0 || row.TotalLimit == o.Request.TotalCeiling)
+	actual, err := add(row.Seconds, Quantity(row.TimeLeft))
+	expected := Quantity(o.TargetDeadline.Unix() - o.Request.StartedAt.Unix())
+	return err == nil && expected > 0 && row.TimeoutKnown && actual >= expected-2 && actual <= expected && row.LimitsKnown && row.DownloadLimit == o.Request.DownloadCeiling && row.UploadLimit == o.Request.UploadCeiling && (o.Request.TotalCeiling == 0 || row.TotalLimit == o.Request.TotalCeiling)
 }
 
 // ProcessOperations first checks readback, including after a crash or lost ACK.
@@ -103,6 +104,12 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 		n, ok := findNAS(s.Clients, o.Request.RouterID, o.Request.Network)
 		if !ok {
 			return ErrDenied
+		}
+		if o.Kind == "renew" && o.Request.TimeBasis != renewalTimeBasis {
+			if err = s.Store.retireLegacyRenewal(ctx, o, at); err != nil {
+				return err
+			}
+			continue
 		}
 		grant := guard.SubscriberAuthority{Identity: "service:subscriber", Mode: s.Mode, RouterID: n.RouterID, Network: n.Network, Change: s.AllowCoA}
 		if !guard.CheckSubscriberChange(grant, o.Request.RouterID, o.Request.Network, o.LeaseID, o.Request.SessionID) {
