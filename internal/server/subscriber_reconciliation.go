@@ -16,7 +16,7 @@ func (s *Server) subscribersReconciliationGet(w http.ResponseWriter, r *http.Req
 		subscriberError(w, errors.New("Choose a subscriber"))
 		return
 	}
-	ledger := s.subscribers.radius.Store
+	ledger := s.auditDB.Subscribers()
 	gaps, err := ledger.ByteGaps(r.Context(), account)
 	if err != nil {
 		subscriberError(w, err)
@@ -55,7 +55,7 @@ func (s *Server) subscribersReconciliationPost(w http.ResponseWriter, r *http.Re
 	if !subscriberBody(w, r, &in) {
 		return
 	}
-	ledger := s.subscribers.radius.Store
+	ledger := s.auditDB.Subscribers()
 	actor := s.userIDFor(sess.Username)
 	now := time.Now()
 	var err error

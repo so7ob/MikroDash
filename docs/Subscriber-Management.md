@@ -1,8 +1,9 @@
 # Subscriber Management development preview
 
 **Issue #38 is not acceptance-complete. Do not cut production authentication over to this branch.**
-This document separates working code from outstanding integration. The feature is disabled
-unless `-subscriber-config` names an explicit configuration file. Existing admin accounts,
+This document separates working code from outstanding integration. The network runtime is disabled
+unless `-subscriber-config` names an explicit configuration file. Authenticated subscriber
+administration remains available without that file and uses the existing migrated ledger. Existing admin accounts,
 RouterOS users, settings encryption, GeoIP and the patched RouterOS library are retained.
 
 ## Administration navigation
@@ -12,6 +13,21 @@ Open **Subscriber Management** from the main sidebar beside Dashboard, or visit
 assignment), Plans and policies, and Policy simulator. The page retains the existing
 `subscribers` permission key and the backend `system:subscribers` authorization check.
 The subscriber portal remains on its isolated listener.
+
+With no runtime configuration, the page shows **Network runtime: Disabled** and
+allows authorized account/voucher creation, immutable plan definitions, assignment,
+policy inspection and reconciliation. These actions update the durable ledger and
+audit; they do not open a public listener, start RADIUS, retain a router connection
+or change router settings. The persistent setup message remains visible after
+successful actions. If the ledger is unavailable, administration fails closed with
+a database-startup diagnostic instead of suggesting that RADIUS must be enabled.
+
+After installing a tested development build, restart the local development process
+and open `/subscribers` to try administration. Rebuilding browser assets alone
+cannot replace an already running Go binary. A live C test additionally needs a
+reachable isolated HTTPS portal, enrolled NAS secret and approved authentication
+routing, followed by target capability probes. Do not set capability flags solely
+to bypass startup checks. See the [lab guide](Subscriber-Lab-Guide.md).
 
 ## Ownership and architecture
 

@@ -677,3 +677,15 @@ Synthetic HTTP/SQLite browser checks cover account-response races, invalid/appro
 settlements, retained evidence, Unicode user data, keyboard/focus, 375/1280 layouts
 and zero axe violations. Existing local fonts, tokens and LTR layout are reused.
 No decorative patterns or additional design system were introduced.
+
+
+### Subscriber setup before runtime activation
+
+Administration remains a dense English/LTR console while the separately configured
+network runtime is disabled. A persistent semantic status above the four tabs
+explains the configured mode and the next setup requirement; action feedback uses
+its own live region. Preparing a subscriber never implies Internet connectivity.
+The subscriber table uses the existing optional-page header palette rule, so the
+same tokens provide readable headers without changing global typography or colors.
+The synthetic browser journey covers creation with no runtime, retained Unicode,
+375/1280 layouts, persistent status and the existing reconciliation workflow.

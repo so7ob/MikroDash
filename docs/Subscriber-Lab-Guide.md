@@ -45,6 +45,22 @@ contradictions. It does not import credentials, balances or accounts. Newer menu
 must be checked against the actual router's reply. Review both input access to a router-local
 service and walled-garden forwarding. Do not put the subscriber bridge in LAN to bypass policy.
 
+## Try administration before network setup
+
+Start the current tested build with the existing development arguments; no
+`-subscriber-config` is needed for administration. If a debugger is running an
+older binary, stop and start it through the debugger after rebuilding the UI.
+Do not start a second process against the same writable data directory.
+
+Open **Subscriber Management**. The persistent **Network runtime: Disabled** status
+means that portal/RADIUS admission is off, while the authorized administration
+forms remain usable. Create a clearly named test subscriber, save an immutable
+plan with separate time and download limits, assign that plan and use Inspect.
+A first-login subscription must remain pending, with zero usage and full remaining
+entitlement. Preparing these records does not connect a device or change RouterOS.
+The local setup API is protected by existing admin authentication, the global
+`system:subscribers` permission, Origin checks and reasoned audit.
+
 ## Runtime configuration shape
 
 The command defaults to Disabled. `-subscriber-config /private/path/subscribers.json` enables
