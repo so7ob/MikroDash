@@ -16,8 +16,8 @@ The subscriber portal remains on its isolated listener.
 ## Ownership and architecture
 
 MikroDash owns subscriber credentials, immutable plan versions, subscriptions, period usage,
-reservations and the accounting journal in the existing `mikrodash.db`. Schema migration 38
-adds `subscriber_*` tables; it does not rewrite `users.json` or use User Manager as a hidden
+reservations and the accounting journal in the existing `mikrodash.db`. Schema migrations 38 and 39
+add `subscriber_*` tables; it does not rewrite `users.json` or use User Manager as a hidden
 runtime backend. User Manager is currently a read-only preview source.
 
 `internal/subscriber/policy.go` is a pure policy evaluator. `storage.go` and `accounting.go`
@@ -47,7 +47,7 @@ a disconnect is sent. An ACK is recorded as acknowledged, never as verified disa
   Overflow is refused; frontend formatting uses `BigInt`.
 - Policies contain independent limits. Time, download, upload and total can all constrain one
   subscription, each with a renewal period and action. Calendar hourly, daily, weekly and
-  monthly periods use explicit IANA zones and anchors. Monthly anchor days currently stop at 28.
+  monthly periods use explicit IANA zones and anchors. Anchors on days 29, 30 and 31 clamp to the last day of shorter months without drifting later months.
   An hourly anchor at `00:25:00` resets at minute 25. A disabled reset is a non-renewing period.
 - Access windows use the weekday of their opening edge and support crossing midnight. Their
   end is exclusive: an inclusive source time of `22:59:59` must map to `23:00:00`.
@@ -76,8 +76,7 @@ previously committed usage. Accounting-Response is sent only after commit; stora
 receives no acknowledgement. Production startup requires SQLite synchronous FULL.
 
 RADIUS input octets are subscriber upload; output octets are subscriber download. Gigawords
-are combined before checked conversion to signed 64-bit storage. API observations are not
-charged a second time. A one-second snapshot skew does not invalidate the account.
+are combined before checked conversion to signed 64-bit storage. Version/evidence-bound API observations enter the same cumulative high-water transaction as RADIUS, so overlapping readings are not charged a second time. API octet direction requires a recorded HotSpot traffic probe; an unknown or different router version cannot renew a session. A one-second snapshot skew does not invalidate the account.
 
 Connection seconds are split at period boundaries. Bytes inside an unsampled boundary gap
 are charged conservatively to every touched period and labelled `boundary-conservative`;
@@ -87,20 +86,16 @@ per-period distribution. There is no automatic refund/reconciliation implementat
 Admission reserves sub-budgets atomically across all outstanding sessions. It emits local
 Session-Timeout, directional MikroTik byte limits and total byte limits where configured.
 The current implementation limits every delegation to **60 seconds**, the nearest hard period
-or access-window edge, or its smaller time allocation. This bounds an outage but is too
-restrictive for general production use without renewal/reconnect work. It never grants a
+or access-window edge, or its smaller time allocation. A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab; target-router proof remains pending. Renewal across a hard calendar-period edge remains outstanding. It never grants a
 new full hour after partial consumption.
 
 A 2-second background loop requests disconnect on expired delegations, suspension and
 applicable exhausted disconnect policies. Requests have a 3-second transport deadline and
 10-second retry spacing. These are configured timings, **not measured router response bounds**.
-A missing Stop retains its reservation and session slot across restart; automatic settlement
-and an administrator reconciliation workflow remain outstanding. It does not create free credit.
+A missing Stop retains its reservation until a complete shared API read proves absence after the maximum attempted local delegation. The session slot then closes, while unresolved quota remains in explicit holds rather than becoming measured usage or free credit. A covering final Stop resolves those holds. Administrative resolution and boundary-byte settlement remain outstanding.
 
 `deny` affects admission; `disconnect` also triggers enforcement. `alert` produces decision
-reasons only (notification delivery is not implemented). `throttle` affects subsequent
-admission; active CoA rate changes are not implemented. Speed state remains
-`pending-reconnect`; sending Access-Accept alone is not queue verification.
+reasons only (notification delivery is not implemented). `throttle` also changes active session rates through guarded CoA when its capability is recorded. Durable operations distinguish requested, applying, acknowledged, verified, failed and pending-reconnect. Only a fresh exact-device queue readback verifies a live rate; ACK alone is insufficient. Unknown capabilities retain pending status. Burst/minimum/priority and network ceilings remain outstanding.
 
 ## Portal boundary and authentication
 
@@ -139,7 +134,7 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | Portal `POST /api/login` | Username/password, or blank username with voucher |
 | Portal `GET /api/session` | CSRF token, enrolled network keys and mode |
 | Portal `GET /api/account` | Session-owned versioned snapshot; account query parameters confer no access |
-| Portal `POST /api/speed` | Entitled `profileId`, 10-second cooldown; returns pending-reconnect |
+| Portal `POST /api/speed` | Entitled `profileId`, 10-second cooldown; returns the persisted requested/pending-reconnect state |
 | Portal `POST /api/connect` | Enrolled `network`; returns one-use credentials and allowlisted destinations |
 | Portal `POST /api/disconnect` | Owned `leaseId` and `confirm: true` |
 | Portal `POST /api/logout` | Revokes only the portal session |
@@ -149,8 +144,7 @@ Snapshots include a content-derived version, `observedAt`, `lastSyncedAt`, quali
 lifetime counters, subscription, per-limit decisions and recent sessions. The portal delivers
 ledger snapshots every two seconds; this **does not mean the router was measured every two
 seconds**. Standard RADIUS interim is 60 seconds, not 5. The display's interpolated advance is
-bounded and labelled. Fast shared API observation and complete stale/reconciling semantics
-are outstanding; a normal-condition 5-second usage update target is not yet met.
+bounded and labelled. The retained shared router connection now reads active sessions and dynamic queue ceilings every worker cycle, with explicit version/counter evidence and separate API observation/RADIUS synchronization times. Freshness and resource measurements, source-gap settlement and the target 5-second acceptance are still pending.
 
 ## Hardware facts and acceptance boundary
 
@@ -174,7 +168,7 @@ This is a development preview, not the complete requested module. Outstanding it
 - Verified live C single sign-in, packet accounting directions on actual traffic, local byte
   cap enforcement, reboot/Stop-loss reconciliation, bounded delegation renewal, and exact
   CoA Session-Timeout semantics.
-- CoA rate application with actual queue verification, operation recovery and speed network
+- Target-router verification of implemented CoA rate/readback and operation recovery, plus speed network
   ceilings; burst/minimum/priority support and distinct long-lived device limits.
 - Shared rapid API observations and reconciliation for the 5-second freshness target; true
   measured latency/CPU/memory/flash/channel budgets under load.
@@ -182,8 +176,8 @@ This is a development preview, not the complete requested module. Outstanding it
   scenario simulation, complete device history and setup wizard.
 - User Manager mapping/apply and approved period opening balances. The CLI implements preview
   only and cannot silently import lifetime totals into period balances.
-- Multiple enrolled networks sharing one NAS source address (currently refused), expiry
-  activation grace semantics, monthly anchors beyond day 28, boundary-byte reconciliation,
+- Target verification of implemented same-NAS HotSpot network mapping and days 29/30/31; expiry
+  activation grace semantics, boundary-byte reconciliation,
   and notification delivery for alert-only limits.
 
 ## Official references

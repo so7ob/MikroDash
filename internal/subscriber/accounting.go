@@ -11,18 +11,23 @@ import (
 )
 
 type Lease struct {
-	ID         string    `json:"id"`
-	RouterID   string    `json:"routerId"`
-	Network    string    `json:"network"`
-	Device     string    `json:"device"`
-	SessionID  string    `json:"sessionId"`
-	State      string    `json:"state"`
-	CreatedAt  time.Time `json:"createdAt"`
-	Deadline   time.Time `json:"deadline"`
-	ObservedAt time.Time `json:"observedAt"`
-	Seconds    Quantity  `json:"seconds"`
-	Download   Quantity  `json:"download"`
-	Upload     Quantity  `json:"upload"`
+	ConnectionState string    `json:"connectionState"`
+	AppliedDown     Quantity  `json:"appliedDown"`
+	AppliedUp       Quantity  `json:"appliedUp"`
+	RateState       string    `json:"rateState"`
+	RateObservedAt  time.Time `json:"rateObservedAt"`
+	ID              string    `json:"id"`
+	RouterID        string    `json:"routerId"`
+	Network         string    `json:"network"`
+	Device          string    `json:"device"`
+	SessionID       string    `json:"sessionId"`
+	State           string    `json:"state"`
+	CreatedAt       time.Time `json:"createdAt"`
+	Deadline        time.Time `json:"deadline"`
+	ObservedAt      time.Time `json:"observedAt"`
+	Seconds         Quantity  `json:"seconds"`
+	Download        Quantity  `json:"download"`
+	Upload          Quantity  `json:"upload"`
 }
 type Admission struct {
 	LeaseID  string   `json:"leaseId"`
@@ -166,6 +171,8 @@ func smallest(a, b Quantity) Quantity {
 }
 
 type Accounting struct {
+	Source string // radius or a verified session-cumulative API observation
+
 	LeaseID   string
 	RouterID  string
 	Network   string
@@ -179,9 +186,15 @@ type Accounting struct {
 }
 
 // Account persists the normalized cumulative reading before the transport may
-// acknowledge it. RADIUS is the sole debit source; API observations are never
-// debited. Retries and out-of-order samples use independent high-water marks.
+// acknowledge it. Verified API observations enter this same high-water ledger;
+// overlapping sources and retries never add a cumulative snapshot twice.
 func (s *Store) Account(ctx context.Context, e Accounting) error {
+	if e.Source == "" {
+		e.Source = "radius"
+	}
+	if e.Source != "radius" && e.Source != "api" {
+		return errors.New("invalid accounting source")
+	}
 	if !slices.Contains([]string{"start", "interim", "stop"}, e.Status) || e.SessionID == "" || e.Seconds < 0 || e.Download < 0 || e.Upload < 0 || e.Seconds > 315360000 {
 		return errors.New("invalid accounting event")
 	}
@@ -203,6 +216,9 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 	}
 	if router != e.RouterID || network != e.Network || device != e.Device || (session != "" && session != e.SessionID) {
 		return ErrDenied
+	}
+	if _, err = tx.Exec(`INSERT INTO subscriber_sources VALUES(?,?,?) ON CONFLICT(lease_id,source) DO UPDATE SET observed_at=max(observed_at,excluded.observed_at)`, e.LeaseID, e.Source, e.At.Unix()); err != nil {
+		return err
 	}
 	var exists int
 	if err = tx.QueryRow(`SELECT count(*) FROM subscriber_events WHERE event_key=?`, key).Scan(&exists); err != nil {
@@ -329,6 +345,11 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 		return err
 	}
 	if state == "stopped" {
+		if e.Status == "stop" && e.Seconds >= oldSec && e.Download >= oldDown && e.Upload >= oldUp {
+			if _, err = tx.Exec(`UPDATE subscriber_holds SET resolved_at=? WHERE lease_id=? AND resolved_at=0`, e.At.Unix(), e.LeaseID); err != nil {
+				return err
+			}
+		}
 		if _, err = tx.Exec(`DELETE FROM subscriber_reservations WHERE lease_id=?`, e.LeaseID); err != nil {
 			return err
 		}

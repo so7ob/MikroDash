@@ -608,3 +608,13 @@ RouterOS 7.24.5. The source is [the official RADIUS/HotSpot manual](https://manu
 and [User Manager limitations](https://manual.mikrotik.com/docs/cli-reference/user-manager/limitation/).
 No new RouterOS API write path was introduced; optional disconnect uses RADIUS
 with the dedicated subscriber service guard.
+
+
+Subscriber continuation adds shared `/ip/hotspot/active/print` with `stats` and
+`.id,user,mac-address,server,address,uptime,bytes-in,bytes-out,session-time-left,limit-bytes-in,limit-bytes-out,limit-bytes-total`;
+`/queue/simple/print` with `.id,name,target,max-limit,dynamic,disabled`; and the existing
+`/system/resource/print` with `version`. One set serves all enrolled subscribers on a router.
+Active counters/timeout semantics are capability-gated and remain subject to the target probe.
+Dynamic queue verification requires a unique exact host target, never a shared subnet queue.
+CoA uses the pinned RADIUS implementation and an independent narrow service grant; it does
+not edit dynamic queues through the RouterOS API.

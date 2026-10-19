@@ -82,6 +82,7 @@ router. Keep both the input secret and encrypted output outside the public repos
     "loginUrl": "https://hotspot.example.test/login"
   }],
   "pilotAccounts": [],
+  "allowCoA": false,
   "allowDisconnect": false,
   "localLimitsVerified": false
 }
@@ -121,3 +122,28 @@ history. It does not restore RouterOS settings. Existing locally delegated sessi
 subject to their local bounds. Revert an explicitly authorized C configuration using its saved
 narrow diff, restore the single authentication authority, and reconcile outstanding accounting
 before enabling new admission. Never delete the subscriber tables or `/data` to roll back.
+
+## Continuous-delegation capability probes
+
+Migration 39 adds durable operations, observations, source timestamps and unresolved quota
+holds. Back up an isolated data copy before migration testing. Normal disabled startup does
+not start the subscriber worker. The C pilot still needs separate approval.
+
+Keep `allowCoA` false until the exact NAS has been probed. A `capabilities` object on its
+network enrollment records `version` (exact resource-version reply), `evidence` (private
+probe record), `timeoutMode` and `byteMode` (`total` or `remaining`), `counterMode`
+(`input-upload` or `output-upload`), and independently proven `coaRate`, `coaGigawords`
+and `coaTotal`. Missing evidence does not default to supported. Continuous renewal currently requires both timeout and byte modes to be `total`. Relative modes remain a code gap because an uncertain delayed retry can regrant consumed quota. CoA total/gigaword support
+must be proved separately; their availability at admission does not prove live modification.
+
+Probe extension and shortening on the same expendable C session. Record uptime and
+session-time-left before/after, then the actual expiry. For byte changes record cumulative
+session octets and local limit readback before and after. For direction, upload only and then
+download only. For rate changes record the single dynamic host-target queue and both halves
+of max-limit. An ACK without corresponding state is a failed probe. Never enable a capability
+because its name appears in documentation or because a synthetic NAS passes.
+
+The worker saves intent and reserves its maximum local exposure before sending CoA. A restart
+reads state before retrying. A proven absent session releases its seat; unmeasured exposure
+remains an explicit hold until final accounting or the pending administrative settlement flow.
+Calendar-boundary continuous renewal and boundary-byte settlement still require completion.

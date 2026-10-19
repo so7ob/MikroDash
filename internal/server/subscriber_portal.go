@@ -141,7 +141,12 @@ func (s *Server) subscriberPortalSpeed(w http.ResponseWriter, r *http.Request) {
 		subscriberError(w, err)
 		return
 	}
-	writeJSON(w, map[string]string{"status": "pending-reconnect"})
+	snapshot, err := s.subscribers.radius.Store.Snapshot(r.Context(), v.AccountID, time.Now())
+	if err != nil {
+		subscriberError(w, err)
+		return
+	}
+	writeJSON(w, map[string]string{"status": snapshot.Subscription.SpeedState})
 }
 func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request) {
 	v, ok := s.subscriberIdentity(w, r)

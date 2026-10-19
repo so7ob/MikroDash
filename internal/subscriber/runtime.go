@@ -27,6 +27,7 @@ type Config struct {
 	AccountingListen    string   `json:"accountingListen"`
 	Clients             []NAS    `json:"clients"`
 	PilotAccounts       []string `json:"pilotAccounts"`
+	AllowCoA            bool     `json:"allowCoA"`
 	AllowDisconnect     bool     `json:"allowDisconnect"`
 	LocalLimitsVerified bool     `json:"localLimitsVerified"`
 }
@@ -51,12 +52,18 @@ func (c Config) Validate() error {
 	if c.Mode == "pilot" && (len(c.PilotAccounts) != 1 || len(c.Clients) != 1) {
 		return errors.New("pilot requires exactly one account and network")
 	}
-	peers := map[string]bool{}
+	peers := map[string]string{}
+	networks := map[string]bool{}
 	for _, n := range c.Clients {
-		if peers[n.Address] {
-			return errors.New("one enrolled network per NAS source address is required")
+		if previous, ok := peers[n.Address]; ok && previous != n.RouterID {
+			return errors.New("one router identity per NAS source address is required")
 		}
-		peers[n.Address] = true
+		key := n.RouterID + ":" + n.CalledStationID
+		if networks[key] || n.Network == "" || n.CalledStationID == "" {
+			return errors.New("enrolled HotSpot network identity must be unique")
+		}
+		peers[n.Address] = n.RouterID
+		networks[key] = true
 		u, err := url.Parse(n.LoginURL)
 		if err != nil || u.Scheme != "https" || u.Host == "" || u.Path != "/login" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 			return errors.New("NAS login URL must be an explicit HTTPS /login endpoint")
@@ -161,6 +168,9 @@ func (s *RadiusService) Run(ctx context.Context, allowDisconnect bool, report fu
 		case <-ctx.Done():
 			return
 		case now := <-ticker.C:
+			if err := s.Tick(ctx, now); err != nil {
+				report(err)
+			}
 			due, err := s.Store.Due(ctx, now)
 			if err != nil {
 				report(err)

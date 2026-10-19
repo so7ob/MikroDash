@@ -130,8 +130,8 @@ func (p Plan) Validate() error {
 	return nil
 }
 
-// Bounds uses calendar arithmetic for days, weeks and months. Monthly anchors
-// are restricted to days 1..28 to avoid an ambiguous February clamping rule.
+// Bounds uses calendar arithmetic. Monthly anchors keep their original day,
+// clamping to the last day of a shorter month without drifting later months.
 func (p Period) Bounds(t time.Time) (time.Time, time.Time, error) {
 	loc, err := time.LoadLocation(p.Zone)
 	if err != nil {
@@ -165,14 +165,16 @@ func (p Period) Bounds(t time.Time) (time.Time, time.Time, error) {
 		}
 		end = start.AddDate(0, 0, days)
 	case "monthly":
-		if a.Day() > 28 {
-			return start, end, errors.New("monthly anchor day must be 1..28")
+		edge := func(year int, month time.Month) time.Time {
+			first := time.Date(year, month, 1, a.Hour(), a.Minute(), a.Second(), 0, loc)
+			last := time.Date(first.Year(), first.Month()+1, 0, a.Hour(), a.Minute(), a.Second(), 0, loc).Day()
+			return time.Date(first.Year(), first.Month(), min(a.Day(), last), a.Hour(), a.Minute(), a.Second(), 0, loc)
 		}
-		start = time.Date(t.Year(), t.Month(), a.Day(), a.Hour(), a.Minute(), a.Second(), 0, loc)
+		start = edge(t.Year(), t.Month())
 		if start.After(t) {
-			start = start.AddDate(0, -1, 0)
+			start = edge(t.Year(), t.Month()-1)
 		}
-		end = start.AddDate(0, 1, 0)
+		end = edge(start.Year(), start.Month()+1)
 	default:
 		return start, end, errors.New("invalid period kind")
 	}

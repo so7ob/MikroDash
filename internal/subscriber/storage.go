@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS subscriber_audit (
  id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
  reason TEXT NOT NULL, created_at INTEGER NOT NULL
 );
-`
+` + SessionSchema
 
 type Store struct{ sql *sql.DB }
 
@@ -329,7 +329,10 @@ func usage(tx *sql.Tx, id string) (map[string]Usage, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err = tx.Query(`SELECT r.limit_id,r.period_start,sum(r.amount) FROM subscriber_reservations r JOIN subscriber_leases l ON l.id=r.lease_id WHERE l.subscription_id=? AND l.state!='stopped' GROUP BY r.limit_id,r.period_start`, id)
+	rows, err = tx.Query(`SELECT limit_id,period_start,sum(amount) FROM (
+SELECT r.limit_id,r.period_start,r.amount FROM subscriber_reservations r JOIN subscriber_leases l ON l.id=r.lease_id WHERE l.subscription_id=? AND l.state!='stopped'
+UNION ALL SELECT h.limit_id,h.period_start,h.amount FROM subscriber_holds h JOIN subscriber_leases l ON l.id=h.lease_id WHERE l.subscription_id=? AND h.resolved_at=0
+) GROUP BY limit_id,period_start`, id, id)
 	if err != nil {
 		return nil, err
 	}
@@ -409,20 +412,62 @@ func (s *Store) Snapshot(ctx context.Context, account string, at time.Time) (Sna
 		v.LastSyncedAt = time.Unix(synced.Int64, 0)
 		v.ObservedAt = v.LastSyncedAt
 	}
-	rows, err := tx.Query(`SELECT id,router_id,network,device,session_id,state,created_at,deadline,seconds,download,upload,observed_at FROM subscriber_leases WHERE subscription_id=? ORDER BY created_at DESC LIMIT 100`, sub.ID)
+	rows, err := tx.Query(`SELECT l.id,l.router_id,l.network,l.device,l.session_id,l.state,l.created_at,l.deadline,l.seconds,l.download,l.upload,l.observed_at,o.observed_at,o.present,o.payload FROM subscriber_leases l LEFT JOIN subscriber_observations o ON o.lease_id=l.id WHERE l.subscription_id=? ORDER BY l.created_at DESC LIMIT 100`, sub.ID)
 	if err != nil {
 		return v, err
 	}
 	for rows.Next() {
 		var l Lease
 		var created, deadline, observed int64
-		if err = rows.Scan(&l.ID, &l.RouterID, &l.Network, &l.Device, &l.SessionID, &l.State, &created, &deadline, &l.Seconds, &l.Download, &l.Upload, &observed); err != nil {
+		var apiAt sql.NullInt64
+		var present sql.NullBool
+		var payload sql.NullString
+		if err = rows.Scan(&l.ID, &l.RouterID, &l.Network, &l.Device, &l.SessionID, &l.State, &created, &deadline, &l.Seconds, &l.Download, &l.Upload, &observed, &apiAt, &present, &payload); err != nil {
 			rows.Close()
 			return v, err
 		}
 		l.CreatedAt = time.Unix(created, 0)
 		l.Deadline = time.Unix(deadline, 0)
 		l.ObservedAt = time.Unix(observed, 0)
+		l.ConnectionState = "unknown"
+		l.RateState = "unknown"
+		if l.State == "stopped" {
+			l.ConnectionState = "disconnected"
+		}
+		if l.State == "reserved" {
+			l.ConnectionState = "awaiting-accounting"
+		}
+		if apiAt.Valid {
+			var obs ObservedSession
+			if err = json.Unmarshal([]byte(payload.String), &obs); err != nil {
+				rows.Close()
+				return v, err
+			}
+			l.ObservedAt = time.Unix(apiAt.Int64, 0)
+			if l.ObservedAt.After(v.ObservedAt) {
+				v.ObservedAt = l.ObservedAt
+			}
+			fresh := at.Unix()-apiAt.Int64 <= 5 && at.Unix() >= apiAt.Int64-1
+			if fresh && l.State != "stopped" {
+				if present.Bool {
+					l.ConnectionState = "connected"
+				} else {
+					l.ConnectionState = "disconnected"
+				}
+			}
+			if obs.RateKnown {
+				l.AppliedDown = obs.Down
+				l.AppliedUp = obs.Up
+				l.RateObservedAt = l.ObservedAt
+				l.RateState = "stale"
+				if fresh && present.Bool {
+					l.RateState = "verified"
+				}
+			}
+			if !fresh && l.State != "stopped" {
+				v.Quality = "stale"
+			}
+		}
 		v.Sessions = append(v.Sessions, l)
 		if l.State != "stopped" {
 			if observed == 0 && at.Before(l.Deadline) && v.Quality != "stale" {
@@ -436,6 +481,14 @@ func (s *Store) Snapshot(ctx context.Context, account string, at time.Time) (Sna
 	rows.Close()
 	if err != nil {
 		return v, err
+	}
+	var radiusSync sql.NullInt64
+	if err = tx.QueryRow(`SELECT max(src.observed_at) FROM subscriber_sources src JOIN subscriber_leases l ON l.id=src.lease_id JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND src.source='radius'`, account).Scan(&radiusSync); err != nil {
+		return v, err
+	}
+	v.LastSyncedAt = time.Time{}
+	if radiusSync.Valid {
+		v.LastSyncedAt = time.Unix(radiusSync.Int64, 0)
 	}
 	// The digest covers every client-visible decision, including expiry and
 	// freshness changes without a new accounting event.
@@ -468,7 +521,15 @@ func (s *Store) ChooseSpeed(ctx context.Context, account, speed string, at time.
 		return errors.New("wait before changing speed again")
 	}
 	// Persisting a choice is not evidence that a live queue has changed.
-	if _, err = tx.Exec(`UPDATE subscriber_subscriptions SET speed_id=?,speed_state='pending-reconnect',speed_changed_at=? WHERE id=?`, speed, at.Unix(), sub.ID); err != nil {
+	state := "pending-reconnect"
+	var active int
+	if err = tx.QueryRow(`SELECT count(*) FROM subscriber_leases WHERE subscription_id=? AND state!='stopped'`, sub.ID).Scan(&active); err != nil {
+		return err
+	}
+	if active > 0 {
+		state = "requested"
+	}
+	if _, err = tx.Exec(`UPDATE subscriber_subscriptions SET speed_id=?,speed_state=?,speed_changed_at=? WHERE id=?`, speed, state, at.Unix(), sub.ID); err != nil {
 		return err
 	}
 	if err = audit(tx, account, "speed.request", sub.ID, "subscriber selected "+speed, at); err != nil {
@@ -482,7 +543,13 @@ func (s *Store) CheckReady(ctx context.Context) error {
 		return err
 	}
 	var n int
-	return s.sql.QueryRowContext(ctx, `SELECT count(*) FROM subscriber_accounts`).Scan(&n)
+	if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('subscriber_accounts','subscriber_operations','subscriber_sources','subscriber_observations','subscriber_holds','subscriber_reconciliations')`).Scan(&n); err != nil {
+		return err
+	}
+	if n != 6 {
+		return errors.New("subscriber schema 39 migration required")
+	}
+	return nil
 }
 func wrap(err error) error {
 	if err == nil {
