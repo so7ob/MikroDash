@@ -192,3 +192,24 @@ This is a development preview, not the complete requested module. Outstanding it
 
 The current manual identifies itself as 7.26. Read-only menu results above came from 7.24.5;
 newer documentation is not hardware proof.
+
+
+### Uptime-based renewal budgets
+
+Total-mode renewal encodes no more cumulative session time than the trusted NAS
+uptime high-water mark plus its atomic time reservation. API completion time is
+not the time at which the router sampled the counter. Unobserved elapsed seconds
+consume the reserved budget; they are not granted again at each renewal.
+
+Readback checks NAS uptime plus time-left against the requested total, avoiding
+false failure when the API response is delayed. A readback exceeding the reserved
+total cannot verify the operation. A smaller total is safe within the documented
+integer readback tolerance. The persisted renewal request records
+`timeBasis: "nas-uptime-v1"` and decimal-string `grantedSeconds`.
+
+Earlier pending renewal intents without this basis are refused before network
+replay. New admission also refuses their unresolved exposure. Their retirement and
+audit are atomic; possibly issued time remains reserved at its largest known
+bound. Smaller readback alone does not prove that a delayed older packet cannot
+arrive. Conservative reservations remain until covering final accounting or a
+future proven replay fence. Usage, expiry and subscription identity are retained.

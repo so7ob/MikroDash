@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/url"
 	"path/filepath"
 	"testing"
 	"time"
@@ -20,9 +21,14 @@ import (
 
 const testSecret = "synthetic-radius-test-secret-only"
 
+func protocolFixtureURI(path string) string {
+	u := url.URL{Scheme: "file", Path: path, RawQuery: "_pragma=foreign_keys(1)&_txlock=immediate"}
+	return u.String()
+}
+
 func protocolFixture(t *testing.T, configure ...func(*RadiusService)) (*Store, *RadiusService, Account, string) {
 	t.Helper()
-	h, err := sql.Open("sqlite", "file:"+filepath.Join(t.TempDir(), "ledger.db")+"?_pragma=foreign_keys(1)&_txlock=immediate")
+	h, err := sql.Open("sqlite", protocolFixtureURI(filepath.Join(t.TempDir(), "ledger.db")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +217,7 @@ func TestGuardedBackgroundDisconnectWithoutBrowsers(t *testing.T) {
 }
 
 func BenchmarkDurableDuplicateAccounting(b *testing.B) {
-	h, err := sql.Open("sqlite", "file:"+filepath.Join(b.TempDir(), "bench.db")+"?_pragma=foreign_keys(1)&_txlock=immediate")
+	h, err := sql.Open("sqlite", protocolFixtureURI(filepath.Join(b.TempDir(), "bench.db")))
 	if err != nil {
 		b.Fatal(err)
 	}

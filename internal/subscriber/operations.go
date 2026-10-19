@@ -26,7 +26,11 @@ func (c Capabilities) CanRenew() bool {
 	return c.Recorded() && (c.CounterMode == "input-upload" || c.CounterMode == "output-upload") && c.TimeoutMode == "total" && c.ByteMode == "total"
 }
 
+const renewalTimeBasis = "nas-uptime-v1"
+
 type OperationRequest struct {
+	TimeBasis       string    `json:"timeBasis"`
+	GrantedSeconds  Quantity  `json:"grantedSeconds"`
 	SpeedID         string    `json:"speedId"`
 	Admission       Admission `json:"admission"`
 	Username        string    `json:"username"`
@@ -214,6 +218,15 @@ func (s *Store) PrepareOperation(ctx context.Context, lease, kind string, at tim
 		if at.Unix()-observed > 5 || observed > at.Unix()+1 {
 			return o, errors.New("fresh session counters required for renewal")
 		}
+		// The API completion time can be later than the uptime sample. Encode
+		// no more cumulative time than its high-water mark plus reserved credit.
+		target = min(at.Unix()+a.Decision.Timeout, started+int64(seconds)+a.Decision.Timeout)
+		q.GrantedSeconds = Quantity(target-started) - seconds
+		a.Decision.Timeout = target - at.Unix()
+		q.TimeBasis = renewalTimeBasis
+		if a.Decision.Timeout <= 0 || q.GrantedSeconds <= 0 {
+			return o, ErrDenied
+		}
 		a.Download = smallest(a.Download, Quantity(a.Decision.Timeout)*a.Decision.Down/8)
 		a.Upload = smallest(a.Upload, Quantity(a.Decision.Timeout)*a.Decision.Up/8)
 		if a.Decision.Timeout <= 0 || a.Download <= 0 || a.Upload <= 0 {
@@ -237,7 +250,6 @@ func (s *Store) PrepareOperation(ctx context.Context, lease, kind string, at tim
 				return o, err
 			}
 		}
-		target = at.Unix() + a.Decision.Timeout
 		for _, v := range a.Decision.Limits {
 			l := v.Limit
 			if l.State != "limited" || (l.Action != "deny" && l.Action != "disconnect") {
@@ -246,7 +258,7 @@ func (s *Store) PrepareOperation(ctx context.Context, lease, kind string, at tim
 			budget := v.Remaining / slots
 			switch l.Kind {
 			case "seconds":
-				budget = min(budget, Quantity(a.Decision.Timeout))
+				budget = min(budget, q.GrantedSeconds)
 			case "download":
 				budget = min(budget, a.Download)
 			case "upload":

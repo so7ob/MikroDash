@@ -142,3 +142,35 @@ literal scanner cannot resolve the three per-record field prefixes read through
 now recorded in the existing bidirectional constructed-ID ledger, as other dynamic
 fields are. The check remains enabled, and its stale-entry/empty-set assertions
 are unchanged. This initial full sweep is a failed run, not a passing result.
+
+
+### Reconciliation delivery and renewal precision
+
+Issue #41 / PR #43 landed in `develop` at
+`79751394fd8c4da67f0ad7b9ad443f2043b053f3`.
+[Exact-head CI](https://github.com/so7ob/MikroDash/actions/runs/39336445962) and
+[post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39336946479) passed.
+The full-module Issue #38 remains open.
+
+Issue #44 proceeds independently from that verified base. Its new regression first
+failed: one/five seconds of observation delay encoded 61/65 seconds for a 60-second
+time entitlement. The correction anchors cumulative timeout to trusted NAS uptime,
+verifies uptime/time-left rather than API completion time, and atomically fences
+legacy pending intents while retaining maximum issued exposure. Package tests pass,
+including legacy audit rollback and shared admission. Full local/PR/post-merge
+verification for #44 is pending until delivery; target proof remains pending.
+
+Known software follow-ups still include incomplete RADIUS payload receipts, hard
+calendar continuity, relative-mode replay safety, complete policy/admin/import/setup,
+separate business balance versus new-session availability in the portal, and large
+pending-operation queue recovery. These are part of the original contract, not
+hardware-only acceptance exceptions. No completed full-module claim is made.
+
+
+The first #44 full/race sweeps failed in the newly added fuzz seeds. The internal
+protocol fixture still concatenated a file URI; `seed#0`, `seed#1` and `seed#2`
+therefore collided at the URI fragment delimiter. Production `db.Open` already
+escapes literal paths. The fixture and its benchmark now construct an escaped URL,
+so every seed uses its own actual SQLite file. No data was deleted to make the test
+pass. The failed sweeps and the separately passing 32-execution short fuzz probe
+remain distinct results; full/race verification is rerun on the corrected source.

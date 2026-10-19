@@ -50,6 +50,13 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		return a, err
 	}
 	defer tx.Rollback()
+	var legacy bool
+	if err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM subscriber_operations o JOIN subscriber_leases l ON l.id=o.lease_id JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND o.kind='renew' AND o.state IN ('requested','applying','acknowledged') AND coalesce(json_extract(o.request,'$.timeBasis'),'')!=?)`, account, renewalTimeBasis).Scan(&legacy); err != nil {
+		return a, err
+	}
+	if legacy {
+		return a, ErrDenied
+	}
 	var previous, owner, oldRouter, oldNetwork, oldDevice, oldState, accountStatus string
 	var deadline int64
 	err = tx.QueryRow(`SELECT l.decision,s.account_id,l.deadline,l.router_id,l.network,l.device,l.state,a.status FROM subscriber_leases l JOIN subscriber_subscriptions s ON s.id=l.subscription_id JOIN subscriber_accounts a ON a.id=s.account_id WHERE l.request_key=?`, request).Scan(&previous, &owner, &deadline, &oldRouter, &oldNetwork, &oldDevice, &oldState, &accountStatus)
