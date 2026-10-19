@@ -5,6 +5,14 @@ This document separates working code from outstanding integration. The feature i
 unless `-subscriber-config` names an explicit configuration file. Existing admin accounts,
 RouterOS users, settings encryption, GeoIP and the patched RouterOS library are retained.
 
+## Administration navigation
+
+Open **Subscriber Management** from the main sidebar beside Dashboard, or visit
+`/subscribers`. The section contains Subscribers (including voucher creation and plan
+assignment), Plans and policies, and Policy simulator. The page retains the existing
+`subscribers` permission key and the backend `system:subscribers` authorization check.
+The subscriber portal remains on its isolated listener.
+
 ## Ownership and architecture
 
 MikroDash owns subscriber credentials, immutable plan versions, subscriptions, period usage,
