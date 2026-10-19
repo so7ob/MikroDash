@@ -165,3 +165,12 @@ calendar continuity, relative-mode replay safety, complete policy/admin/import/s
 separate business balance versus new-session availability in the portal, and large
 pending-operation queue recovery. These are part of the original contract, not
 hardware-only acceptance exceptions. No completed full-module claim is made.
+
+
+The first #44 full/race sweeps failed in the newly added fuzz seeds. The internal
+protocol fixture still concatenated a file URI; `seed#0`, `seed#1` and `seed#2`
+therefore collided at the URI fragment delimiter. Production `db.Open` already
+escapes literal paths. The fixture and its benchmark now construct an escaped URL,
+so every seed uses its own actual SQLite file. No data was deleted to make the test
+pass. The failed sweeps and the separately passing 32-execution short fuzz probe
+remain distinct results; full/race verification is rerun on the corrected source.
