@@ -115,3 +115,36 @@ func TestLegacyRenewalRetirementIsAtomicAndRetainsIssuedExposure(t *testing.T) {
 		t.Fatal("remaining shared credit was not conserved", other, err)
 	}
 }
+
+func FuzzRenewalConservesTimeBudget(f *testing.F) {
+	f.Add(uint8(40), uint8(0))
+	f.Add(uint8(40), uint8(1))
+	f.Add(uint8(40), uint8(5))
+	f.Fuzz(func(t *testing.T, usedByte, lagByte uint8) {
+		used := int64(usedByte % 59)
+		lag := int64(lagByte % 6)
+		if used+lag >= 60 {
+			return
+		}
+		s, svc, a, grant, start := liveFixture(t, func(p *Plan) { p.MaxSessions = 1; p.Policies[0].Limits[0].Amount = 60 })
+		now := start.Add(time.Duration(used+lag) * time.Second)
+		sample := observation(svc, a, grant, start, now)
+		sample.Sessions[0].Seconds = Quantity(used)
+		sample.Sessions[0].Download = Quantity(used * 1000)
+		if err := s.ObserveRouter(t.Context(), sample, svc.Clients); err != nil {
+			t.Fatal(err)
+		}
+		op, err := s.PrepareOperation(t.Context(), grant.LeaseID, "renew", now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		total := op.TargetDeadline.Unix() - op.Request.StartedAt.Unix()
+		if total > 60 || op.Request.GrantedSeconds > Quantity(60-used) {
+			t.Fatal("renewal exceeded shared credit", used, lag, op)
+		}
+		view, err := s.Snapshot(t.Context(), a.ID, now)
+		if err != nil || view.LifetimeSeconds != Quantity(used) {
+			t.Fatal("renewal changed consumption", view, err)
+		}
+	})
+}
