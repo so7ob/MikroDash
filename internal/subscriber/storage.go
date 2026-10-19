@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS subscriber_audit (
  id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
  reason TEXT NOT NULL, created_at INTEGER NOT NULL
 );
-` + SessionSchema
+` + SessionSchema + ReconciliationSchema
 
 type Store struct{ sql *sql.DB }
 
@@ -329,10 +329,11 @@ func usage(tx *sql.Tx, id string) (map[string]Usage, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err = tx.Query(`SELECT limit_id,period_start,sum(amount) FROM (
-SELECT r.limit_id,r.period_start,r.amount FROM subscriber_reservations r JOIN subscriber_leases l ON l.id=r.lease_id WHERE l.subscription_id=? AND l.state!='stopped'
-UNION ALL SELECT h.limit_id,h.period_start,h.amount FROM subscriber_holds h JOIN subscriber_leases l ON l.id=h.lease_id WHERE l.subscription_id=? AND h.resolved_at=0
-) GROUP BY limit_id,period_start`, id, id)
+	rows, err = tx.Query(`SELECT limit_id,period_start,sum(amount),sum(provisional) FROM (
+SELECT r.limit_id,r.period_start,r.amount,0 AS provisional FROM subscriber_reservations r JOIN subscriber_leases l ON l.id=r.lease_id WHERE l.subscription_id=? AND l.state!='stopped'
+UNION ALL SELECT h.limit_id,h.period_start,h.amount,h.amount FROM subscriber_holds h JOIN subscriber_leases l ON l.id=h.lease_id WHERE l.subscription_id=? AND h.resolved_at=0
+UNION ALL SELECT limit_id,period_start,amount,amount FROM subscriber_legacy_exposure WHERE subscription_id=? AND resolved_at=0
+) GROUP BY limit_id,period_start`, id, id, id)
 	if err != nil {
 		return nil, err
 	}
@@ -340,13 +341,17 @@ UNION ALL SELECT h.limit_id,h.period_start,h.amount FROM subscriber_holds h JOIN
 	for rows.Next() {
 		var l string
 		var start int64
-		var n Quantity
-		if err = rows.Scan(&l, &start, &n); err != nil {
+		var n, provisional Quantity
+		if err = rows.Scan(&l, &start, &n, &provisional); err != nil {
 			return nil, err
 		}
 		key := Key(l, time.Unix(start, 0))
 		v := out[key]
 		v.Reserved = n
+		v.Provisional = provisional
+		if provisional > 0 {
+			v.Quality = "reconciling"
+		}
 		out[key] = v
 	}
 	return out, rows.Err()
@@ -543,11 +548,11 @@ func (s *Store) CheckReady(ctx context.Context) error {
 		return err
 	}
 	var n int
-	if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('subscriber_accounts','subscriber_operations','subscriber_sources','subscriber_observations','subscriber_holds','subscriber_reconciliations')`).Scan(&n); err != nil {
+	if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('subscriber_accounts','subscriber_operations','subscriber_sources','subscriber_observations','subscriber_holds','subscriber_reconciliations','subscriber_byte_gaps','subscriber_gap_periods','subscriber_legacy_exposure')`).Scan(&n); err != nil {
 		return err
 	}
-	if n != 6 {
-		return errors.New("subscriber schema 39 migration required")
+	if n != 9 {
+		return errors.New("subscriber schema 40 migration required")
 	}
 	return nil
 }

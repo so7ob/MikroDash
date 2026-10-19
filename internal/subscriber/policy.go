@@ -199,12 +199,14 @@ func (w Window) Allows(t time.Time) bool {
 }
 
 type Usage struct {
-	Used     Quantity `json:"used"`
-	Reserved Quantity `json:"reserved"`
-	Quality  string   `json:"quality"`
+	Provisional Quantity `json:"provisional"`
+	Used        Quantity `json:"used"`
+	Reserved    Quantity `json:"reserved"`
+	Quality     string   `json:"quality"`
 }
 
 type LimitView struct {
+	Provisional Quantity  `json:"provisional"`
 	Limit       Limit     `json:"limit"`
 	Used        Quantity  `json:"used"`
 	Remaining   Quantity  `json:"remaining"`
@@ -281,7 +283,12 @@ func Evaluate(p Plan, speed string, at, expires time.Time, usage map[string]Usag
 		for _, l := range po.Limits {
 			start, end, _ := l.Period.Bounds(at)
 			u := usage[Key(l.ID, start)]
-			v := LimitView{Limit: l, Used: u.Used, Reserved: u.Reserved, Remaining: max(0, l.Amount-u.Used-u.Reserved), PeriodStart: start, NextReset: end, Quality: u.Quality}
+			reserved := max(u.Reserved, u.Provisional)
+			remaining := Quantity(0)
+			if u.Used < l.Amount && reserved < l.Amount-u.Used {
+				remaining = l.Amount - u.Used - reserved
+			}
+			v := LimitView{Limit: l, Used: u.Used, Provisional: u.Provisional, Reserved: reserved, Remaining: remaining, PeriodStart: start, NextReset: end, Quality: u.Quality}
 			if v.Quality == "" {
 				v.Quality = "fresh"
 			}
@@ -289,7 +296,7 @@ func Evaluate(p Plan, speed string, at, expires time.Time, usage map[string]Usag
 			if l.State == "disabled" || l.State == "unlimited" {
 				continue
 			}
-			if l.State == "unknown" || at.Before(l.Period.Anchor) || u.Quality == "unknown" {
+			if l.State == "unknown" || at.Before(l.Period.Anchor) || u.Quality == "unknown" || u.Used < 0 || reserved < 0 || u.Provisional < 0 {
 				d.Allowed = false
 				d.Reasons = append(d.Reasons, "unknown:"+l.ID)
 				continue

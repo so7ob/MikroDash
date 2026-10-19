@@ -151,6 +151,8 @@ func (s *Server) registerSubscribers(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/subscribers", s.subscribersGet)
 	mux.HandleFunc("POST /api/subscribers", s.subscribersPost)
 	mux.HandleFunc("GET /api/subscribers/snapshot", s.subscribersSnapshot)
+	mux.HandleFunc("GET /api/subscribers/reconciliation", s.subscribersReconciliationGet)
+	mux.HandleFunc("POST /api/subscribers/reconciliation", s.subscribersReconciliationPost)
 }
 func (s *Server) subscriberAdmin(w http.ResponseWriter, r *http.Request) *Session {
 	sess := s.layoutSession(w, r)

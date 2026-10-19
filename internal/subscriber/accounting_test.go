@@ -209,7 +209,7 @@ func TestBoundaryTimeAndBytesRemainAuditable(t *testing.T) {
 		t.Fatal(after)
 	}
 	for _, l := range after.Decision.Limits {
-		if l.Limit.ID == "download" && l.Quality != "boundary-conservative" {
+		if l.Limit.ID == "download" && (l.Used != 0 || l.Provisional != 100 || l.Reserved < 100 || l.Quality != "reconciling") {
 			t.Fatal(l)
 		}
 	}
@@ -457,8 +457,8 @@ func TestLateByteCorrectionAcrossMidnightCannotEscapePeriodCharge(t *testing.T) 
 	for _, when := range []time.Time{now, now.Add(20 * time.Second)} {
 		v := snapshot(t, s, a, when)
 		for _, limit := range v.Decision.Limits {
-			if limit.Limit.ID == "download" && (limit.Used != 200 || limit.Quality != "boundary-conservative") {
-				t.Fatal("late correction escaped daily charge", limit)
+			if limit.Limit.ID == "download" && (limit.Used != 0 || limit.Provisional != 200 || limit.Reserved < 200 || limit.Quality != "reconciling") {
+				t.Fatal("late correction escaped provisional protection", limit)
 			}
 		}
 		if v.LifetimeDownload != 200 || v.LifetimeSeconds != 20 {

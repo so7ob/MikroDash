@@ -135,7 +135,7 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 		}
 		u := map[string]Usage{}
 		for _, v := range current.Decision.Limits {
-			u[Key(v.Limit.ID, v.PeriodStart)] = Usage{Used: v.Used, Quality: v.Quality}
+			u[Key(v.Limit.ID, v.PeriodStart)] = Usage{Used: v.Used, Reserved: v.Provisional, Provisional: v.Provisional, Quality: v.Quality}
 		}
 		decision := Evaluate(current.Subscription.Plan, current.Subscription.SpeedID, at, current.Subscription.ExpiresAt, u)
 		if !decision.Allowed || (o.Kind == "rate" && (current.Subscription.SpeedID != o.Request.SpeedID || o.Request.Admission.Decision.Down > decision.Down || o.Request.Admission.Decision.Up > decision.Up)) {
@@ -266,7 +266,7 @@ func (s *RadiusService) Tick(ctx context.Context, at time.Time) error {
 				// Reservations are unavailable to a new device, but are not consumption.
 				u := map[string]Usage{}
 				for _, l := range v.Decision.Limits {
-					u[Key(l.Limit.ID, l.PeriodStart)] = Usage{Used: l.Used, Quality: l.Quality}
+					u[Key(l.Limit.ID, l.PeriodStart)] = Usage{Used: l.Used, Reserved: l.Provisional, Provisional: l.Provisional, Quality: l.Quality}
 				}
 				d := Evaluate(v.Subscription.Plan, v.Subscription.SpeedID, at, v.Subscription.ExpiresAt, u)
 				if row.Down != d.Down || row.Up != d.Up || v.Subscription.SpeedState == "requested" {

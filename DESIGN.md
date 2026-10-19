@@ -661,3 +661,19 @@ after the clipboard result. It uses the existing palette/type tokens and a polit
 status live region. Repeated copies replace it; leaving Events clears it. Failed
 copies say so instead of confirming success. The shared clipboard helper retains
 its HTTP/LAN fallback. No extra controls, fonts or decorative motion are added.
+
+
+### Subscriber accounting review
+
+Subscriber Management retains its main navigation entry and the existing dense
+technical console style: Oxanium UI, JetBrains Mono values, shared semantic pills,
+forms and buttons. Four header tabs wrap at phone widths and use roving keyboard
+focus with named tab panels. Reconciliation groups one account's uncertain byte
+intervals, absent sessions and legacy bounds; evidence and an explicit approval
+remain next to the affected record. Confirmed usage, delegated reservations and
+provisional exposure have separate labels. There is no inferred measured distribution.
+
+Synthetic HTTP/SQLite browser checks cover account-response races, invalid/approved
+settlements, retained evidence, Unicode user data, keyboard/focus, 375/1280 layouts
+and zero axe violations. Existing local fonts, tokens and LTR layout are reused.
+No decorative patterns or additional design system were introduced.
