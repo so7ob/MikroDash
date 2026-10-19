@@ -51,10 +51,11 @@ import "sort"
 // `can()` consults the global grants for these and ignores the target entirely,
 // so no site or router grant reaches them — not even one holding Administrator.
 var GlobalOnly = map[string]bool{
-	"system:principals": true, // users, groups, sites, grants
-	"system:settings":   true, // settings, auth mode, notification channels, poll intervals
-	"system:db":         true, // database stats and global purge
-	"router:create":     true, // adding a router, setting the global active router
+	"system:subscribers": true, // independent subscriber entitlements and balances
+	"system:principals":  true, // users, groups, sites, grants
+	"system:settings":    true, // settings, auth mode, notification channels, poll intervals
+	"system:db":          true, // database stats and global purge
+	"router:create":      true, // adding a router, setting the global active router
 }
 
 // Scoped permissions are evaluated against a router.

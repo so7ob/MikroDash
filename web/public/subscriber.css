@@ -1,0 +1,26 @@
+.subscriber-body { display: block; height: auto; min-height: 100vh; overflow: auto; font-family: var(--font-ui); background: var(--bg-deep); color: var(--text-main); }
+.subscriber-shell { max-width: 1200px; padding: 1rem; margin: 0 auto; }
+.subscriber-shell .card { margin-bottom: 1rem; }
+.subscriber-shell .card-header { flex-wrap: wrap; gap: .75rem; }
+.subscriber-shell .card-body { padding: 1rem; }
+.subscriber-shell h1, .subscriber-shell h2 { margin: 0; }
+.subscriber-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); gap: 1rem; }
+.subscriber-values { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.subscriber-values dt { color: var(--text-muted); }
+.subscriber-values dd { margin: 0; overflow-wrap: anywhere; font-family: var(--font-mono); }
+.subscriber-shell progress { width: 100%; background: var(--bg-card); color: var(--subscriber-accent); }
+.subscriber-logo { max-width: 80px; max-height: 42px; object-fit: contain; }
+.subscriber-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.subscriber-shell [hidden] { display: none !important; }
+.subscriber-shell .subscriber-session { display: flex; gap: .75rem; flex-wrap: wrap; align-items: center; padding-block: .75rem; border-bottom: 1px solid var(--border); }
+.subscriber-shell { --subscriber-accent: var(--accent-rx); }
+html[data-subscriber-theme="green"] .subscriber-shell { --subscriber-accent: var(--accent-ok); }
+html[data-subscriber-theme="purple"] .subscriber-shell { --subscriber-accent: var(--accent-alt); }
+.subscriber-shell .card-header { border-top: 2px solid var(--subscriber-accent); }
+@media (max-width: 620px) { .subscriber-shell { padding: .5rem; } .subscriber-values { grid-template-columns: 1fr; } }
+
+.subscriber-shell progress::-webkit-progress-bar { background: var(--bg-card); }
+.subscriber-shell progress::-webkit-progress-value { background: var(--subscriber-accent); }
+.subscriber-shell progress::-moz-progress-bar { background: var(--subscriber-accent); }
+
+.subscriber-body { --text-muted: color-mix(in srgb, var(--text-main) 80%, var(--bg-deep)); }

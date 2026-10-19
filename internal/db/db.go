@@ -37,6 +37,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -102,7 +103,10 @@ func Open(dataDir string) (*DB, error) {
 	// write can deadlock, and SQLite resolves that by returning SQLITE_BUSY to
 	// one of them immediately — a busy timeout does not apply to an upgrade
 	// deadlock, so the timeout above would not save it.
-	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate"
+	dsn, err := sqliteDSN(path, "_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_txlock=immediate")
+	if err != nil {
+		return nil, err
+	}
 	h, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
@@ -553,4 +557,14 @@ func (d *DB) RoleByID(id string) (*Role, error) {
 		r.Pages = append(r.Pages, p)
 	}
 	return r, rows.Err()
+}
+
+// sqliteDSN keeps literal #, ?, %, spaces and Unicode in a data path out of
+// SQLite URI syntax. Absolute paths also avoid interpreting a directory as a host.
+func sqliteDSN(path, query string) (string, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(absolute), RawQuery: query}).String(), nil
 }

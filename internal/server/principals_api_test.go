@@ -198,10 +198,12 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// which the device decides and the reset button changes. Three mechanisms
 	// for one question, two of them ours, is how an operator ends up unable to
 	// work out why a page is not there.
-	if noToggle != 13 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 13 (dashboard, reports, "+
+	// Subscribers has an explicit service flag and global administration permission.
+	// A visibility preference must not start or stop network accounting.
+	if noToggle != 14 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 14 (dashboard, reports, "+
 			"settings, ai-agent, security-scan, config-management, terminal, tools-ping, "+
-			"tools-traceroute, tools-torch, tools-btest, tools-sniffer, activity)", noToggle)
+			"tools-traceroute, tools-torch, tools-btest, tools-sniffer, activity, subscribers)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

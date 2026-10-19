@@ -13,6 +13,7 @@ import (
 	"mikrodash/internal/routers"
 	"mikrodash/internal/secscan"
 	"mikrodash/internal/session"
+	"mikrodash/internal/subscriber"
 )
 
 // TestNoServerPayloadSendsANullArray is the server's half of
@@ -38,6 +39,7 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 	}
 
 	builders := map[string]func() any{
+		"subscriber:snapshot": func() any { return subscriber.EmptySnapshot() },
 		"backups:state": func() any {
 			return backups.StatePayload{
 				Settings: backups.SettingsFrom(nil, nil, nil, ""),

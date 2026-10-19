@@ -142,6 +142,7 @@ type Options struct {
 
 // Server is the whole thing.
 type Server struct {
+	subscribers *subscriberRuntime
 	// cfg is Config Management's one deploy job (cfgjob.go).
 	cfg cfgJob
 	// ztp is zero-touch provisioning's tunnel engine and its enrolment
@@ -591,6 +592,7 @@ func (s *Server) Handler() http.Handler {
 	// The report endpoints. Registered BEFORE the catch-all — ServeMux prefers
 	// the longer pattern regardless of order, but relying on that is how a route
 	// quietly becomes a 404 page.
+	s.registerSubscribers(mux)
 	s.registerReports(mux)
 	// The Devices page's overview: connectivity strips and backup state, one
 	// fleet-wide call a minute. See devices_overview.go.
@@ -853,6 +855,7 @@ func (s *Server) startConnTicker() {
 }
 
 func (s *Server) Shutdown() {
+	s.stopSubscribers()
 	// STOPPED FIRST, and this is the sibling of the retention sweep below: a
 	// ticker assigned and never stopped outlives the server, which is harmless
 	// at process exit and a goroutine leak in every test that builds one.

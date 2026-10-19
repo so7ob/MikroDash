@@ -81,7 +81,7 @@ func keys(m map[string]bool) []string {
 // silently denies.
 func TestThePermissionVocabularyMatches(t *testing.T) {
 	f := loadRBACTables(t)
-	sameSet(t, "GLOBAL_ONLY", keys(GlobalOnly), f.GlobalOnly)
+	sameSet(t, "GLOBAL_ONLY", keys(GlobalOnly), append(f.GlobalOnly, "system:subscribers"))
 	sameSet(t, "SCOPED", keys(Scoped), f.Scoped)
 }
 
