@@ -93,3 +93,39 @@ func FuzzSubscriberProxyNeverTrustsAnInjectedLeftClaim(f *testing.F) {
 		}
 	})
 }
+
+func TestSubscriberProxyLoginLimiterUsesVerifiedClientAtCallSite(t *testing.T) {
+	s, _, _, _ := portalFixture(t)
+	s.subscribers.cfg = proxyTestConfig()
+	blocked := false
+	for range 1000 {
+		if s.subscribers.radius.LimitPortal("198.51.100.20") {
+			blocked = true
+			break
+		}
+	}
+	if !blocked {
+		t.Fatal("fixture did not reach the configured sign-in bound")
+	}
+	handler := s.subscriberPortal(t.TempDir())
+	request := func(claim, client string) int {
+		t.Helper()
+		r := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{"username":"synthetic-account","password":"synthetic-password"}`))
+		r.RemoteAddr = "127.0.0.2:8"
+		r.Host = "portal.example.test"
+		r.Header.Set("Origin", "https://portal.example.test")
+		r.Header.Set("X-Forwarded-Proto", "https")
+		r.Header.Set("X-Forwarded-For", claim+","+client)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w.Code
+	}
+	for _, claim := range []string{"198.51.100.66", "198.51.100.67"} {
+		if code := request(claim, "198.51.100.20"); code != 429 {
+			t.Fatal("forged left claim bypassed sign-in limit", code)
+		}
+	}
+	if code := request("198.51.100.66", "198.51.100.21"); code != 200 {
+		t.Fatal("another verified client inherited the proxy's sign-in limit", code)
+	}
+}

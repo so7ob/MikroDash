@@ -196,3 +196,20 @@ Screenshots are under `.screenshots/subscriber-proxy-49/` (native TLS) and its
 Full clean-checkout verification and exact PR/post-merge CI remain delivery gates;
 final receipts belong to this issue/PR. No Internet session or RouterOS timing
 claim is made from these synthetic integration runs.
+
+
+Two non-equivalent mutations at implementation `b200018c` were killed by the
+expected assertions in an isolated verification worktree: bypassing the verified
+client at the ticket call site returned HTTP 400 instead of 200; removing the
+exact proxy-peer condition admitted an untrusted peer and failed its 403 check.
+Source was restored byte-for-byte before verification. A further login-limiter
+call-site regression passed: changing a forged left claim cannot evade an exhausted
+actual-client bound, and another verified client is not charged to the proxy.
+
+Static `linux/arm`, `GOARM=7`, `CGO_ENABLED=0` build succeeded at `b200018c`; `file`
+reports ARM EABI5, statically linked. It was not executed on the target. The first
+full sweep reported Go failure without a retained filtered cause; it is not a
+passing full run. The unchanged complete Go half then passed with trace/raw output,
+including all packages, govulncheck and generators. No source/test failure cause
+was proven, so none is invented. A complete sweep with raw Docker output retained
+is required at the final head. Data files, volumes and operator caches were retained.

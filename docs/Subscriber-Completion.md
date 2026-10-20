@@ -29,7 +29,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation; full editors/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
 | AC-17 | Idempotent import/opening/cutover/rollback | Read-only User Manager preview | transactional mapping/apply/approval | partial | missing | pending: approved live batch |
 | AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
-| AC-19 | Target build and existing app compatibility | Verified develop CI and static ARM64/ARMv7 cross-builds at prior source; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
+| AC-19 | Target build and existing app compatibility | Verified develop CI, prior ARM64 build and current b200018c ARMv7 static build; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
 
 ## Capability matrix
 
@@ -246,3 +246,11 @@ This closes a software transport prerequisite, not the full C pilot. Accounting
 receipt completion (#46), continuous calendar renewal, remaining policy/admin/import
 and setup work, plus target acceptance and measurements remain required. The
 complete AC-01..AC-19 scope stays active. See [proxy guide](Subscriber-Proxy.md).
+
+
+Before delivery, the limiter call-site regression also passed, and both targeted
+trust/identity mutations were killed by real assertions. The first full sweep
+reported a Go failure with no useful filtered cause; the unchanged traced Go half
+passed. A final full sweep retains raw Docker output to preserve a future cause.
+No root cause is claimed from an absent diagnostic. Current ARMv7 source built
+successfully at `b200018c`; target execution still needs approved deployment.
