@@ -41,9 +41,23 @@ func coveredByFinalReceipt(tx *sql.Tx, r AccountingReceipt) (bool, error) {
 	return false, rows.Err()
 }
 
+// A complete API absence closes a seat, but cannot supply final counters.
+// Do not rely on quota holds alone: unlimited plans can have no holds, and
+// measured router byte-cap overruns mean a local grant is not an exact debit.
+// A trusted Stop or reasoned final review records a stop event atomically.
+const missingFinalCondition = `EXISTS(SELECT 1 FROM subscriber_reconciliations finality WHERE finality.lease_id=l.id AND finality.actor='service:subscriber')
+ AND NOT EXISTS(SELECT 1 FROM subscriber_events final_event WHERE final_event.lease_id=l.id AND final_event.status='stop')`
+
 func pendingAccounting(tx *sql.Tx, account string) (int, error) {
 	var count int
-	err := tx.QueryRow(`SELECT count(*) FROM subscriber_accounting_receipts r JOIN subscriber_leases l ON l.id=r.lease_id JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND r.state='pending'`, account).Scan(&count)
+	// Preserve the existing receipt count. An absent session adds one issue only
+	// when no pending receipt already represents that same unresolved finality.
+	err := tx.QueryRow(`SELECT count(*) FROM (
+ SELECT r.id FROM subscriber_accounting_receipts r JOIN subscriber_leases l ON l.id=r.lease_id JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND r.state='pending'
+ UNION ALL
+ SELECT l.id FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND l.state='stopped' AND `+missingFinalCondition+`
+ AND NOT EXISTS(SELECT 1 FROM subscriber_accounting_receipts r WHERE r.lease_id=l.id AND r.state='pending')
+)`, account, account).Scan(&count)
 	return count, err
 }
 

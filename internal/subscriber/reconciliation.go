@@ -349,7 +349,7 @@ type SessionReview struct {
 }
 
 func (s *Store) SessionReviews(ctx context.Context, account string) ([]SessionReview, error) {
-	rows, err := s.sql.QueryContext(ctx, `SELECT l.id,l.network,l.device,l.seconds,l.download,l.upload,count(h.id) FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id LEFT JOIN subscriber_holds h ON h.lease_id=l.id AND h.resolved_at=0 AND h.id NOT IN (SELECT hold_id FROM subscriber_gap_periods) WHERE sub.account_id=? AND l.state='stopped' AND (h.id IS NOT NULL OR EXISTS(SELECT 1 FROM subscriber_accounting_receipts r WHERE r.lease_id=l.id AND r.state='pending')) GROUP BY l.id ORDER BY l.created_at LIMIT 1000`, account)
+	rows, err := s.sql.QueryContext(ctx, `SELECT l.id,l.network,l.device,l.seconds,l.download,l.upload,count(h.id) FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id LEFT JOIN subscriber_holds h ON h.lease_id=l.id AND h.resolved_at=0 AND h.id NOT IN (SELECT hold_id FROM subscriber_gap_periods) WHERE sub.account_id=? AND l.state='stopped' AND (h.id IS NOT NULL OR EXISTS(SELECT 1 FROM subscriber_accounting_receipts r WHERE r.lease_id=l.id AND r.state='pending') OR (`+missingFinalCondition+`)) GROUP BY l.id ORDER BY l.created_at LIMIT 1000`, account)
 	if err != nil {
 		return nil, err
 	}
