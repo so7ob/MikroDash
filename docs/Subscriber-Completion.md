@@ -284,3 +284,13 @@ verification and PR/post-merge delivery remain required for this milestone.
 
 No Internet admission, local-limit/CoA target claim or live configuration change
 is inferred from these tests. The remaining original AC rows remain in scope.
+
+
+Implementation `296a7bb5` passed the full repository gate: 62 Go packages,
+146 frontend and 22 tooling tests, generated contracts and live vulnerability
+checking. Administrative Chromium coverage also passed default dark/light/Nord
+at 375/1280 (7.316 s). Native-TLS and trusted-proxy portal journeys passed clean
+and pending-receipt accounts (13.551 s), retaining 20 used seconds and 3580
+remaining. Early-success and API lifecycle-authority mutations were killed;
+source was restored exactly. See the verification record for commands and limits.
+This evidence does not close unimplemented #38 requirements or target acceptance.

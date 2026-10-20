@@ -92,6 +92,8 @@ above 2^53. Recovery tests cover overlapping API/RADIUS readings, late partial
 Stop, one-second preservation and SQLite close/reopen. A fuzz property checks
 range decisions and retry identities. Chromium exercises the existing protected
 reconciliation workflow against real isolated SQLite and synthetic NAS data.
+Built native-TLS and trusted-proxy portal journeys also assert the pending
+notice and retained confirmed time/remaining cards against the actual owned API.
 
 See [verification](Subscriber-Verification.md) for exact commands and outcomes.
 Full #38 acceptance remains open: actual C browser admission, measured direction,

@@ -246,3 +246,29 @@ verification, mutation checks, current-head CI and post-merge CI remain delivery
 gates. Screenshots remain private under `.screenshots/subscriber-receipts-46/`.
 No target-router traffic, reboot, power-loss durability or latency acceptance is
 claimed. A successful commit is not itself an exact-head verification result.
+
+
+At implementation `296a7bb5`, `sh tools/verify.sh` passed in an isolated checkout:
+62 Go packages, gofmt, vet, live govulncheck, six Go generators, TypeScript, seven
+JavaScript generators, 146 frontend tests and 22 tooling tests. Raw Docker output
+was retained; no check was skipped. Compiler caches use RAM; SQLite stays on the
+ordinary filesystem. The disk briefly approached capacity during concurrent
+compilation; both commands completed successfully and released their temporary
+files. No operator data, image, volume or unrelated cache was deleted.
+
+The extended administrative browser passed in 7.316 s across default dark,
+default light and Nord at 375/1280 with zero axe violations. The built portal
+browser passed in 13.551 s across native TLS and the explicitly trusted HTTPS
+proxy, each with clean and pending-receipt accounts. Pending snapshots display
+20 confirmed seconds and 00:59:40 remaining, preserve known values and explain
+blocked admission. Screenshots are clearly synthetic; no real NAS was used.
+
+Two non-equivalent mutations were killed by compiling behavioral assertions:
+acknowledging a failed receipt/debit and allowing API Start/final Stop. Their
+source files were restored byte-for-byte. The initial mutation runner searched
+for the wrong diagnostic phrase; its retained output already contained the
+correct failing assertion, which was then validated explicitly. This was a
+runner diagnostic error, not an additional product regression or a passing test.
+
+The source and tested behavior are unchanged by this evidence update. Final
+revision verification and exact-head/post-merge CI remain required before delivery.
