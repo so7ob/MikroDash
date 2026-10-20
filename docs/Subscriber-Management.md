@@ -101,7 +101,7 @@ establish final Stop. A covering final packet or evidence-backed administrative
 review resolves uncertainty without deleting the original record.
 
 RADIUS input octets are subscriber upload; output octets are subscriber download. Gigawords
-are combined before checked conversion to signed 64-bit storage. Version/evidence-bound API observations enter the same cumulative high-water transaction as RADIUS, so overlapping readings are not charged a second time. API octet direction requires a recorded HotSpot traffic probe; an unknown or different router version cannot renew a session. A one-second snapshot skew does not invalidate the account.
+are combined before checked conversion to signed 64-bit storage. Version/evidence-bound API observations enter the same cumulative high-water transaction as RADIUS, so overlapping readings are not charged a second time. API octet direction requires a recorded HotSpot traffic probe; an unknown or different router version cannot renew a session. A one-second snapshot skew does not invalidate the account. Malformed uptime cannot establish a complete absence snapshot; an invalid remaining timeout stays unknown, while explicit zero remains known. See [trusted duration observations](Subscriber-Duration-Observations.md).
 
 Connection seconds are split at period boundaries. Bytes inside an unsampled boundary gap
 remain provisional exposure in each touched period while lifetime bytes are counted once.

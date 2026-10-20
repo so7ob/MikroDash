@@ -455,3 +455,32 @@ credit, pending final accounting, refused HTTPS HotSpot re-entry, retained
 confirmed balances and safe portal access. Three themes at 375/1280 pass LTR,
 overflow and axe checks. This is not an L009/C or automatic landing result.
 Final #54 head and post-merge CI remain separate delivery gates.
+
+
+## Checked HotSpot duration observations, Issue #62
+
+Develop `3bfdbd25` fails the real shared observer call-site regressions: malformed
+uptime becomes a complete snapshot and closes a trusted active lease; nonempty
+garbage timeout becomes known zero. The corrected native source at `7adcc155`
+passes the focused server race executable with GOTMPDIR/TMPDIR on ext4 `/tmp`,
+including preservation of the exact trusted ledger snapshot. Parsing and byte
+values use fixed-width checked quantities; the collector legacy helper is
+unchanged. The first race build failed for lack of task RAM build space before
+testing, then succeeded after only task-built executables and old task compiler
+cache entries were reclaimed; the manifest and failure output are retained.
+
+The arithmetic fuzz property compares canonical duration components against
+independent big.Int sums. A 10-second standalone race run with two workers
+passed 121505 executions in about 11 seconds. Its binary lacked coverage
+instrumentation, so this is random testing without coverage guidance. Six
+compiling overlay mutants fail relevant assertions: partial parsing, sum-bound
+omission, timeout nonempty coercion, permissive uptime call site, skipped bad
+active row and lost explicit zero. No compilation failure counts as a kill.
+
+The actual namespace browser against the same owned CHR 7.24.5 and clean native
+source passes HTTPS login, exact-device speed readbacks/cooldown and all six
+responsive/theme axe checks. A later normal-worker observation has known time
+and byte fields at 74 connected seconds with a verified renewal; owned HTTPS
+logout follows. Malformed and ten-year/overflow cases are scripted inputs,
+not hardware observations. Final full gate and exact-head/post-merge CI remain
+required before Issue #62 delivery.

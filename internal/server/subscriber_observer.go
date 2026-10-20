@@ -42,9 +42,13 @@ func (s *Server) subscriberObserveRouter(ctx context.Context, id string) (subscr
 		if !found {
 			continue
 		}
-		v := subscriber.ObservedSession{ID: row[".id"], Server: row["server"], Username: row["user"], Device: row["mac-address"], Address: row["address"], Seconds: subscriber.Quantity(routeros.DurationSeconds(row["uptime"]))}
-		v.TimeLeft = int64(routeros.DurationSeconds(row["session-time-left"]))
-		v.TimeoutKnown = row["session-time-left"] != ""
+		seconds, known := subscriberDuration(row["uptime"])
+		if !known {
+			return out, errors.New("invalid active session uptime")
+		}
+		v := subscriber.ObservedSession{ID: row[".id"], Server: row["server"], Username: row["user"], Device: row["mac-address"], Address: row["address"], Seconds: seconds}
+		left, known := subscriberDuration(row["session-time-left"])
+		v.TimeLeft, v.TimeoutKnown = int64(left), known
 		input, knownIn := subscriberCounter(row["bytes-in"])
 		output, knownOut := subscriberCounter(row["bytes-out"])
 		v.CountersKnown = knownIn && knownOut
