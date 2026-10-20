@@ -337,9 +337,11 @@ ledger remains intact for regression/recovery testing.
 
 ## Normal runtime and browser replay
 
-Manual protocol probes and the normal runtime bind the same lab RADIUS ports.
-Stop the owned runtime before running a manual probe. Never start a second
-accounting writer against its ledger. On a fresh configured VM, run each HTTPS
+The five protocol probes below and the normal runtime bind the same primary
+lab RADIUS ports. Stop the owned runtime before those probes. Never start a
+second accounting writer against its ledger. The ordered selection probes are
+different: their secondary binds separate ports and the normal primary must
+remain running, as described below. On a fresh configured VM, run each HTTPS
 probe separately and retain its exit status and private JSONL output:
 
 ```sh
@@ -434,7 +436,8 @@ invent final counters to release credit.
 
 `logout-runtime` verifies the owned current device over HTTPS before logout.
 The ordered selection probes are `probe-radius-selection` and
-`probe-radius-selection-fault`; run them with the normal runtime stopped.
+`probe-radius-selection-fault`; keep the normal primary runtime running and
+start with an empty owned HotSpot. They bind only the secondary test ports.
 The latter deliberately exits 1 and must show verified rollback, not be counted
 as a green admission test. Its secondary is a synthetic legacy service, not UM.
 
