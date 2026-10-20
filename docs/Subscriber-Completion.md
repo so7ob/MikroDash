@@ -326,3 +326,16 @@ and race regressions pass. See [target semantics and actual CHR evidence](Subscr
 and [verification](Subscriber-Verification.md). The real CHR normal-worker,
 HTTPS portal, byte-limit and target L009 acceptance remain pending; this does
 not close #38 or the broader #54 lab.
+
+
+### Issue #57: confirmed HotSpot Disconnect target
+
+The isolated CHR production Disconnect probe exposed a missing Framed-IP-Address
+selector. The focused correction requires a fresh matching API observation and
+includes only its IPv4. Ledger/session ownership, service grants and pre-send
+audit remain mandatory; ACK alone retains the lease and credit. Real UDP tests
+cover selectors, ACK/NAK invariants, invalid/stale/absent observations, authority,
+ownership and failed audit. The real CHR corrected method verified API absence
+and committed Admin-Reset Stop in one 77.169 ms sample. This does not complete
+#54's full normal-worker journey or target L009 acceptance. See
+[the qualified evidence](Subscriber-CoA-Targets.md).
