@@ -272,3 +272,25 @@ runner diagnostic error, not an additional product regression or a passing test.
 
 The source and tested behavior are unchanged by this evidence update. Final
 revision verification and exact-head/post-merge CI remain required before delivery.
+
+
+## Display-name editing (Issue #52)
+
+Base: verified `develop` `b897307b`. The actual HTTP regression first failed with
+400 on the unsupported payload. The integrated handler/store then passed. This
+was a behavioral red, not an initial compile failure.
+
+- `go test ./internal/subscriber ./internal/server -run 'Test(AccountName|SubscriberName)' -count=1 -v`:
+  exit 0, 0.370/0.212 s. Covers preserved snapshot/password/voucher values,
+  Unicode and whitespace, before/after audit, stale/no-op edits, validation,
+  rollback on audit failure, selected-account isolation and admin/Origin checks.
+- `npx --no-install tsc --noEmit`: exit 0.
+- Tagged `TestSubscriberAdminReconciliationBrowserAcceptance`: exit 0, 10.923 s
+  after focused-form changes. The actual protected HTTP/SQLite journey covers
+  cancel, validation retention, a real concurrent edit and 409, reviewed save,
+  disabled busy controls, escaped Unicode, focus and 375/1280 dark/light/Nord with
+  zero axe violations. Existing reconciliation acceptance still runs unchanged.
+
+Only NAS data is synthetic. Screenshots are private in
+`.screenshots/subscriber-name-52/`. Full final-head checks, mutation evidence and
+pre/post-merge CI remain delivery gates; the name editor is not target acceptance.

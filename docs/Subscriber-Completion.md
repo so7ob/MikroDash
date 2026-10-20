@@ -26,7 +26,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-13 | Single C sign-in and safe exhausted portal | Native TLS and HTTPS-proxy portal/ticket to owned real UDP RADIUS pass; actual HotSpot browser POST pending | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
 | AC-14 | Ownership/device/network/ticket isolation | HTTPS/HTTP/SQLite/UDP tests cover peer, forwarded-client, device, ticket, admin-route and WebSocket isolation | expanded runtime/operations security | partial | prior pass | pending: C isolation |
 | AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/unknown-source/storage fault tests, strict presence/duplicate/range validation and commit-before-reply receipts implemented | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
-| AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation; full editors/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
+| AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation and display-name editing; broader account/credential editors, search/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
 | AC-17 | Idempotent import/opening/cutover/rollback | Read-only User Manager preview | transactional mapping/apply/approval | partial | missing | pending: approved live batch |
 | AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
 | AC-19 | Target build and existing app compatibility | Verified develop CI, prior ARM64 build and clean 27d17730 ARMv7 static build; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
@@ -294,3 +294,23 @@ and pending-receipt accounts (13.551 s), retaining 20 used seconds and 3580
 remaining. Early-success and API lifecycle-authority mutations were killed;
 source was restored exactly. See the verification record for commands and limits.
 This evidence does not close unimplemented #38 requirements or target acceptance.
+
+
+### Display-name editing (Issue #52)
+
+Issue #46 / PR #51 delivered durable receipts to `develop` at
+`b897307b9ac2a953ab9334826c22ae94c41f6f01`; both
+[exact-head CI](https://github.com/so7ob/MikroDash/actions/runs/39352049502) and
+[post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39352549908) passed.
+Clean static amd64 and ARMv7 builds at `b1efa3c2` record `vcs.modified=false`;
+their tree equals the merge tree. No router deployment was performed.
+
+The independent #52 branch implements selected-account display-name editing,
+expected-name conflicts and atomic before/after audit, with the existing protected
+administrative API and inline English/LTR form. Store and actual HTTP/SQLite tests
+passed in 0.370/0.212 s. The final focused Chromium journey passed in 10.923 s,
+including cancel, invalid/stale input retention, actual concurrent HTTP changes,
+busy state, Unicode escaping, keyboard, dark/light/Nord, 375/1280 and axe.
+TypeScript passed. Full final-revision verification and PR/post-merge delivery
+remain required. No username/password edit, search, bulk or completed #38 claim
+is inferred from this limited name-editor milestone.
