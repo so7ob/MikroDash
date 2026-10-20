@@ -13,7 +13,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | --- | --- | --- | --- | --- | --- | --- |
 | AC-01 | 0/3600 before and after first connection | Accounting regression; fast observations pending | subscriber accounting/storage, portal | partial | prior pass | pending: C pilot |
 | AC-02 | Reconnect preserves 2400; 109+51 leaves 3440 | Durable ledger regression | accounting | implemented | prior pass | pending: C pilot |
-| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles and post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
+| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles, real normal-worker CHR cycles through 201 seconds with browsers closed, and scripted post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
 | AC-04 | Concurrent daily/monthly time/byte limits | Pure/ledger tests; live exhaustion pending | policy/accounting/runtime | partial | prior pass | pending: traffic test |
 | AC-05 | Live rate switch/throttle, correct device | Real UDP rate switch and active throttle with exact-device queue readback pass; burst/minimum/priority/network ceilings pending | persistent CoA operations, queue readback, capabilities | partial | passed: UDP + queue readback | pending: rate probe |
 | AC-06 | Reordered/retried accounting, reused IDs | Durable partial receipts, exact retry identity, complete-Stop coverage and late partial/final recovery implemented; target retransmission capture remains | radius/accounting | partial | prior pass | pending: retransmission capture |
@@ -23,7 +23,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
 | AC-11 | No browsers required | Actual startup and watcher-free observer checks for both portal transports; background Disconnect UDP test | explicit runtime lifecycle and observer | partial | passed: scoped lifecycle/UDP | pending: closed-browser run |
 | AC-12 | Local outage bounds and fail-closed admission | Initial 60-second/byte delegation | verified renewal and local limits | partial | partial | pending: service outage probe |
-| AC-13 | Single C sign-in and safe exhausted portal | Native TLS and HTTPS-proxy portal/ticket to owned real UDP RADIUS pass; actual HotSpot browser POST pending | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
+| AC-13 | Single C sign-in and safe exhausted portal | Native TLS and HTTPS-proxy portal/ticket to owned real UDP RADIUS pass; actual CHR HTTPS browser POST and verified rates passed; automatic landing handoff and L009/C pending | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
 | AC-14 | Ownership/device/network/ticket isolation | HTTPS/HTTP/SQLite/UDP tests cover peer, forwarded-client, device, ticket, admin-route and WebSocket isolation | expanded runtime/operations security | partial | prior pass | pending: C isolation |
 | AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/unknown-source/storage fault tests, strict presence/duplicate/range validation and commit-before-reply receipts implemented | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
 | AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation and display-name editing; broader account/credential editors, search/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
@@ -339,3 +339,36 @@ ownership and failed audit. The real CHR corrected method verified API absence
 and committed Admin-Reset Stop in one 77.169 ms sample. This does not complete
 #54's full normal-worker journey or target L009 acceptance. See
 [the qualified evidence](Subscriber-CoA-Targets.md).
+
+
+### Issue #54: real normal-runtime vertical path
+
+Clean normal MikroDash at the #57 source (tree identical to verified develop
+`7d6f8121`) passed five continuous verified renewals of the same real CHR session,
+with every browser closed before renewal. Actual HTTPS portal/ticket/browser
+POST returned to a connected dashboard in a strengthened 2.105-second sample.
+Fast and Economy read back as verified exact-device ceilings; reconnect retained
+account consumption and the same subscription/expiry. A bounded real transfer
+and protected administrative suspension then verified persistent accounting and
+background Disconnect/Stop in a 1271.552 ms sample. The fixture's missing RBAC
+grant was corrected using existing grant persistence and a call-site regression.
+
+These are CHR protocol results. Automatic HotSpot landing, further faults, gigaword enforcement, full
+User Manager migration/coexistence and target
+acceptance remain open. Measured one-client process resources and material write
+volume are recorded in [the lab guide](Subscriber-CHR-Lab.md). Earlier local
+ordinary-storage claims are qualified by the explicit Go 1.27 GOTMPDIR correction
+and the complete disk-backed subscriber race rerun in
+[verification](Subscriber-Verification.md). No operator capabilities were enabled.
+
+
+Normal-runtime hard exhaustion subsequently passed on an explicit v2 synthetic
+subscription while preserving account history. A 65536-byte download grant
+stopped the real client; final accounting recorded 88124 bytes and an honest
+22588-byte overrun, zero remaining and no duplicate API/RADIUS debit. The
+exhausted user could access the portal but actual HotSpot re-entry was refused;
+portal administration remained 404. Ordered CHR RADIUS selection proved that
+primary rejection does not fall through to the secondary stand-in. Both normal
+and injected-failure probes restored the owned configuration; the fault run
+verified exact readback after its intentional exit 1. This is not actual User
+Manager or live C routing acceptance. See the lab guide for commands and limits.

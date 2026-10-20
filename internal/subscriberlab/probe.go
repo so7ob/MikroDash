@@ -253,11 +253,18 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 }
 
 func (c *Client) login(ctx context.Context, privateDir, password string, https bool) error {
+	return c.loginAs(ctx, privateDir, "chr-lab", password, https)
+}
+
+func (c *Client) loginAs(ctx context.Context, privateDir, username, password string, https bool) error {
+	if username != "chr-lab" && username != "legacy-lab" {
+		return errors.New("synthetic lab username required")
+	}
 	if _, err := c.Identity(); err != nil {
 		return err
 	}
 	args := []string{"netns", "exec", "md-subscriber-lab", "curl", "--noproxy", "*", "--max-time", "10", "--silent", "--show-error",
-		"--data-urlencode", "username=chr-lab", "--data-urlencode", "password@-"}
+		"--data-urlencode", "username=" + username, "--data-urlencode", "password@-"}
 	args = append(args, labHotSpotURL(privateDir, "/login", https)...)
 	cmd := exec.CommandContext(ctx, "ip", args...)
 	cmd.Stdin = strings.NewReader(password)
@@ -269,6 +276,10 @@ func (c *Client) login(ctx context.Context, privateDir, password string, https b
 }
 
 func (c *Client) clearPreviousProbe(ctx context.Context, privateDir string, https bool) error {
+	return c.logoutClient(ctx, privateDir, "chr-lab", https)
+}
+
+func (c *Client) logoutClient(ctx context.Context, privateDir, username string, https bool) error {
 	rows, err := c.Do(routeros.Cmd{Path: "/ip/hotspot/active/print", Args: []string{"=.proplist=user,server,mac-address"}, Timeout: 5 * time.Second})
 	if err != nil || len(rows) > 1 {
 		return errors.New("cannot prove empty or owned previous lab session")
@@ -276,7 +287,7 @@ func (c *Client) clearPreviousProbe(ctx context.Context, privateDir string, http
 	if len(rows) == 0 {
 		return nil
 	}
-	if rows[0]["user"] != "chr-lab" || rows[0]["server"] != "hs-lab" || rows[0]["mac-address"] != "02:00:00:00:54:02" {
+	if (username != "chr-lab" && username != "legacy-lab") || rows[0]["user"] != username || rows[0]["server"] != "hs-lab" || rows[0]["mac-address"] != "02:00:00:00:54:02" {
 		return errors.New("refusing to log out a different lab user or device")
 	}
 	args := []string{"netns", "exec", "md-subscriber-lab", "curl", "--noproxy", "*", "--max-time", "5", "--silent"}

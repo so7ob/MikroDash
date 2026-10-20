@@ -22,8 +22,11 @@ import (
 // serves only bounded synthetic payloads and does not create another ledger.
 func (c *Client) RuntimeTrafficProbe(ctx context.Context, out io.Writer) error {
 	rows, err := c.Do(routeros.Cmd{Path: "/ip/hotspot/active/print", Args: []string{"=.proplist=.id,user,server,mac-address,address"}, Timeout: 3 * time.Second})
-	if err != nil || len(rows) != 1 || rows[0][".id"] == "" || rows[0]["user"] != "chr-lab" || rows[0]["server"] != "hs-lab" || rows[0]["mac-address"] != "02:00:00:00:54:02" || rows[0]["address"] != "198.51.100.2" {
-		return errors.New("exact owned runtime client required for traffic probe")
+	if err != nil {
+		return err
+	}
+	if _, err := ownedRuntimeClient(rows); err != nil {
+		return err
 	}
 	record := &recorder{w: out}
 	if err := c.trafficProbe(ctx, record, 65536); err != nil {

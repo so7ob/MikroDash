@@ -11,12 +11,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"mikrodash/internal/routeros"
 	"mikrodash/internal/subscriberlab"
 )
 
 func main() {
 	state := flag.String("state", "", "private owned-VM runtime.json")
-	action := flag.String("action", "inspect", "inspect, configure, configure-https, prepare-runtime, repair-runtime-admin, probe, probe-https, probe-download, probe-upload, probe-byte-renew, probe-disconnect or probe-runtime-traffic")
+	action := flag.String("action", "inspect", "inspect, configure, configure-https, prepare-runtime, repair-runtime-admin, runtime-status, logout-runtime, probe, probe-https, probe-download, probe-upload, probe-byte-renew, probe-disconnect, probe-runtime-traffic, probe-runtime-exhaust, probe-radius-selection or probe-radius-selection-fault")
 	flag.Parse()
 	if err := run(*state, *action); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -29,7 +30,7 @@ func run(state, action string) error {
 		return fmt.Errorf("absolute private lab state path required")
 	}
 	switch action {
-	case "inspect", "configure", "configure-https", "prepare-runtime", "repair-runtime-admin", "probe", "probe-https", "probe-download", "probe-upload", "probe-byte-renew", "probe-disconnect", "probe-runtime-traffic":
+	case "inspect", "configure", "configure-https", "prepare-runtime", "repair-runtime-admin", "runtime-status", "logout-runtime", "probe", "probe-https", "probe-download", "probe-upload", "probe-byte-renew", "probe-disconnect", "probe-runtime-traffic", "probe-runtime-exhaust", "probe-radius-selection", "probe-radius-selection-fault":
 	default:
 		return fmt.Errorf("unknown lab action")
 	}
@@ -38,12 +39,36 @@ func run(state, action string) error {
 		return err
 	}
 	defer c.Close()
+	if action == "runtime-status" {
+		rows, err := c.RuntimeStatus()
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(os.Stdout).Encode(struct {
+			Synthetic  bool             `json:"synthetic"`
+			ObservedAt time.Time        `json:"observedAt"`
+			Active     []routeros.Reply `json:"active"`
+		}{true, time.Now().UTC(), rows})
+	}
+	if action == "logout-runtime" {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		return c.LogoutRuntime(ctx, filepath.Dir(state))
+	}
+	if action == "probe-radius-selection" || action == "probe-radius-selection-fault" {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		return c.RadiusSelectionProbe(ctx, filepath.Dir(state), os.Stdout, action == "probe-radius-selection-fault")
+	}
 	if action == "repair-runtime-admin" {
 		return c.RepairRuntimeAdmin(filepath.Dir(state))
 	}
-	if action == "probe-runtime-traffic" {
+	if action == "probe-runtime-traffic" || action == "probe-runtime-exhaust" {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
+		if action == "probe-runtime-exhaust" {
+			return c.RuntimeExhaustProbe(ctx, os.Stdout)
+		}
 		return c.RuntimeTrafficProbe(ctx, os.Stdout)
 	}
 	if action == "prepare-runtime" {

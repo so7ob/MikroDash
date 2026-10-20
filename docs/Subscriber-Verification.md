@@ -1,5 +1,11 @@
 # Subscriber Management verification record
 
+> Storage correction (2026-10-20): Go 1.27 makes `testing.T.TempDir` follow
+> GOTMPDIR. Historical local claims of ordinary SQLite temporary storage are
+> not disk-persistence evidence when the command put GOTMPDIR in RAM. Behavioral
+> results remain valid. See the explicit disk-backed rerun below; CI and the
+> real synthetic runtime are separate evidence.
+
 Date: 2026-10-19 (Asia/Aden). Issue: [#38](https://github.com/so7ob/MikroDash/issues/38).
 This is a **development preview, not acceptance-complete**. Passing the checks below does not
 establish live HotSpot sign-in, CoA speed verification, production readiness or deployment.
@@ -323,8 +329,9 @@ Focused delivery source: `84c1bee9fd89dc3ddc6bdd595e1900a07d32d78a`.
 The isolated worktree's `sh tools/verify.sh` passed: gofmt, vet, 62 Go packages,
 live govulncheck, all generated contracts, tsc, 146/146 frontend tests and 22/22
 tooling tests. Raw Docker output was retained; only the compiler cache and
-GOTMPDIR moved to RAM. SQLite test files remained on the ordinary temporary
-filesystem. The task-created node_modules symlink was removed after checking.
+GOTMPDIR moved to RAM. Go 1.27 also placed T.TempDir SQLite files there;
+the earlier ordinary-filesystem description was incorrect. The explicit
+disk-backed rerun below corrects that evidence. The task-created node_modules symlink was removed after checking.
 
 `go test -race ./internal/subscriber -run
 'Test(CoA|IssuedCoA|FiveContinuous)' -count=1` passed in 2.270 s. Two compiling
@@ -369,3 +376,35 @@ that result is retained. The fixture now preserves a valid start-time match,
 and the same compiling mutant fails with `unconfirmed target accepted`. Final
 source verification follows this test correction; the earlier sweep is not
 reported as checking the corrected assertion.
+
+
+## Explicit disk-backed verification correction, Issue #54
+
+Go 1.27's testing source documents and implements GOTMPDIR as the parent of
+T.TempDir. Setting only TMPDIR does not override that. Earlier local runs with
+RAM GOTMPDIR are behavioral tests, not evidence of disk persistence or fsync
+cost. The real runtime ledger remains under the ordinary development filesystem;
+GitHub CI did not set GOTMPDIR to a RAM mount. No source assertion is weakened.
+
+The subscriber source exactly matches verified develop `7d6f8121`. It was
+compiled as a race-enabled test executable in RAM, then run separately:
+
+```sh
+go test -race -c -o /path/to/ram/subscriber.test ./internal/subscriber
+GOTMPDIR=/tmp TMPDIR=/tmp /path/to/ram/subscriber.test -test.count=1 -test.v
+```
+
+The compile command alone may use RAM GOTMPDIR. The test process must use an
+ordinary filesystem directory for **both** variables. The actual rerun passed
+all 64 top-level subscriber tests/fuzz seed checks, including receipts, crash
+recovery, CoA, Disconnect, accounting boundaries and concurrent reservations.
+Actual database startup logs show `/tmp/Test.../mikrodash.db`. Randomized fuzzing
+is separate from these seed checks. The raw private log is
+`/tmp/subscriber-57-all-disk-race.log`. A focused disk race run also passed.
+
+The complete subscriberlab test executable passed separately with the same
+disk settings; actual preparation logs show `/tmp/Test.../runtime-data/`.
+It exercises the real encryption/ledger/RBAC preparation call site and refuses
+repeat preparation without replacing accounts. Private log:
+`/tmp/subscriber-54-disk-unit.log`. New runtime exhaustion helpers added after
+that binary was compiled still require their own final-source checks.

@@ -267,3 +267,69 @@ files there, contrary to the earlier local verification description. The real
 runtime ledger and GitHub CI used separate ordinary storage. Subsequent local
 persistence checks compile a test executable in RAM and run it with GOTMPDIR set
 to an ordinary disk directory. RAM-backed checks remain behavioral checks only.
+
+
+## Normal-runtime exhaustion and ordered RADIUS selection
+
+An explicit immutable v2 synthetic subscription retained the previous account
+history and supplied a new 3600-second/65536-byte grant for the exhaustion test.
+This was a reasoned fixture reassignment, not a speed change or hidden reset.
+The real portal/ticket/HotSpot journey connected within 2.115 seconds, after
+which all browsers closed. `probe-runtime-exhaust` interrupted a 1 MiB attempt:
+87708 client payload bytes, 88124 accounted download bytes, 22588 bytes over the
+local limit. API absence and a committed final Stop were verified. Lifetime
+retained the prior 67570 bytes plus this subscription's 88124, exactly 155694;
+API/RADIUS overlap did not debit the traffic twice. Download remaining was zero.
+
+An actual browser re-entry was refused by the real HotSpot/RADIUS path. Portal
+sign-in/account access remained available and its administration route returned
+404. Recovery used explicit portal navigation; automatic landing and rejection
+handoff remain gaps, and are not claimed by this acceptance sample.
+
+`probe-radius-selection` temporarily appends a synthetic secondary RADIUS
+endpoint on the owned CHR only. The secondary uses the existing Go PAP/accounting
+implementation, a distinct account and a separate durable test ledger with a
+10-second local authorization. It is a **legacy authority stand-in, not User
+Manager**. It never authenticates the primary fixture's account.
+
+Actual CHR results: primary Access-Reject left zero active sessions and sent
+zero requests to the secondary. Disabling only the owned primary allowed the
+secondary's known account to connect with the observed 10-second timeout; its
+Stop committed durably. Restoring the primary again rejected the legacy login
+without another secondary request. A second RADIUS entry therefore cannot be
+assumed to route unknown pilot users to a previous authority on this firmware.
+
+`probe-radius-selection-fault` intentionally fails after disabling the primary.
+It exits 1 with the injected failure; rollback then reads the exact configuration
+back and records `verified: true`, primary enabled and secondary removed. This
+is a successful rollback observation for a deliberately failed probe, not a
+successful admission run. The normal selection run also restores the primary
+and removes only its created secondary entry. No operator RADIUS changed.
+
+The official [HotSpot manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/)
+documents `radius-default-domain` together with `/radius domain` for per-profile
+server selection. Realm/username handling and same-profile legacy/pilot routing
+remain unproven and unimplemented here. Do not switch a live C profile or insert
+a rejecting pilot ahead of User Manager based on these tests alone. A scoped
+transition still needs one explicit authority and measured routing/rollback.
+
+
+## Real application restart and outage findings
+
+A three-second deliberate app pause followed by restart recovered the same
+actual lease/accounting session without browser, reauthentication, credit reset
+or router-session replacement. The pause/restart/observation sample took
+5844.684 ms; this is not a reconnect latency or five-second display SLA claim.
+The public runtime controller also exercised graceful stop, preserved the
+ledger and verified all four new-process listeners on restart.
+
+A longer deliberate outage proved local enforcement: the observed remaining
+authorization was 43 seconds and the complete API read saw no active client at
+44615.115 ms, including polling/read latency. Accounting Stop did not recover
+after the additional downtime. The normal app closed the absent session seat
+and retained unresolved holds, but its snapshot still allowed a new admission.
+The acceptance script failed with `unknown missing-Stop exposure still permits
+new admission`. This is a production policy gap, not a passing outage acceptance
+or a reason to enable a live C pilot. The focused correction must deny admission
+and renewal until covering final accounting or reasoned review. The saved actual
+ledger remains intact for regression/recovery testing.

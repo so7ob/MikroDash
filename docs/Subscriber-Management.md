@@ -113,7 +113,7 @@ sample. See [reconciliation](Subscriber-Reconciliation.md).
 Admission reserves sub-budgets atomically across all outstanding sessions. It emits local
 Session-Timeout, directional MikroTik byte limits and total byte limits where configured.
 The current implementation limits every delegation to **60 seconds**, the nearest hard period
-or access-window edge, or its smaller time allocation. A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab; target-router proof remains pending. Renewal across a hard calendar-period edge remains outstanding. It never grants a
+or access-window edge, or its smaller time allocation. A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab and the normal MikroDash worker on isolated CHR 7.24.5 with all browsers closed; L009/C proof remains pending. Renewal across a hard calendar-period edge remains outstanding. It never grants a
 new full hour after partial consumption.
 
 A 2-second background loop requests disconnect on expired delegations, suspension and

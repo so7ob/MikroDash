@@ -7,6 +7,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { nativePortalRules, nativePortalAddress, nativePortalTable } from './subscriber-chr-network.mjs';
+import { assertRuntimeStopped } from './subscriber-chr-proof.mjs';
 
 const root = '/dev/shm/mikrodash-subscriber-chr-lab';
 const names = ['md-lab-br', 'md-lab-tap', 'md-lab-host'];
@@ -91,6 +92,7 @@ function nativePortal() {
 }
 
 async function stop() {
+  assertRuntimeStopped(directory);
   const state = privateFile(statePath);
   ownedProcess(state);
   ownedTopology(state);
