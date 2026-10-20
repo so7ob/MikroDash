@@ -13,7 +13,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | --- | --- | --- | --- | --- | --- | --- |
 | AC-01 | 0/3600 before and after first connection | Accounting regression; fast observations pending | subscriber accounting/storage, portal | partial | prior pass | pending: C pilot |
 | AC-02 | Reconnect preserves 2400; 109+51 leaves 3440 | Durable ledger regression | accounting | implemented | prior pass | pending: C pilot |
-| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles and post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
+| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles, real normal-worker CHR cycles through 201 seconds with browsers closed, and scripted post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
 | AC-04 | Concurrent daily/monthly time/byte limits | Pure/ledger tests; live exhaustion pending | policy/accounting/runtime | partial | prior pass | pending: traffic test |
 | AC-05 | Live rate switch/throttle, correct device | Real UDP rate switch and active throttle with exact-device queue readback pass; burst/minimum/priority/network ceilings pending | persistent CoA operations, queue readback, capabilities | partial | passed: UDP + queue readback | pending: rate probe |
 | AC-06 | Reordered/retried accounting, reused IDs | Durable partial receipts, exact retry identity, complete-Stop coverage and late partial/final recovery implemented; target retransmission capture remains | radius/accounting | partial | prior pass | pending: retransmission capture |
@@ -23,7 +23,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
 | AC-11 | No browsers required | Actual startup and watcher-free observer checks for both portal transports; background Disconnect UDP test | explicit runtime lifecycle and observer | partial | passed: scoped lifecycle/UDP | pending: closed-browser run |
 | AC-12 | Local outage bounds and fail-closed admission | Initial 60-second/byte delegation | verified renewal and local limits | partial | partial | pending: service outage probe |
-| AC-13 | Single C sign-in and safe exhausted portal | Native TLS and HTTPS-proxy portal/ticket to owned real UDP RADIUS pass; actual HotSpot browser POST pending | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
+| AC-13 | Single C sign-in and safe exhausted portal | Native TLS and HTTPS-proxy portal/ticket to owned real UDP RADIUS pass; actual CHR HTTPS browser POST and verified rates passed; automatic landing handoff and L009/C pending | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
 | AC-14 | Ownership/device/network/ticket isolation | HTTPS/HTTP/SQLite/UDP tests cover peer, forwarded-client, device, ticket, admin-route and WebSocket isolation | expanded runtime/operations security | partial | prior pass | pending: C isolation |
 | AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/unknown-source/storage fault tests, strict presence/duplicate/range validation and commit-before-reply receipts implemented | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
 | AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation and display-name editing; broader account/credential editors, search/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
@@ -37,10 +37,10 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | --- | --- | --- | --- | --- |
 | RADIUS PAP/Class/accounting | RouterOS RADIUS; RFC 2866 | implemented | UDP tests passed | pending |
 | Session-Timeout at admission | RouterOS RADIUS | implemented, max 60 seconds | attributes tested | enforcement pending |
-| Session-Timeout CoA total/remaining meaning | RouterOS lists writable attribute; meaning needs probe | durable total-session implementation | five-cycle UDP pass | pending |
-| CoA rate change | RouterOS RADIUS Change of Authorization | durable rate operations and capability gate | synthetic UDP/readback passed | pending |
+| Session-Timeout CoA total/remaining meaning | RouterOS lists writable attribute; meaning needs probe | durable total-session implementation; confirmed IPv4 selector | real CHR 7.24.5 total mode, extension past 60 seconds and immediate shortening proved; five-cycle production worker pending | pending |
+| CoA rate change | RouterOS RADIUS Change of Authorization | durable rate operations, confirmed IPv4 and capability gate | real CHR exact-device dynamic queue changed twice; full worker path pending | pending |
 | Dynamic queue identity/rate verification | RouterOS queue and HotSpot active menus | exact unique dynamic host queue parser | parser + rate readback passed | pending |
-| API HotSpot octet direction | Conflicting service-specific wording requires one-way traffic | explicit per-source capability mapping | synthetic direction/overlap passed | one-way probe pending |
+| API HotSpot octet direction | Conflicting service-specific wording requires one-way traffic | explicit per-source capability mapping | real CHR one-way traffic and RADIUS/ledger agreement: input upload, output download | target one-way probe pending |
 | Shared NAS source distinguished by HotSpot server | Called-Station-Id documented as HotSpot server | authenticated Called-Station-Id and owned Class mapping | UDP isolation passed | pending |
 | Interim >=60 seconds | RFC 2869 section 5.16 | implemented | attribute test passed | local 5s compatibility unverified now |
 | HTTPS edge with isolated private HTTP portal | RouterOS Reverse Proxy | explicit peer/Host/protocol/forwarding boundary, native TLS default | actual TLS/HTTP/SQLite/browser/UDP passed | header/device/route acceptance pending |
@@ -108,7 +108,8 @@ this review. Full exact-source verification and PR/post-merge CI are recorded on
 the scoped PR; the earlier `93aa15fe` checkpoint is not reported as fully verified.
 The host's disk constraint was mitigated by removing only task-created rebuildable
 compiler-cache entries and using a RAM directory for subsequent compiler caches.
-Test databases and journals continue to use the ordinary filesystem.
+Earlier local RAM GOTMPDIR also placed test databases and journals in RAM;
+see the explicit ordinary-storage rerun in Subscriber-Verification.md.
 
 ### Independent delivery checkpoints
 
@@ -122,8 +123,9 @@ Test databases and journals continue to use the ordinary filesystem.
   Exact implementation head `8225eff7` also passed full local verification,
   race checks, synthetic browser acceptance, a capability-revocation mutation and
   a static ARM64 cross-build. Native supplemental race/browser runs used tmpfs;
-  full verification's SQLite tests used the ordinary filesystem. Neither proves
-  media durability under power loss or execution on the target router.
+  the earlier ordinary-filesystem description for local RAM GOTMPDIR commands
+  was incorrect. Later explicit disk-backed reruns are recorded in verification.
+  Neither proves media durability under power loss or target-router execution.
 - Reconciliation: Issue #41 on its independent branch from `develop`. Migration 40,
   provisional exposure, transactional audited approval APIs and the fourth admin
   tab are implemented. Focused ledger/API checks and actual HTTP/SQLite Chromium
@@ -339,3 +341,54 @@ ownership and failed audit. The real CHR corrected method verified API absence
 and committed Admin-Reset Stop in one 77.169 ms sample. This does not complete
 #54's full normal-worker journey or target L009 acceptance. See
 [the qualified evidence](Subscriber-CoA-Targets.md).
+
+
+### Issue #54: real normal-runtime vertical path
+
+Clean normal MikroDash at the #57 source (tree identical to verified develop
+`7d6f8121`) passed five continuous verified renewals of the same real CHR session,
+with every browser closed before renewal. Actual HTTPS portal/ticket/browser
+POST returned to a connected dashboard in a strengthened 2.105-second sample.
+Fast and Economy read back as verified exact-device ceilings; reconnect retained
+account consumption and the same subscription/expiry. A bounded real transfer
+and protected administrative suspension then verified persistent accounting and
+background Disconnect/Stop in a 1271.552 ms sample. The fixture's missing RBAC
+grant was corrected using existing grant persistence and a call-site regression.
+
+These are CHR protocol results. Automatic HotSpot landing, further faults, gigaword enforcement, full
+User Manager migration/coexistence and target
+acceptance remain open. Measured one-client process resources and material write
+volume are recorded in [the lab guide](Subscriber-CHR-Lab.md). Earlier local
+ordinary-storage claims are qualified by the explicit Go 1.27 GOTMPDIR correction
+and the complete disk-backed subscriber race rerun in
+[verification](Subscriber-Verification.md). No operator capabilities were enabled.
+
+
+Normal-runtime hard exhaustion subsequently passed on an explicit v2 synthetic
+subscription while preserving account history. A 65536-byte download grant
+stopped the real client; final accounting recorded 88124 bytes and an honest
+22588-byte overrun, zero remaining and no duplicate API/RADIUS debit. The
+exhausted user could access the portal but actual HotSpot re-entry was refused;
+portal administration remained 404. Ordered CHR RADIUS selection proved that
+primary rejection does not fall through to the secondary stand-in. Both normal
+and injected-failure probes restored the owned configuration; the fault run
+verified exact readback after its intentional exit 1. This is not actual User
+Manager or live C routing acceptance. See the lab guide for commands and limits.
+
+
+### Issue #59 delivery and final CHR fault replay
+
+The missing-final accounting grant defect discovered during the real CHR outage
+is delivered by PR #60 at `develop` `3bfdbd25`, with exact-head and post-merge
+CI green. Known counters and holds remain intact, new admission and renewal are
+blocked until final accounting, and unlimited zero-hold sessions have a review
+path. Trusted final Stop and audited administrative recovery remain distinct
+from period-byte allocation review. See [final accounting](Subscriber-Final-Accounting.md).
+
+On clean application source `1abd51de`, the public CHR browser `reconciling`
+case confirms actual HotSpot re-entry refusal with positive known credit and
+continued portal access; no new active session or confirmed counter change is
+accepted. This supplements the earlier short-restart and failed old-code outage
+results without deleting them. The CHR harness full gate, disk-backed lab race
+and ownership/evidence mutations are recorded in verification. #54 delivery and
+all remaining AC-01..AC-19 software/target requirements remain open.
