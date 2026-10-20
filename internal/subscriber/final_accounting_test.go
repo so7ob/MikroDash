@@ -1,8 +1,12 @@
 package subscriber
 
 import (
+	"context"
 	"database/sql"
 	"errors"
+	"io"
+	"log"
+	"net"
 	"reflect"
 	"testing"
 	"time"
@@ -101,6 +105,7 @@ func TestMissingFinalAccountingRejectsRealUDPAfterDatabaseReopen(t *testing.T) {
 	if err = s.sql.QueryRow(`PRAGMA database_list`).Scan(&seq, &name, &file); err != nil {
 		t.Fatal(err)
 	}
+	svc.Close(t.Context())
 	if err = s.sql.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -111,7 +116,19 @@ func TestMissingFinalAccountingRejectsRealUDPAfterDatabaseReopen(t *testing.T) {
 	h.SetMaxOpenConns(1)
 	t.Cleanup(func() { _ = h.Close() })
 	s = NewStore(h)
-	svc.Store = s
+	restarted := &RadiusService{Store: s, Mode: svc.Mode, Clients: svc.Clients, PilotAccounts: svc.PilotAccounts}
+	conn, err := net.ListenPacket("udp", address)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := &radius.PacketServer{Handler: restarted, SecretSource: restarted, ErrorLog: log.New(io.Discard, "", 0)}
+	restarted.servers = append(restarted.servers, server)
+	go server.Serve(conn)
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		restarted.Close(ctx)
+	})
 	if reply := exchange(t, access("synthetic-password"), address); reply.Code != radius.CodeAccessReject {
 		t.Fatal("reopened receiver admitted unresolved final accounting", reply.Code)
 	}

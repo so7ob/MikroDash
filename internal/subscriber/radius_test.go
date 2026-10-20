@@ -59,6 +59,7 @@ func protocolFixture(t *testing.T, configure ...func(*RadiusService)) (*Store, *
 		t.Fatal(err)
 	}
 	server := &radius.PacketServer{Handler: service, SecretSource: service, ErrorLog: log.New(io.Discard, "", 0)}
+	service.servers = append(service.servers, server)
 	go server.Serve(conn)
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)

@@ -66,8 +66,26 @@ isolation, review rollback and index-only migration with identical snapshots.
 The initial reconnect fixture crossed its configured daily reset, and two
 boundary fixtures had a different device/anchor than intended. Those failed
 runs were retained; the fixtures now isolate the intended behaviors without
-weakening their assertions. Full final-source, mutation/race and current-head
-pre/post-merge CI remain separate delivery gates.
+weakening their assertions. The first complete race run also found the restart
+test assigning a Store pointer while the old receiver was live. The fixture now
+drains that receiver before closing SQLite, constructs a new service and rebinds
+the same UDP address. Production does not replace a live service's Store.
+
+The corrected source passed these local checks:
+
+| Check | Result and scope |
+| --- | --- |
+| `sh tools/verify.sh` | 62 Go packages, gofmt/vet/govulncheck, current generators, TypeScript, 146 frontend tests and 22 tooling tests passed. A local Docker wrapper compiled with a RAM cache and ran `go test -count=1 -exec 'env GOTMPDIR=/tmp TMPDIR=/tmp' ./...`, keeping test storage on ordinary container `/tmp`. |
+| Standalone subscriber `-race` executable, `-test.count=1 -test.v` | 70 top-level tests/fuzz-seed checks passed with GOTMPDIR/TMPDIR on ext4 `/tmp`; this is not randomized fuzzing. |
+| Index-only migration and query-plan regressions | Existing missing-Stop snapshot/history unchanged; second migration is a no-op; finality lookups search their partial indexes. |
+| Six compiling source mutations through Go `-overlay` | Every mutation failed a relevant behavioral assertion: omit finality, ignore final Stop, lose account scope, hide zero-hold review, bypass preparation, bypass worker send gate. Compilation failure was not counted as a kill. |
+| Saved real CHR outage ledger, normal runtime at `2147491f` | Restart reports one pending final reading and denies admission; known usage, holds, subscription and expiry remain unchanged; protected review is available. |
+| Actual namespace browser against that runtime/CHR 7.24.5 | Portal sign-in works despite pending final accounting and positive known credit; a real browser HTTPS HotSpot POST receives a RADIUS rejection. No active lease is created and confirmed bytes do not change. Portal remains available; its admin route returns 404. All three themes at 375/1280 pass LTR/overflow and axe checks. |
+
+The real runtime binary contains the product fix at `2147491f`; the subsequent
+changes above repair test lifecycle handling and document verification. Raw
+protocol, ledger and browser evidence remain private. Current-head pre/post-merge
+CI are separate delivery gates and must be reported by their actual run IDs.
 
 Go 1.27 makes `testing.T.TempDir` follow GOTMPDIR. Compile a test executable in
 RAM if needed, then run it with both GOTMPDIR and TMPDIR on ordinary storage:
