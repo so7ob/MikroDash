@@ -33,7 +33,7 @@ to bypass startup checks. See the [lab guide](Subscriber-Lab-Guide.md).
 
 MikroDash owns subscriber credentials, immutable plan versions, subscriptions, period usage,
 reservations and the accounting journal in the existing `mikrodash.db`. Schema migrations 38 through 41
-add `subscriber_*` tables; it does not rewrite `users.json` or use User Manager as a hidden
+add `subscriber_*` tables; migration 42 adds partial finality/account lookup indexes; it does not rewrite `users.json` or use User Manager as a hidden
 runtime backend. User Manager is currently a read-only preview source.
 
 `internal/subscriber/policy.go` is a pure policy evaluator. `storage.go` and `accounting.go`
@@ -119,7 +119,7 @@ new full hour after partial consumption.
 A 2-second background loop requests disconnect on expired delegations, suspension and
 applicable exhausted disconnect policies. Requests have a 3-second transport deadline and
 10-second retry spacing. These are configured timings, **not measured router response bounds**.
-A missing Stop retains its reservation until a complete shared API read proves absence after the maximum attempted local delegation. The session slot then closes, while unresolved quota remains in explicit holds rather than becoming measured usage or free credit. A covering final Stop resolves those holds. Administrative final readings and boundary-byte allocations are implemented with evidence, reasons and atomic audit. Target-router acceptance remains pending.
+A missing Stop retains its reservation until a complete shared API read proves absence after the maximum attempted local delegation. The session slot then closes, while unresolved quota remains in explicit holds rather than becoming measured usage or free credit. New admission and renewal stay blocked until covering final accounting or reasoned review, including sessions with no quota holds. Ordinary byte-period allocation holds after a final Stop remain independent. See [final accounting](Subscriber-Final-Accounting.md). A covering final Stop resolves those holds. Administrative final readings and boundary-byte allocations are implemented with evidence, reasons and atomic audit. Target-router acceptance remains pending.
 
 `deny` affects admission; `disconnect` also triggers enforcement. `alert` produces decision
 reasons only (notification delivery is not implemented). `throttle` also changes active session rates through guarded CoA when its capability is recorded. Durable operations distinguish requested, applying, acknowledged, verified, failed and pending-reconnect. Only a fresh exact-device queue readback verifies a live rate; ACK alone is insufficient. Unknown capabilities retain pending status. Burst/minimum/priority and network ceilings remain outstanding.

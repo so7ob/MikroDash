@@ -24,7 +24,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 41
+const schemaVersion = 42
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -310,6 +310,7 @@ var portMigrations = map[int][]string{
 	39: {subscriber.SessionSchema},
 	40: {subscriber.ReconciliationSchema},
 	41: {subscriber.ReceiptSchema},
+	42: {subscriber.FinalityIndexes},
 }
 
 // createSchema builds a new database at `path`.
