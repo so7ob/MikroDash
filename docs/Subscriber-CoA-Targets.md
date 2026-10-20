@@ -1,4 +1,4 @@
-# Confirmed HotSpot CoA targets
+# Confirmed HotSpot dynamic authorization targets
 
 The rate and renewal worker uses the current shared API observation to select
 the owned device's IPv4 address. It includes that address as RADIUS
@@ -43,8 +43,30 @@ renewal run, an HTTPS single-sign-in journey or performance measurements.
 The broader lab workflow continues in
 [#54](https://github.com/so7ob/MikroDash/issues/54); the complete module remains
 open in [#38](https://github.com/so7ob/MikroDash/issues/38). No deployed NAS
-capability flags or router settings were changed. Disconnect selectors are a
-separate, still-pending probe.
+capability flags or operator router settings were changed.
+
+## Disconnect selectors, Issue #57
+
+The production Disconnect path also includes the fresh API-confirmed IPv4,
+alongside ledger-resolved username, device and accounting session ID. It checks
+the shared observation again after the existing service/session guard. Absent,
+stale, future, invalid-address or different-device/network/start observations
+are refused before intent audit and network I/O. Browser values cannot provide
+the address. An acknowledged request retains its lease and reservations until
+final accounting or evidence-backed reconciliation.
+
+On the same isolated CHR 7.24.5, the original production Disconnect was rejected.
+A diagnostic request adding the confirmed address returned Disconnect-ACK and
+an Admin-Reset Stop. After the focused production correction, the actual
+Disconnect method returned ACK; an empty active table and a committed Stop
+verified removal in one 77.169 ms sample. This is a single unloaded lab sample,
+not a latency bound or L009 acceptance. No fallback packet was used in the
+successful production run.
+
+Real UDP regressions assert exact selectors, fail-closed observations, ledger
+ownership, service authority, audit failure and unchanged credit on ACK/NAK.
+The watcher-free background test now uses a shared observation rather than a
+permissive callback alone.
 
 The [RouterOS RADIUS manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/)
 lists writable CoA attributes, while [RFC 5176](https://www.rfc-editor.org/rfc/rfc5176)

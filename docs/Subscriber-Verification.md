@@ -336,3 +336,36 @@ Raw private logs: `/tmp/subscriber-55-full.log`,
 `/tmp/subscriber-55-mutation-*.log`. No browser UI changed in this correction;
 existing frontend coverage passed. Required PR and post-merge CI remain separate
 checks and are recorded in the issue after delivery.
+
+
+## Confirmed HotSpot Disconnect address, Issue #57
+
+Base: verified develop `16deeb1b`. The new production-call-site UDP regression
+first failed because the emitted packet had no Framed-IP-Address (both ACK/NAK
+subcases, behavioral failures). After correction, `go test ./internal/subscriber
+-run 'TestDisconnect|TestGuardedBackgroundDisconnect' -count=1` passed in 3.282 s.
+Tests cover exact selectors, observed identity/freshness/address refusals,
+service authority, ledger ownership, audit failure and retained entitlement.
+
+The isolated CHR 7.24.5 HTTPS HotSpot probe first retained the production failure
+on the base revision. Adding only the observed IPv4 in a diagnostic packet
+produced Disconnect-ACK and Admin-Reset Stop. Running the corrected production
+method with a Go source overlay then passed: API disappearance plus committed
+Stop, 0 pending accounting receipts, one 77.169 ms sample, exit 0. The overlay
+replaced only `internal/subscriber/runtime.go`; the private #54 lab harness and
+fresh synthetic ledger remained separate from this fix's delivery scope.
+No operator NAS configuration, capability flags or deployed process changed.
+
+Full final-source verification, mutation/race checks and current-head/post-merge
+CI remain separate delivery gates. L009 acceptance and performance budgets are
+not inferred from the single CHR sample.
+
+
+The initial full sweep passed 62 Go packages, 146 frontend tests and 22 tooling
+tests, all generated contracts and live govulncheck. Scoped race tests passed
+in 15.278 s. The missing-address mutant failed behaviorally. A first stale-read
+mutant survived because the test's timestamp also mismatched the session start;
+that result is retained. The fixture now preserves a valid start-time match,
+and the same compiling mutant fails with `unconfirmed target accepted`. Final
+source verification follows this test correction; the earlier sweep is not
+reported as checking the corrected assertion.

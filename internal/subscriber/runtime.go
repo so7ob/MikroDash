@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"slices"
 	"sync"
@@ -213,6 +214,18 @@ func (s *RadiusService) Disconnect(ctx context.Context, e Enforcement, allowed b
 	if s.VerifySession == nil || !s.VerifySession(ctx, e) {
 		return errors.New("live session identity could not be verified")
 	}
+	// Disconnect, like CoA, needs the current owned HotSpot IPv4 selector.
+	// Recheck the shared observation here: a callback or caller cannot supply
+	// an address or authorize a stale, absent or different device session.
+	row, observed, present, err := s.Store.observation(ctx, e.LeaseID)
+	at := time.Now()
+	if err != nil || !present || at.Sub(observed) > 5*time.Second || observed.After(at.Add(time.Second)) || !sessionMatches(trackedSession{Enforcement: e}, row, client.CalledStationID, observed) {
+		return errors.New("fresh owned HotSpot observation required for disconnect")
+	}
+	address, err := netip.ParseAddr(row.Address)
+	if err != nil || !address.Is4() || !address.IsGlobalUnicast() || address.IsLoopback() {
+		return errors.New("confirmed HotSpot IPv4 address required for disconnect")
+	}
 	// Record the intent before a network write. If audit is unavailable, refuse.
 	if err := s.Store.RecordEnforcement(ctx, e, "requested"); err != nil {
 		return err
@@ -225,6 +238,9 @@ func (s *RadiusService) Disconnect(ctx context.Context, e Enforcement, allowed b
 		return err
 	}
 	if err := rfc2865.UserName_SetString(p, e.Username); err != nil {
+		return err
+	}
+	if err := rfc2865.FramedIPAddress_Set(p, net.IP(address.AsSlice())); err != nil {
 		return err
 	}
 	deadline, cancel := context.WithTimeout(ctx, 3*time.Second)
