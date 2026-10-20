@@ -16,7 +16,6 @@ import (
 
 	"layeh.com/radius"
 	"layeh.com/radius/rfc2865"
-	"layeh.com/radius/rfc2866"
 	"layeh.com/radius/rfc2869"
 	"layeh.com/radius/vendors/mikrotik"
 )
@@ -159,13 +158,19 @@ func signResponse(p *radius.Packet) error {
 	return rfc2869.MessageAuthenticator_Set(p, mac.Sum(nil))
 }
 func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) {
-	c, ok := s.packetClient(r.RemoteAddr, r.Packet)
-	if !ok {
+	p := r.Packet
+	c, ok := s.packetClient(r.RemoteAddr, p)
+	if p.Code == radius.CodeAccountingRequest {
+		if !ok {
+			c, ok = s.client(r.RemoteAddr)
+			c.Network = ""
+		}
+		if ok {
+			s.account(w, r, c)
+		}
 		return
 	}
-	p := r.Packet
-	if p.Code == radius.CodeAccountingRequest {
-		s.account(w, r, c)
+	if !ok {
 		return
 	}
 	if p.Code != radius.CodeAccessRequest || !validMessageAuthenticator(p) || s.limited(c.RouterID) {
@@ -245,33 +250,13 @@ func acceptAttributes(p *radius.Packet, a Admission) error {
 	return nil
 }
 func (s *RadiusService) account(w radius.ResponseWriter, r *radius.Request, c NAS) {
-	p := r.Packet
-	status := ""
-	switch rfc2866.AcctStatusType_Get(p) {
-	case rfc2866.AcctStatusType_Value_Start:
-		status = "start"
-	case rfc2866.AcctStatusType_Value_InterimUpdate:
-		status = "interim"
-	case rfc2866.AcctStatusType_Value_Stop:
-		status = "stop"
-	default:
-		return
+	receipt := accountingReceipt(r.Packet, c, time.Now())
+	ack, err := s.Store.ReceiveAccounting(r.Context(), receipt)
+	if err == nil && ack {
+		_ = w.Write(r.Response(radius.CodeAccountingResponse))
 	}
-	// Input octets enter the NAS from the subscriber: upload. Output is download.
-	up := uint64(rfc2869.AcctInputGigawords_Get(p))<<32 | uint64(rfc2866.AcctInputOctets_Get(p))
-	down := uint64(rfc2869.AcctOutputGigawords_Get(p))<<32 | uint64(rfc2866.AcctOutputOctets_Get(p))
-	if up > 1<<63-1 || down > 1<<63-1 {
-		return
-	}
-	when := time.Now()
-	delay := time.Duration(rfc2866.AcctDelayTime_Get(p)) * time.Second
-	when = when.Add(-delay)
-	e := Accounting{LeaseID: rfc2865.Class_GetString(p), RouterID: c.RouterID, Network: c.Network, Device: rfc2865.CallingStationID_GetString(p), SessionID: rfc2866.AcctSessionID_GetString(p), Status: status, Seconds: Quantity(rfc2866.AcctSessionTime_Get(p)), Download: Quantity(down), Upload: Quantity(up), At: when}
-	if err := s.Store.Account(r.Context(), e); err != nil {
-		return
-	} // no durable commit, no response
-	_ = w.Write(r.Response(radius.CodeAccountingResponse))
 }
+
 func (s *RadiusService) Start(auth, accounting string) error {
 	if s.Mode == "disabled" {
 		return nil

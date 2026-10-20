@@ -2,6 +2,10 @@ import { esc, pill } from './dom';
 import { fmtTs } from './timefmt';
 import type { SubscriberSnapshot, SubscriberLimitView } from './gen/payloads';
 
+export function accountingStatusMessage(v: Pick<SubscriberSnapshot, 'pendingAccounting'>): string {
+  return v.pendingAccounting > 0 ? `Accounting reconciliation required (${v.pendingAccounting} pending). Last confirmed balances are shown. New Internet connections are blocked until the counters are settled.` : '';
+}
+
 export function quantity(value: string, kind: string): string {
   const n = BigInt(value);
   if (kind === 'seconds') {

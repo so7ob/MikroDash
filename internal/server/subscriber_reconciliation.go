@@ -32,11 +32,17 @@ func (s *Server) subscribersReconciliationGet(w http.ResponseWriter, r *http.Req
 		subscriberError(w, err)
 		return
 	}
+	receipts, err := ledger.AccountingReceipts(r.Context(), account)
+	if err != nil {
+		subscriberError(w, err)
+		return
+	}
 	writeJSON(w, struct {
-		Gaps     []subscriber.ByteGap        `json:"gaps"`
-		Legacy   []subscriber.LegacyExposure `json:"legacy"`
-		Sessions []subscriber.SessionReview  `json:"sessions"`
-	}{gaps, legacy, sessions})
+		Gaps     []subscriber.ByteGap           `json:"gaps"`
+		Legacy   []subscriber.LegacyExposure    `json:"legacy"`
+		Sessions []subscriber.SessionReview     `json:"sessions"`
+		Receipts []subscriber.AccountingReceipt `json:"receipts"`
+	}{gaps, legacy, sessions, receipts})
 }
 func (s *Server) subscribersReconciliationPost(w http.ResponseWriter, r *http.Request) {
 	sess := s.subscriberAdmin(w, r)

@@ -50,6 +50,13 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		return a, err
 	}
 	defer tx.Rollback()
+	count, err := pendingAccounting(tx, account)
+	if err != nil {
+		return a, err
+	}
+	if count > 0 {
+		return a, ErrDenied
+	}
 	var legacy bool
 	if err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM subscriber_operations o JOIN subscriber_leases l ON l.id=o.lease_id JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND o.kind='renew' AND o.state IN ('requested','applying','acknowledged') AND coalesce(json_extract(o.request,'$.timeBasis'),'')!=?)`, account, renewalTimeBasis).Scan(&legacy); err != nil {
 		return a, err
@@ -202,6 +209,9 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 	if e.Source != "radius" && e.Source != "api" {
 		return errors.New("invalid accounting source")
 	}
+	if e.Source == "api" && e.Status != "interim" {
+		return errors.New("API counters cannot establish Start or final Stop")
+	}
 	if !slices.Contains([]string{"start", "interim", "stop"}, e.Status) || e.SessionID == "" || e.Seconds < 0 || e.Download < 0 || e.Upload < 0 || e.Seconds > 315360000 {
 		return errors.New("invalid accounting event")
 	}
@@ -213,7 +223,14 @@ func (s *Store) Account(ctx context.Context, e Accounting) error {
 		return err
 	}
 	defer tx.Rollback()
+	e, err = preserveReceiptSeconds(tx, e)
+	if err != nil {
+		return err
+	}
 	if err = s.accountTx(tx, e); err != nil {
+		return err
+	}
+	if err = resolveReceiptCoverage(tx, e); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -378,7 +395,7 @@ func (s *Store) accountTx(tx *sql.Tx, e Accounting) error {
 		return err
 	}
 	if state == "stopped" {
-		if e.Status == "stop" && e.Seconds >= oldSec && e.Download >= oldDown && e.Upload >= oldUp {
+		if e.Status == "stop" && e.Seconds >= max(0, oldSec-1) && e.Download >= oldDown && e.Upload >= oldUp {
 			if _, err = tx.Exec(`UPDATE subscriber_holds SET resolved_at=? WHERE lease_id=? AND resolved_at=0 AND id NOT IN (SELECT hold_id FROM subscriber_gap_periods)`, e.At.Unix(), e.LeaseID); err != nil {
 				return err
 			}

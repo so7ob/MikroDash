@@ -213,3 +213,36 @@ passing full run. The unchanged complete Go half then passed with trace/raw outp
 including all packages, govulncheck and generators. No source/test failure cause
 was proven, so none is invented. A complete sweep with raw Docker output retained
 is required at the final head. Data files, volumes and operator caches were retained.
+
+
+## Durable receipt continuation (Issue #46)
+
+Current independent branch: `fix/46-durable-accounting-receipts`, based on verified
+`develop` `baae4f3e`. See [receipt behavior](Subscriber-Accounting-Receipts.md).
+
+- `go test ./internal/subscriber ./internal/db ./internal/server -count=1`: exit 0,
+  13.775 / 13.219 / 61.063 seconds on the development host. SQLite uses ordinary
+  filesystem temporary directories; only compiler caches use RAM.
+- `npx --no-install tsc --noEmit` and `npm test --silent`: exit 0, 146 tests passed.
+- `go test -race ./internal/subscriber -run 'TestReceipt|TestRealUDPIncomplete' -count=1`:
+  exit 0, 9.065 seconds, native cgo/race instrumentation.
+- `go test ./internal/subscriber -run '^$' -fuzz '^FuzzReceiptRangesAndRetryIdentity$' -fuzztime=5s -parallel=2`:
+  exit 0, 37,000 executions. Valid uint64 wire values remain exact; unsupported
+  signed-ledger sums/durations remain pending rather than wrapping. Financial
+  identity ignores changed packet identifiers, delay and receipt time.
+- Tagged `TestSubscriberAdminReconciliationBrowserAcceptance`: exit 0, 4.566 seconds,
+  real protected TLS/HTTP/SQLite, original receipt fields, missing-versus-known
+  counters, evidence-backed correction, account-response races, Unicode,
+  English/LTR, 375/1280 and zero axe violations. Only NAS data is synthetic.
+
+Failed probes remain recorded. The first recovery test did not compile because
+it used the wrong operation signature; this is not counted as a behavioral
+failure. After correction, the actual late-partial assertion failed. Parser
+regressions also failed because malformed Start became zero and malformed values
+shared an identity. The corrected cases pass. No test or assertion was removed.
+
+The new credential-whitelist and unknown-NAS tests are supplemental; final full
+verification, mutation checks, current-head CI and post-merge CI remain delivery
+gates. Screenshots remain private under `.screenshots/subscriber-receipts-46/`.
+No target-router traffic, reboot, power-loss durability or latency acceptance is
+claimed. A successful commit is not itself an exact-head verification result.

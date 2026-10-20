@@ -114,3 +114,43 @@ func TestSubscriberReconciliationAPIFinalReadingPersistsWithoutDuplicateDebit(t 
 		t.Fatal(view, err)
 	}
 }
+
+func TestSubscriberReconciliationAPIExposesOnlySelectedAccountReceipts(t *testing.T) {
+	s, mux, id := reconciliationFixture(t)
+	ledger := s.auditDB.Subscribers()
+	start := time.Now().Truncate(time.Second)
+	grant, err := ledger.Reserve(t.Context(), id, "synthetic-router", "C", "02:00:00:00:00:41", "synthetic-receipt-api", start)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := subscriber.AccountingReceipt{ID: "synthetic-receipt-api", LeaseID: grant.LeaseID, RouterID: "synthetic-router", Network: "C", Device: "02:00:00:00:00:41", SessionID: "synthetic-session", Status: "stop", Download: "0", Upload: "0", DownloadKnown: true, UploadKnown: true, ReceivedAt: start, At: start, Fields: map[string]string{"Acct-Output-Octets": "0", "Acct-Input-Octets": "0"}}
+	if ack, err := ledger.ReceiveAccounting(t.Context(), receipt); err != nil || !ack {
+		t.Fatal(ack, err)
+	}
+	other, _, err := ledger.CreateAccount(t.Context(), "synthetic-admin", "synthetic-other", "Synthetic account", "synthetic-password", "Synthetic receipt ownership", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, account := range []string{id, other.ID} {
+		r := httptest.NewRequest("GET", "/api/subscribers/reconciliation?account="+account, nil)
+		r.Header.Set("Cookie", "mikrodash_sid=synthetic-token")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		var response struct {
+			Receipts []subscriber.AccountingReceipt `json:"receipts"`
+		}
+		if err = json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		if account == id {
+			if len(response.Receipts) != 1 || response.Receipts[0].ID != receipt.ID || response.Receipts[0].State != "pending" || response.Receipts[0].TimeKnown {
+				t.Fatal(response)
+			}
+		} else if len(response.Receipts) != 0 {
+			t.Fatal("receipts crossed account ownership", response)
+		}
+	}
+}

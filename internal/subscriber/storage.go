@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS subscriber_audit (
  id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
  reason TEXT NOT NULL, created_at INTEGER NOT NULL
 );
-` + SessionSchema + ReconciliationSchema
+` + SessionSchema + ReconciliationSchema + ReceiptSchema
 
 type Store struct{ sql *sql.DB }
 
@@ -358,16 +358,17 @@ UNION ALL SELECT limit_id,period_start,amount,amount FROM subscriber_legacy_expo
 }
 
 type Snapshot struct {
-	Version          string       `json:"version"`
-	Subscription     Subscription `json:"subscription"`
-	Decision         Decision     `json:"decision"`
-	ObservedAt       time.Time    `json:"observedAt"`
-	LastSyncedAt     time.Time    `json:"lastSyncedAt"`
-	Quality          string       `json:"quality"`
-	LifetimeSeconds  Quantity     `json:"lifetimeSeconds"`
-	LifetimeDownload Quantity     `json:"lifetimeDownload"`
-	LifetimeUpload   Quantity     `json:"lifetimeUpload"`
-	Sessions         []Lease      `json:"sessions"`
+	PendingAccounting int          `json:"pendingAccounting"`
+	Version           string       `json:"version"`
+	Subscription      Subscription `json:"subscription"`
+	Decision          Decision     `json:"decision"`
+	ObservedAt        time.Time    `json:"observedAt"`
+	LastSyncedAt      time.Time    `json:"lastSyncedAt"`
+	Quality           string       `json:"quality"`
+	LifetimeSeconds   Quantity     `json:"lifetimeSeconds"`
+	LifetimeDownload  Quantity     `json:"lifetimeDownload"`
+	LifetimeUpload    Quantity     `json:"lifetimeUpload"`
+	Sessions          []Lease      `json:"sessions"`
 }
 
 func (s *Store) Snapshot(ctx context.Context, account string, at time.Time) (Snapshot, error) {
@@ -495,6 +496,15 @@ func (s *Store) Snapshot(ctx context.Context, account string, at time.Time) (Sna
 	if radiusSync.Valid {
 		v.LastSyncedAt = time.Unix(radiusSync.Int64, 0)
 	}
+	v.PendingAccounting, err = pendingAccounting(tx, account)
+	if err != nil {
+		return v, err
+	}
+	if v.PendingAccounting > 0 {
+		v.Quality = "reconciling"
+		v.Decision.Allowed = false
+		v.Decision.Reasons = append(v.Decision.Reasons, "accounting-reconciliation-required")
+	}
 	// The digest covers every client-visible decision, including expiry and
 	// freshness changes without a new accounting event.
 	raw, _ := json.Marshal(v)
@@ -548,11 +558,11 @@ func (s *Store) CheckReady(ctx context.Context) error {
 		return err
 	}
 	var n int
-	if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('subscriber_accounts','subscriber_operations','subscriber_sources','subscriber_observations','subscriber_holds','subscriber_reconciliations','subscriber_byte_gaps','subscriber_gap_periods','subscriber_legacy_exposure')`).Scan(&n); err != nil {
+	if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('subscriber_accounts','subscriber_operations','subscriber_sources','subscriber_observations','subscriber_holds','subscriber_reconciliations','subscriber_byte_gaps','subscriber_gap_periods','subscriber_legacy_exposure','subscriber_accounting_receipts')`).Scan(&n); err != nil {
 		return err
 	}
-	if n != 9 {
-		return errors.New("subscriber schema 40 migration required")
+	if n != 10 {
+		return errors.New("subscriber schema 41 migration required")
 	}
 	return nil
 }
