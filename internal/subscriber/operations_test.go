@@ -68,7 +68,7 @@ func TestFiveContinuousRenewalsUseOneLedgerAndVerifiedReadback(t *testing.T) {
 	nas := &radius.PacketServer{SecretSource: radius.StaticSecretSource([]byte(testSecret)), Handler: radius.HandlerFunc(func(w radius.ResponseWriter, r *radius.Request) {
 		mu.Lock()
 		defer mu.Unlock()
-		if r.Packet.Code != radius.CodeCoARequest || rfc2866.AcctSessionID_GetString(r.Packet) != "session" {
+		if r.Packet.Code != radius.CodeCoARequest || rfc2866.AcctSessionID_GetString(r.Packet) != "session" || rfc2865.FramedIPAddress_Get(r.Packet).String() != "198.51.100.2" {
 			t.Error("wrong session change")
 			return
 		}
@@ -205,7 +205,7 @@ func TestRateOperationHasNoQuotaOrExpirySideEffects(t *testing.T) {
 	}
 	bad := svc.Clients[0]
 	bad.Capabilities = Capabilities{}
-	if _, err = operationPacket(o, bad, start); err == nil {
+	if _, err = operationPacket(o, bad, start, "198.51.100.2"); err == nil {
 		t.Fatal("unverified rate capability accepted")
 	}
 	if err = s.transitionOperation(t.Context(), o, "applying", "test", "", start); err != nil {
@@ -349,7 +349,7 @@ func TestCoATimeoutAndByteModeEncoding(t *testing.T) {
 		n := NAS{Secret: testSecret, CalledStationID: "hs-lab", Capabilities: recordedCapabilities()}
 		n.Capabilities.TimeoutMode = mode
 		n.Capabilities.ByteMode = mode
-		p, err := operationPacket(o, n, now)
+		p, err := operationPacket(o, n, now, "198.51.100.2")
 		if mode == "remaining" {
 			if err == nil {
 				t.Fatal("relative CoA could regrant quota after an uncertain delayed retry")
@@ -370,7 +370,7 @@ func TestCoATimeoutAndByteModeEncoding(t *testing.T) {
 		// A shortening request uses the same documented/probed mode explicitly.
 		shorter := o
 		shorter.TargetDeadline = start.Add(50 * time.Second)
-		p, err = operationPacket(shorter, n, now)
+		p, err = operationPacket(shorter, n, now, "198.51.100.2")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -415,7 +415,7 @@ func TestPersistedCoARetryRequiresCurrentCapabilities(t *testing.T) {
 	for _, kind := range []string{"renew", "rate"} {
 		o := Operation{Kind: kind, TargetDeadline: start.Add(100 * time.Second), Request: OperationRequest{StartedAt: start, DownloadCeiling: 1 << 33, UploadCeiling: 100, TotalCeiling: 1 << 34}}
 		n := NAS{Secret: testSecret, Capabilities: recordedCapabilities()}
-		p, err := operationPacket(o, n, start)
+		p, err := operationPacket(o, n, start, "198.51.100.2")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -440,7 +440,7 @@ func TestPersistedCoARetryRequiresCurrentCapabilities(t *testing.T) {
 			t.Run(kind+"/"+name, func(t *testing.T) {
 				changed := n
 				mutate(&changed.Capabilities)
-				if _, err := operationPacket(o, changed, start); err == nil {
+				if _, err := operationPacket(o, changed, start, "198.51.100.2"); err == nil {
 					t.Fatal("persisted packet bypassed revoked capability")
 				}
 			})
