@@ -37,10 +37,10 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | --- | --- | --- | --- | --- |
 | RADIUS PAP/Class/accounting | RouterOS RADIUS; RFC 2866 | implemented | UDP tests passed | pending |
 | Session-Timeout at admission | RouterOS RADIUS | implemented, max 60 seconds | attributes tested | enforcement pending |
-| Session-Timeout CoA total/remaining meaning | RouterOS lists writable attribute; meaning needs probe | durable total-session implementation | five-cycle UDP pass | pending |
-| CoA rate change | RouterOS RADIUS Change of Authorization | durable rate operations and capability gate | synthetic UDP/readback passed | pending |
+| Session-Timeout CoA total/remaining meaning | RouterOS lists writable attribute; meaning needs probe | durable total-session implementation; confirmed IPv4 selector | real CHR 7.24.5 total mode, extension past 60 seconds and immediate shortening proved; five-cycle production worker pending | pending |
+| CoA rate change | RouterOS RADIUS Change of Authorization | durable rate operations, confirmed IPv4 and capability gate | real CHR exact-device dynamic queue changed twice; full worker path pending | pending |
 | Dynamic queue identity/rate verification | RouterOS queue and HotSpot active menus | exact unique dynamic host queue parser | parser + rate readback passed | pending |
-| API HotSpot octet direction | Conflicting service-specific wording requires one-way traffic | explicit per-source capability mapping | synthetic direction/overlap passed | one-way probe pending |
+| API HotSpot octet direction | Conflicting service-specific wording requires one-way traffic | explicit per-source capability mapping | real CHR one-way traffic and RADIUS/ledger agreement: input upload, output download | target one-way probe pending |
 | Shared NAS source distinguished by HotSpot server | Called-Station-Id documented as HotSpot server | authenticated Called-Station-Id and owned Class mapping | UDP isolation passed | pending |
 | Interim >=60 seconds | RFC 2869 section 5.16 | implemented | attribute test passed | local 5s compatibility unverified now |
 | HTTPS edge with isolated private HTTP portal | RouterOS Reverse Proxy | explicit peer/Host/protocol/forwarding boundary, native TLS default | actual TLS/HTTP/SQLite/browser/UDP passed | header/device/route acceptance pending |

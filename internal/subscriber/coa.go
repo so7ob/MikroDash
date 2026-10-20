@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"net/netip"
 	"time"
 
 	"layeh.com/radius"
@@ -18,8 +19,12 @@ import (
 	"mikrodash/internal/guard"
 )
 
-func operationPacket(o Operation, n NAS, at time.Time) (*radius.Packet, error) {
+func operationPacket(o Operation, n NAS, at time.Time, observedAddress string) (*radius.Packet, error) {
 	q := o.Request
+	address, err := netip.ParseAddr(observedAddress)
+	if err != nil || !address.Is4() || !address.IsGlobalUnicast() || address.IsLoopback() {
+		return nil, errors.New("confirmed HotSpot IPv4 address required for CoA")
+	}
 	// Recheck current capabilities before replaying a persisted packet. Removing
 	// probe evidence or a capability must also revoke an uncertain retry.
 	if o.Kind == "rate" {
@@ -44,11 +49,20 @@ func operationPacket(o Operation, n NAS, at time.Time) (*radius.Packet, error) {
 		if err != nil {
 			return nil, err
 		}
-		return radius.Parse(b, []byte(n.Secret))
+		p, err := radius.Parse(b, []byte(n.Secret))
+		if err != nil {
+			return nil, err
+		}
+		addresses, err := rfc2865.FramedIPAddress_Gets(p)
+		if err != nil || len(addresses) != 1 || !addresses[0].Equal(net.IP(address.AsSlice())) {
+			return nil, errors.New("persisted CoA address is missing or no longer matches the owned device")
+		}
+		return p, nil
 	}
 	p := radius.New(radius.CodeCoARequest, []byte(n.Secret))
 	setters := []error{
 		rfc2865.UserName_SetString(p, q.Username), rfc2865.CallingStationID_SetString(p, q.Device),
+		rfc2865.FramedIPAddress_Set(p, net.IP(address.AsSlice())),
 		rfc2865.CalledStationID_SetString(p, n.CalledStationID), rfc2866.AcctSessionID_SetString(p, q.SessionID),
 		rfc2869.EventTimestamp_Set(p, at),
 	}
@@ -126,6 +140,17 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 		if !sessionMatches(e, row, n.CalledStationID, observed) {
 			continue
 		}
+		// The address in an issued packet is part of its target identity. Do not
+		// verify or replay that intent using a later address, even if its queue
+		// happens to expose the requested ceiling.
+		if o.Packet != "" {
+			if _, err = operationPacket(o, n, at, row.Address); err != nil {
+				if err = s.Store.transitionOperation(ctx, o, "pending-reconnect", err.Error(), "", at); err != nil {
+					return err
+				}
+				continue
+			}
+		}
 		var owner string
 		if err = s.Store.sql.QueryRowContext(ctx, `SELECT sub.account_id FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE l.id=? AND l.state='active' AND l.session_id=? AND l.device=? AND l.router_id=? AND l.network=?`, o.LeaseID, o.Request.SessionID, o.Request.Device, o.Request.RouterID, o.Request.Network).Scan(&owner); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -178,7 +203,7 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 		if o.State != "requested" && at.Sub(o.UpdatedAt) < 3*time.Second {
 			continue
 		}
-		p, err := operationPacket(o, n, at)
+		p, err := operationPacket(o, n, at, row.Address)
 		if err != nil {
 			if err = s.Store.transitionOperation(ctx, o, "pending-reconnect", err.Error(), "", at); err != nil {
 				return err
