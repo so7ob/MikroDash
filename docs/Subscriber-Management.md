@@ -115,14 +115,18 @@ reasons only (notification delivery is not implemented). `throttle` also changes
 
 ## Portal boundary and authentication
 
-The dedicated TLS listener serves only the subscriber document, bundle, selected local assets,
+The isolated subscriber listener uses native TLS by default or explicit private HTTP behind
+an approved HTTPS proxy. It serves only the subscriber document, bundle, selected local assets,
 owned account routes and its own WebSocket hub. It has no administration fallback. Cookies
 use a separate `__Host-` name, Secure, HttpOnly and SameSite=Lax. Origin and CSRF token checks
 protect mutations; WebSockets recheck portal session validity at each send. Portal and RADIUS
 share a two-operation credential-verification bound, so an allowed rate-limit burst cannot
 start unbounded concurrent scrypt allocations. A CSP restricts
 resources and HotSpot form destinations. The existing configured trusted proxy chain controls
-client IP attribution; never trust arbitrary browser MAC/IP fields.
+client IP attribution on native TLS. The explicit proxy transport instead uses its own exact
+peer allowlist and the same right-to-left parser, with Host/HTTPS-header checks before every
+route. See [proxy deployment and rollback](Subscriber-Proxy.md). Never trust arbitrary
+browser MAC/IP fields.
 
 Portal login establishes only a portal session. `POST /api/connect` reads the client's device
 from the enrolled router's HotSpot host table, then creates a 30-second network/device-bound

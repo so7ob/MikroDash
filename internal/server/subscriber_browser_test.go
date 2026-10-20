@@ -16,20 +16,33 @@ func TestSubscriberBrowserAcceptance(t *testing.T) {
 	if os.Getenv("SUBSCRIBER_BROWSER_MODULE") == "" || os.Getenv("SUBSCRIBER_EVIDENCE_DIR") == "" {
 		t.Fatal("configure browser module and evidence directory")
 	}
-	s, _, _, _ := portalFixture(t)
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
+	for _, transport := range []string{"tls", "trusted-proxy-http"} {
+		t.Run(transport, func(t *testing.T) {
+			s, _, _, _ := portalFixture(t)
+			root, err := filepath.Abs("../..")
+			if err != nil {
+				t.Fatal(err)
+			}
+			s.staticDir = filepath.Join(root, "web/public")
+			var origin string
+			evidence := os.Getenv("SUBSCRIBER_EVIDENCE_DIR")
+			if transport == "trusted-proxy-http" {
+				edge, _ := subscriberProxyFixture(t, s, filepath.Join(root, "web/dist"))
+				origin = edge.URL
+				evidence = filepath.Join(evidence, "proxy")
+			} else {
+				server := httptest.NewTLSServer(s.subscriberPortal(filepath.Join(root, "web/dist")))
+				t.Cleanup(server.Close)
+				s.subscribers.cfg.PortalOrigin = server.URL
+				origin = server.URL
+			}
+			command := exec.Command("node", filepath.Join(root, "tools/subscriber-browser.mjs"))
+			command.Env = append(os.Environ(), "SUBSCRIBER_TEST_URL="+origin, "SUBSCRIBER_EVIDENCE_DIR="+evidence)
+			output, err := command.CombinedOutput()
+			if err != nil {
+				t.Fatalf("browser acceptance: %v\n%s", err, output)
+			}
+			t.Log(string(output))
+		})
 	}
-	s.staticDir = filepath.Join(root, "web/public")
-	server := httptest.NewTLSServer(s.subscriberPortal(filepath.Join(root, "web/dist")))
-	defer server.Close()
-	s.subscribers.cfg.PortalOrigin = server.URL
-	command := exec.Command("node", filepath.Join(root, "tools/subscriber-browser.mjs"))
-	command.Env = append(os.Environ(), "SUBSCRIBER_TEST_URL="+server.URL)
-	output, err := command.CombinedOutput()
-	if err != nil {
-		t.Fatalf("browser acceptance: %v\n%s", err, output)
-	}
-	t.Log(string(output))
 }

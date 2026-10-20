@@ -21,15 +21,15 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Audited admin settlement and explicit byte-gap allocations implemented; incomplete telemetry review remains pending | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
 | AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; approved byte-gap settlement implemented; continuous hard-edge renewal pending | policy, journal adjustments | partial | passed: calendar anchors and approved settlement | pending: boundary observations |
 | AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
-| AC-11 | No browsers required | Background Disconnect UDP test | explicit runtime lifecycle and observer | partial | partial | pending: closed-browser run |
+| AC-11 | No browsers required | Actual startup and watcher-free observer checks for both portal transports; background Disconnect UDP test | explicit runtime lifecycle and observer | partial | passed: scoped lifecycle/UDP | pending: closed-browser run |
 | AC-12 | Local outage bounds and fail-closed admission | Initial 60-second/byte delegation | verified renewal and local limits | partial | partial | pending: service outage probe |
-| AC-13 | Single C sign-in and safe exhausted portal | Isolated portal/ticket server tests | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
-| AC-14 | Ownership/device/network/ticket isolation | Existing portal and RADIUS tests | expanded runtime/operations security | partial | prior pass | pending: C isolation |
+| AC-13 | Single C sign-in and safe exhausted portal | Native TLS and HTTPS-proxy portal/ticket to owned real UDP RADIUS pass; actual HotSpot browser POST pending | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
+| AC-14 | Ownership/device/network/ticket isolation | HTTPS/HTTP/SQLite/UDP tests cover peer, forwarded-client, device, ticket, admin-route and WebSocket isolation | expanded runtime/operations security | partial | prior pass | pending: C isolation |
 | AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/storage failure tests; incomplete counter-payload validation remains a software gap | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
 | AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation; full editors/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
 | AC-17 | Idempotent import/opening/cutover/rollback | Read-only User Manager preview | transactional mapping/apply/approval | partial | missing | pending: approved live batch |
 | AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
-| AC-19 | Target build and existing app compatibility | Verified foundation/session develop CI and static ARM64 cross-build; target execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
+| AC-19 | Target build and existing app compatibility | Verified develop CI and static ARM64/ARMv7 cross-builds at prior source; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
 
 ## Capability matrix
 
@@ -43,6 +43,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | API HotSpot octet direction | Conflicting service-specific wording requires one-way traffic | explicit per-source capability mapping | synthetic direction/overlap passed | one-way probe pending |
 | Shared NAS source distinguished by HotSpot server | Called-Station-Id documented as HotSpot server | authenticated Called-Station-Id and owned Class mapping | UDP isolation passed | pending |
 | Interim >=60 seconds | RFC 2869 section 5.16 | implemented | attribute test passed | local 5s compatibility unverified now |
+| HTTPS edge with isolated private HTTP portal | RouterOS Reverse Proxy | explicit peer/Host/protocol/forwarding boundary, native TLS default | actual TLS/HTTP/SQLite/browser/UDP passed | header/device/route acceptance pending |
 
 References: [RADIUS](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/),
 [HotSpot](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/),
@@ -208,3 +209,40 @@ Source audit correction: the portal already separates business Remaining from
 Available for new connections. The earlier follow-up list overstated that gap.
 Full local/PR/post-merge evidence for #47 will be recorded at delivery; this entry
 does not claim a live HotSpot acceptance result.
+
+
+### HTTPS reverse proxy transport (Issue #49)
+
+Previous goal turn: progress. PR #48 delivered administration-first setup at
+`develop` `fe0db269d7d2b2dc7c8bbf087998bb2c2f26b497`; its exact PR head and
+post-merge CI both succeeded. The operator confirmed that the reported disabled
+message appears in the current VS Code development process. Restarting that
+process loads the new administration handlers; no runtime was restarted here.
+
+An independent numbered branch now implements an exact-peer private HTTP portal
+behind the target's existing HTTPS proxy model, retaining native TLS by default.
+Config/sealing, all-route boundary, right-to-left client attribution, device-bound
+tickets, actual startup/shutdown and browser/WebSocket isolation are integrated.
+The initial config regression reproduced the TLS-only failure. Boundary tests
+also found IPv4-mapped unspecified addresses; normalization now refuses them.
+A scripted-session cleanup initially tried live collector teardown and panicked;
+the fixture now cleans up only the resources it actually owns.
+
+Actual focused evidence: HTTP/TLS/SQLite plus owned RADIUS over UDP passed;
+startup/observer-without-watchers/shutdown passed for both transports. Native race
+checks passed in 8.807 seconds. A 5-second forwarding fuzz probe passed with
+14,939 executions. Actual Chromium passed both transports in 14.373 seconds,
+including mobile/desktop, three themes and axe. No target traffic is simulated
+as hardware proof. Full local/PR/post-merge verification remains a delivery gate.
+
+The actual target reported architecture `arm`; a static ARMv7 binary was built
+at the prior tested PR head but was not executed on the target. Its existing
+container metadata points to an older image and uses external USB storage.
+Two active C sessions were observed in the private read-only transport snapshot.
+No container, proxy rule, certificate, session or RADIUS authority was modified.
+Private endpoint values and rule identifiers remain outside public documentation.
+
+This closes a software transport prerequisite, not the full C pilot. Accounting
+receipt completion (#46), continuous calendar renewal, remaining policy/admin/import
+and setup work, plus target acceptance and measurements remain required. The
+complete AC-01..AC-19 scope stays active. See [proxy guide](Subscriber-Proxy.md).

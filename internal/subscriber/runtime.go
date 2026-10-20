@@ -21,6 +21,8 @@ type Config struct {
 	Mode                string   `json:"mode"`
 	PortalListen        string   `json:"portalListen"`
 	PortalOrigin        string   `json:"portalOrigin"`
+	PortalTransport     string   `json:"portalTransport,omitempty"`
+	PortalProxyPeers    []string `json:"portalProxyPeers,omitempty"`
 	TLSCert             string   `json:"tlsCert"`
 	TLSKey              string   `json:"tlsKey"`
 	AuthListen          string   `json:"authListen"`
@@ -43,8 +45,8 @@ func (c Config) Validate() error {
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.Path != "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return errors.New("portal origin must be an HTTPS origin")
 	}
-	if c.PortalListen == "" || c.TLSCert == "" || c.TLSKey == "" {
-		return errors.New("separate portal TLS listener required")
+	if err := c.validatePortalTransport(); err != nil {
+		return err
 	}
 	if (c.Mode == "pilot" || c.Mode == "managed") && (!c.LocalLimitsVerified || !c.AllowDisconnect) {
 		return errors.New("managed admission requires verified local limits and explicit disconnect grant")

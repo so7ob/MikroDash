@@ -61,9 +61,13 @@ func (s *Server) StartSubscribers(configPath, webDir string) error {
 		}
 		cfg.Clients[i].Secret = secret
 	}
-	cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
-	if err != nil {
-		return errors.New("cannot load subscriber TLS identity")
+	var tlsConfig *tls.Config
+	if !cfg.UsesPortalProxy() {
+		cert, err := tls.LoadX509KeyPair(cfg.TLSCert, cfg.TLSKey)
+		if err != nil {
+			return errors.New("cannot load subscriber TLS identity")
+		}
+		tlsConfig = &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{cert}}
 	}
 	listener, err := net.Listen("tcp", cfg.PortalListen)
 	if err != nil {
@@ -92,9 +96,14 @@ func (s *Server) StartSubscribers(configPath, webDir string) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	runtime := &subscriberRuntime{cfg: cfg, radius: service, hub: hub.New(), ctx: ctx, cancel: cancel, done: make(chan struct{})}
 	s.subscribers = runtime
-	runtime.http = &http.Server{Handler: s.subscriberPortal(webDir), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12, Certificates: []tls.Certificate{cert}}}
+	runtime.http = &http.Server{Addr: listener.Addr().String(), Handler: s.subscriberPortal(webDir), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, TLSConfig: tlsConfig}
 	go func() {
-		err := runtime.http.ServeTLS(listener, "", "")
+		var err error
+		if cfg.UsesPortalProxy() {
+			err = runtime.http.Serve(listener)
+		} else {
+			err = runtime.http.ServeTLS(listener, "", "")
+		}
 		if err != nil && err != http.ErrServerClosed {
 			log.Print("[subscriber] portal listener stopped")
 			cancel()
