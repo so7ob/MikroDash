@@ -34,7 +34,9 @@ requires a reason, an evidence reference and explicit confirmation.
 - Missing Stop: after the background service has proved absence beyond the maximum
   issued delegation, approve non-regressing final cumulative seconds/download/upload.
   Approval settles only the relevant session. Last reliable values are shown for
-  review; they are not proof that no additional traffic occurred.
+  review; they are not proof that no additional traffic occurred. New admission and
+  renewal remain paused until final accounting is settled, even if the session has
+  zero commercial quota holds. Ordinary period-allocation holds are separate.
 - Legacy conservative balance: approve usage within the retained original bound.
   The original value and its quality remain available for audit.
 

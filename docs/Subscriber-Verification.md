@@ -6,6 +6,9 @@ establish live HotSpot sign-in, CoA speed verification, production readiness or 
 See [architecture and remaining work](Subscriber-Management.md) and the
 [lab guide](Subscriber-Lab-Guide.md).
 
+The focused missing-final-accounting safety correction has a separate
+[contract and verification record](Subscriber-Final-Accounting.md).
+
 ## Source and isolation
 
 Implementation took place in the visible `/root/So7ob/MikroDash` checkout, on
