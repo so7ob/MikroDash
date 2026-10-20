@@ -301,3 +301,20 @@ input helper hid the literal `subEditName` producer from the static scan, while
 the browser journey had passed. The field now declares its input ID explicitly,
 using the same local form classes. The audit and all its assertions remain intact.
 The failed full sweep is not reported as green.
+
+## Confirmed HotSpot CoA address, Issue #55
+
+Real isolated CHR 7.24.5 testing found that the original CoA selectors received
+Unsupported-Extension. Adding the API-confirmed Framed-IP-Address produced ACK
+and actual timeout/rate readback; see [the detailed evidence](Subscriber-CoA-Targets.md).
+The private raw successful journey ran Start, a standard 60-second Interim and
+Stop; final counters were 63 seconds, 66746 download and 18027 upload bytes.
+The original compile error, selector NAKs and rerun-with-existing-session failure
+remain retained, separately from the successful probes. No L009 write was made.
+
+`go test ./internal/subscriber ./internal/subscriberlab ./internal/guard` on the
+development checkout passed after the production correction (7.497 s / 0.007 s /
+cached). The subscriberlab package is separate work under #54 and is not part of
+this focused fix. `go test ./internal/subscriber -run
+'Test(CoA|IssuedCoA|FiveContinuous)' -count=1` passed in 0.142 s. Full exact-source,
+mutation and CI delivery evidence follows only after those checks complete.

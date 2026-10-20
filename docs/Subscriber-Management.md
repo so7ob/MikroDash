@@ -123,6 +123,12 @@ A missing Stop retains its reservation until a complete shared API read proves a
 `deny` affects admission; `disconnect` also triggers enforcement. `alert` produces decision
 reasons only (notification delivery is not implemented). `throttle` also changes active session rates through guarded CoA when its capability is recorded. Durable operations distinguish requested, applying, acknowledged, verified, failed and pending-reconnect. Only a fresh exact-device queue readback verifies a live rate; ACK alone is insufficient. Unknown capabilities retain pending status. Burst/minimum/priority and network ceilings remain outstanding.
 
+CoA includes the fresh API-confirmed device IPv4; it cannot use a browser address.
+Persisted requests with absent or changed addresses become pending-reconnect
+before replay or verification, retaining reserved credit. See the
+[confirmed-target contract and real CHR evidence](Subscriber-CoA-Targets.md).
+The CHR result does not enable capabilities on a live operator NAS.
+
 ## Portal boundary and authentication
 
 The isolated subscriber listener uses native TLS by default or explicit private HTTP behind
