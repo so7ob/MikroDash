@@ -392,3 +392,18 @@ accepted. This supplements the earlier short-restart and failed old-code outage
 results without deleting them. The CHR harness full gate, disk-backed lab race
 and ownership/evidence mutations are recorded in verification. #54 delivery and
 all remaining AC-01..AC-19 software/target requirements remain open.
+
+
+### Issue #62: trusted duration observation continuation
+
+The shared observer now rejects malformed active uptime before completeness and
+keeps invalid remaining timeout unknown. A real call-site regression shows the
+old code closing a trusted active lease from garbage uptime; the correction
+preserves the prior ledger. Explicit zero, counter direction and valid large
+integer bytes remain separate. No new command/channel or legacy collector
+parser change is required. Independent big.Int arithmetic random checks and
+six compiling mutants pass their intended assertions; the clean native CHR
+journey/rate/renewal path also passes on actual short-session wire values.
+Full delivery and target L009 acceptance remain separate gates. See
+[duration observations](Subscriber-Duration-Observations.md) for source, storage
+and fuzz instrumentation limits. The wider AC-01..AC-19 gaps remain in scope.

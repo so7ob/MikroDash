@@ -48,3 +48,28 @@ compiled data entries from that task's RAM cache were reclaimed, with a retained
 manifest. Data, images, operator files and volumes were preserved. Successful
 source gates, mutation/randomized tests, actual CHR and exact-head/post-merge CI
 must be recorded separately; this document does not imply L009 acceptance.
+
+
+The arithmetic fuzz property passed 121505 executions in about 11 seconds using
+two workers. Its standalone race binary was not coverage-instrumented; this is
+random input testing against a big.Int reference without coverage guidance.
+Six compiling overlay mutations all fail relevant assertions: partial matches,
+unbounded sum, raw nonempty timeout, restored permissive uptime, skipped invalid
+active row, and lost explicit zero. In particular the observer-call-site tests
+catch a correct standalone parser that is no longer called.
+
+A clean native application at `7adcc155` passed the actual namespace browser
+journey against the same retained CHR 7.24.5 fixture: device-bound HTTPS login,
+verified rate changes/cooldown and all six responsive/theme axe variants. The
+normal worker's persisted active observation has known counters and timeout;
+a verified renewal of that same session succeeds with the checked parser.
+Owned HTTPS logout follows. This validates real short-session wire spellings,
+not simulated corrupt data on an operator NAS or long-duration hardware proof.
+
+
+The full local repository gate at `7adcc155` passed: 63 Go packages,
+gofmt/vet/govulncheck and current generators, TypeScript, 146 frontend tests and
+32 tooling tests. Its Docker wrapper runs each Go test with `-count=1` and both
+GOTMPDIR/TMPDIR on ordinary `/tmp`, keeping only compile/cache work in RAM.
+The subsequent edits record results and link this contract; product code is
+unchanged. Exact final-head and post-merge CI remain separate delivery gates.
