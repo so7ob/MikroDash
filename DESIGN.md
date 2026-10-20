@@ -705,3 +705,19 @@ The synthetic protected HTTP/SQLite browser journey passes at 375/1280 in
 default dark, default light and Nord, with keyboard/account isolation, escaped
 Unicode content, retained evidence, final correction and zero axe violations. This extends the existing technical console
 direction; checklist: zero new decorative patterns.
+
+
+### Subscriber display-name editing
+
+The technical administration console uses its existing table actions, form grid,
+inputs and semantic buttons. Editing replaces the creation form and restores it
+on cancel/save; it does not add a modal or change global typography/palettes.
+A read-only username identifies the selected account. Input survives validation
+or stale-state errors; busy controls prevent another account selection during a
+save. Keyboard focus returns to that account's Edit name button.
+
+The actual protected HTTP/SQLite Chromium journey passes in dark, light and Nord
+at 375/1280 with zero axe violations. It covers cancel, invalid input, concurrent
+edit conflict, reviewed save, escaped Unicode data and focus. The existing dense
+console structure, local font system and semantic accent roles are retained;
+audit result: zero new decorative patterns or design systems.

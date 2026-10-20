@@ -227,6 +227,7 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 		Action        string          `json:"action"`
 		Username      string          `json:"username"`
 		Name          string          `json:"name"`
+		ExpectedName  *string         `json:"expectedName"`
 		Password      string          `json:"password"`
 		VoucherLength int             `json:"voucherLength"`
 		AccountID     string          `json:"accountId"`
@@ -244,6 +245,18 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var result any = map[string]bool{"ok": true}
 	switch in.Action {
+	case "name":
+		if in.ExpectedName == nil {
+			writeJSONErr(w, 400, "The current display name is required. Reload the account and try again.")
+			return
+		}
+		var account subscriber.Account
+		account, err = store.EditAccountName(r.Context(), actor, in.AccountID, *in.ExpectedName, in.Name, in.Reason)
+		if errors.Is(err, subscriber.ErrConflict) {
+			writeJSONErr(w, 409, "Subscriber details changed. Refresh the list and open Edit name again before saving.")
+			return
+		}
+		result = map[string]any{"account": account}
 	case "create":
 		var a subscriber.Account
 		var code string

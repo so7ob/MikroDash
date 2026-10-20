@@ -22,7 +22,8 @@ try {
  await page.getByLabel('Change reason',{exact:true}).first().fill('Synthetic offline browser setup');
  const created=page.waitForResponse(r=>r.url().endsWith('/api/subscribers')&&r.request().method()==='POST');
  await page.getByRole('button',{name:'Create subscriber',exact:true}).click();
- assert.equal((await created).status(),200);
+ const createdResponse=await created;assert.equal(createdResponse.status(),200);
+ const createdAccount=(await createdResponse.json()).account;
  await page.getByRole('cell',{name:'Synthetic offline: تجربة',exact:true}).waitFor();
  await page.getByText('Subscriber created.',{exact:true}).waitFor();
  assert.match(await page.locator('#subscriberRuntimeStatus').innerText(),/portal and RADIUS are disabled/);
@@ -34,6 +35,69 @@ try {
   assert.deepEqual(accessibility.violations,[]);
   await page.screenshot({path:`${out}/subscriber-admin-offline-synthetic-${width}.png`,fullPage:true});
  }
+
+ // Exercise a real concurrent administrator edit before saving this form.
+ const editButton=()=>page.locator(`[data-sub-edit="${createdAccount.id}"]`);
+ const nameEditor=page.locator('#subscriberNameForm');
+ await editButton().click();
+ assert.equal(await page.locator('#subscriberCreateForm').isVisible(),false);
+ await nameEditor.getByLabel('New display name',{exact:true}).fill('Discarded synthetic edit');
+ await nameEditor.getByRole('button',{name:'Cancel',exact:true}).click();
+ assert.equal(await nameEditor.isVisible(),false);
+ assert.equal(await page.locator('#subscriberCreateForm').isVisible(),true);
+ assert.equal(await editButton().evaluate(n=>n===document.activeElement),true,'cancel lost account focus');
+ await editButton().click();
+ await nameEditor.getByLabel('New display name',{exact:true}).fill('x'.repeat(257));
+ await nameEditor.getByLabel('Change reason',{exact:true}).fill('Synthetic invalid name');
+ const invalidName=page.waitForResponse(r=>r.url().endsWith('/api/subscribers')&&r.request().method()==='POST');
+ await nameEditor.getByRole('button',{name:'Save display name',exact:true}).click();
+ assert.equal((await invalidName).status(),400);
+ await page.getByText('display name must be valid Unicode and at most 256 UTF-8 bytes',{exact:true}).waitFor();
+ assert.equal(await nameEditor.getByLabel('New display name',{exact:true}).inputValue(),'x'.repeat(257),'validation cleared input');
+ const concurrentName='Concurrent synthetic name';
+ const concurrent=await context.request.post(origin+'/api/subscribers',{headers:{Origin:origin,'X-MikroDash-Request':'subscriber-admin'},data:{action:'name',accountId:createdAccount.id,expectedName:createdAccount.name,name:concurrentName,reason:'Synthetic concurrent administrator'}});
+ assert.equal(concurrent.status(),200);
+ const editedName='Synthetic edited: اسم <script>window.syntheticNameExecuted=true</script>';
+ await nameEditor.getByLabel('New display name',{exact:true}).fill(editedName);
+ await nameEditor.getByLabel('Change reason',{exact:true}).fill('Synthetic name correction');
+ const staleName=page.waitForResponse(r=>r.url().endsWith('/api/subscribers')&&r.request().method()==='POST');
+ await nameEditor.getByRole('button',{name:'Save display name',exact:true}).click();
+ assert.equal((await staleName).status(),409);
+ await page.getByText('Subscriber details changed. Refresh the list and open Edit name again before saving.',{exact:true}).waitFor();
+ assert.equal(await nameEditor.getByLabel('New display name',{exact:true}).inputValue(),editedName,'stale edit cleared input');
+ assert.equal(await nameEditor.getByLabel('Change reason',{exact:true}).inputValue(),'Synthetic name correction');
+ const refreshed=page.waitForResponse(r=>r.url().endsWith('/api/subscribers')&&r.request().method()==='GET');
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();await refreshed;
+ await page.getByRole('cell',{name:concurrentName,exact:true}).waitFor();
+ await nameEditor.getByRole('button',{name:'Cancel',exact:true}).click();await editButton().click();
+ assert.equal(await nameEditor.getByLabel('New display name',{exact:true}).inputValue(),concurrentName);
+ await nameEditor.getByLabel('New display name',{exact:true}).fill(editedName);
+ await nameEditor.getByLabel('Change reason',{exact:true}).fill('Synthetic reviewed name correction');
+ for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
+  await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
+ for(const width of [375,1280]) {
+  await page.setViewportSize({width,height:1000});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'name editor overflow');
+  const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+  assert.deepEqual(result.violations,[]);
+  await page.screenshot({path:`${out}/subscriber-name-editor-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`,fullPage:true});
+ }
+ }
+ await page.evaluate(()=>{document.documentElement.dataset.theme='dark';document.documentElement.dataset.bsTheme='dark';delete document.documentElement.dataset.palette;});
+ let releaseName;const nameGate=new Promise(resolve=>{releaseName=resolve;});
+ let nameFetched;const nameReady=new Promise(resolve=>{nameFetched=resolve;});
+ await page.route('**/api/subscribers',async route=>{const response=await route.fetch();nameFetched();await nameGate;await route.fulfill({response});},{times:1});
+ await nameEditor.getByRole('button',{name:'Save display name',exact:true}).click();await nameReady;
+ assert.equal(await nameEditor.getByRole('button',{name:'Saving…',exact:true}).isDisabled(),true);
+ assert.equal(await nameEditor.getByRole('button',{name:'Cancel',exact:true}).isDisabled(),true);
+ assert.equal(await editButton().isDisabled(),true);releaseName();
+ await page.getByText('Display name updated.',{exact:true}).waitFor();
+ await page.getByRole('cell',{name:editedName,exact:true}).waitFor();
+ assert.equal(await page.locator('#subscriberAccountRows script').count(),0);
+ assert.equal(await page.evaluate(()=>window.syntheticNameExecuted),undefined);
+ assert.equal(await editButton().evaluate(n=>n===document.activeElement),true,'save lost selected account focus');
+ const named=(await (await context.request.get(origin+'/api/subscribers')).json()).accounts.find(a=>a.id===createdAccount.id);
+ assert.equal(named.name,editedName);assert.equal(named.username,createdAccount.username);
 
  await page.locator(`[data-sub-inspect="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).click();
  await page.locator('#subscriberInspect').getByText('Accounting reconciliation required (1 pending). Last confirmed balances are shown. New Internet connections are blocked until the counters are settled.',{exact:true}).waitFor();

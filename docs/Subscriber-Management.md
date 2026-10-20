@@ -159,7 +159,7 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | Route | Contract |
 | --- | --- |
 | `GET /api/subscribers` | Accounts, immutable plans and runtime mode |
-| `POST /api/subscribers` | `create`, `plan`, `assign`, or `status`; each requires a reason |
+| `POST /api/subscribers` | `create`, `plan`, `assign`, `status`, or `name`; each requires a reason |
 | `GET /api/subscribers/snapshot?account=...` | Read-only policy evaluation and current ledger snapshot |
 | `GET /api/subscribers/reconciliation?account=...` | Account-scoped byte gaps, holds, final-reading reviews and accounting receipts |
 | `POST /api/subscribers/reconciliation` | Reasoned final reading, byte-gap allocation or legacy balance approval |
@@ -171,6 +171,16 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | Portal `POST /api/disconnect` | Owned `leaseId` and `confirm: true` |
 | Portal `POST /api/logout` | Revokes only the portal session |
 | Portal `GET /ws` | `subscriber:snapshot`, generated TypeScript payload contract |
+
+The administrative `name` action accepts `accountId`, `expectedName`, `name` and
+`reason`. `expectedName` is mandatory, including an explicit empty string when
+that is the stored value. A stale form returns HTTP 409; refresh the list and
+reopen the editor before saving. Valid Unicode and whitespace are preserved,
+within the existing 256 UTF-8 byte name bound. The before/after values and reason
+commit in `subscriber_audit` with the edit. No-op edits create no second change.
+Account IDs, usernames, credentials, status, subscriptions and balances are unchanged.
+The existing Subscribers table has an inline editor with save/cancel, busy and
+validation states. Broader account/credential editing and search remain incomplete.
 
 Snapshots include a content-derived version, `observedAt`, `lastSyncedAt`, quality, separate
 lifetime counters, subscription, per-limit decisions, `pendingAccounting` and recent sessions. Pending accounting reports `reconciling`, preserves known values and explains the admission block. The portal delivers
@@ -204,7 +214,8 @@ This is a development preview, not the complete requested module. Outstanding it
   ceilings; burst/minimum/priority support and distinct long-lived device limits.
 - Shared rapid API observations and reconciliation for the 5-second freshness target; true
   measured latency/CPU/memory/flash/channel budgets under load.
-- Complete plan/schedule/speed editors, account edits, safe bulk operations, audit/usage screens,
+- Complete plan/schedule/speed editors, remaining account/credential edits, search/pagination,
+  safe bulk operations, audit/usage screens,
   scenario simulation, complete device history and setup wizard.
 - User Manager mapping/apply and approved period opening balances. The CLI implements preview
   only and cannot silently import lifetime totals into period balances.
