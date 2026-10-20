@@ -110,7 +110,10 @@ exactly one explicit account and one NAS/network and requires both a disconnect 
 operator-confirmed local-limit capability. Managed is not acceptance-ready. Do not set these
 flags merely to get past startup checks.
 
-The subscriber listener has its own route set. If a reverse proxy is used, route only that
+The subscriber listener has its own route set.
+For RouterOS HTTPS termination with a plain HTTP upstream, use the explicit
+[trusted proxy transport](Subscriber-Proxy.md); native TLS remains the default.
+ If a reverse proxy is used, route only that
 listener, configure its trusted source address explicitly, retain the real client address, and
 verify that `/api/routers`, `/api/users`, `/app.js` and admin WebSocket rooms remain inaccessible.
 A reverse proxy alone does not establish correct HotSpot client identity or walled garden access.

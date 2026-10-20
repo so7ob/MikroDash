@@ -154,3 +154,62 @@ and 22 tooling tests, but failed TypeScript: `info` is not a valid `PillTone`.
 The status now uses the existing `rx` tone. The failed sweep is retained as a
 failure; a complete rerun is required on the corrected source. The final synthetic
 browser run before that type correction passed in 4.728 seconds.
+
+
+## Isolated HTTPS reverse proxy (Issue #49, 2026-10-20)
+
+Implementation starts from verified `develop` `fe0db269` on its own issue branch.
+No router write, deployment, active-session change or authentication cutover was
+performed. The target's reported architecture is arm; prior static ARMv7 build
+success does not prove target execution. Current RouterOS documentation describes
+HTTP proxy upstreams; its 7.26 header description still needs a 7.24.5 target probe.
+
+Actual commands (native Go 1.27.2, linux/amd64; compiler cache in RAM, SQLite files
+in the ordinary temporary filesystem; synthetic accounts and scripted NAS reads):
+
+- `go test ./cmd/subscriberconfig ./internal/subscriber ./internal/server -run '^(TestSeal|TestPortal|TestSubscriber|TestShadow)' -count=1`: exit 0
+  (0.292 / 0.006 / 5.445 seconds). The sealing tool preserves explicit peer/transport
+  configuration using the existing key and private-file rules.
+- Focused proxy/HTTPS/RADIUS/startup tests: exit 0, 4.427 seconds. HTTP/TLS, cookies,
+  SQLite and RADIUS packets run through real listeners. NAS host-table rows are
+  scripted. The controlled edge appends its actual client after a forged address;
+  the resulting ticket accepts only the verified device, permits an exact packet
+  retry and rejects a new replay. Admin routes and socket commands stay isolated.
+- `go test -race ./internal/server -run '^TestSubscriber(ProxyBoundary|HTTPSProxy|StartupServes)' -count=1`:
+  exit 0, 8.807 seconds with native cgo/race instrumentation.
+- `go test ./internal/server -run '^$' -fuzz '^FuzzSubscriberProxyNeverTrustsAnInjectedLeftClaim$' -fuzztime=5s -parallel=2`:
+  exit 0, 14,939 executions. This is a short bounded property probe.
+- `go test -tags=subscriberbrowser ./internal/server -run '^TestSubscriberBrowserAcceptance$' -count=1 -v`:
+  exit 0, 14.373 seconds, native TLS and HTTPS-edge/private-HTTP paths. Actual Chromium
+  covers login, speed choice/pending status, Shadow refusal, logout, three themes,
+  English/LTR, 375/1280 and axe. Only the synthetic edge certificate is accepted by
+  the test browser. Production native TLS verification was not disabled.
+
+Failed probes are retained: the new config test first failed the former TLS-only
+validation; a boundary case found a mapped-unspecified IP accepted as `0.0.0.0`;
+the first integration cleanup called full teardown on a collector-free scripted
+session and panicked. Config/normalization and fixture cleanup were corrected,
+without weakening assertions or production teardown.
+
+Screenshots are under `.screenshots/subscriber-proxy-49/` (native TLS) and its
+`proxy/` child (HTTPS edge), with the existing clearly synthetic file names.
+Full clean-checkout verification and exact PR/post-merge CI remain delivery gates;
+final receipts belong to this issue/PR. No Internet session or RouterOS timing
+claim is made from these synthetic integration runs.
+
+
+Two non-equivalent mutations at implementation `b200018c` were killed by the
+expected assertions in an isolated verification worktree: bypassing the verified
+client at the ticket call site returned HTTP 400 instead of 200; removing the
+exact proxy-peer condition admitted an untrusted peer and failed its 403 check.
+Source was restored byte-for-byte before verification. A further login-limiter
+call-site regression passed: changing a forged left claim cannot evade an exhausted
+actual-client bound, and another verified client is not charged to the proxy.
+
+Static `linux/arm`, `GOARM=7`, `CGO_ENABLED=0` build succeeded at `b200018c`; `file`
+reports ARM EABI5, statically linked. It was not executed on the target. The first
+full sweep reported Go failure without a retained filtered cause; it is not a
+passing full run. The unchanged complete Go half then passed with trace/raw output,
+including all packages, govulncheck and generators. No source/test failure cause
+was proven, so none is invented. A complete sweep with raw Docker output retained
+is required at the final head. Data files, volumes and operator caches were retained.

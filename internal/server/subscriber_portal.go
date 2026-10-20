@@ -34,14 +34,14 @@ func (s *Server) subscriberPortal(webDir string) http.Handler {
 	mux.HandleFunc("POST /api/connect", s.subscriberPortalConnect)
 	mux.HandleFunc("POST /api/disconnect", s.subscriberPortalDisconnect)
 	mux.HandleFunc("GET /ws", s.subscriberPortalWS)
-	return secureSubscriberHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return secureSubscriberHeaders(subscriberProxyBoundary(s.subscribers.cfg, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		forms := "'self'"
 		for _, n := range s.subscribers.cfg.Clients {
 			forms += " " + n.LoginURL
 		}
 		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action "+forms)
 		mux.ServeHTTP(w, r)
-	}))
+	})))
 }
 func (s *Server) subscriberIdentity(w http.ResponseWriter, r *http.Request) (subscriber.PortalSession, bool) {
 	c, err := r.Cookie("__Host-mikrodash_subscriber")
@@ -65,7 +65,7 @@ func (s *Server) subscriberPortalLogin(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, 403, "Request origin rejected")
 		return
 	}
-	if s.subscribers.radius.LimitPortal(clientIPOf(r)) {
+	if s.subscribers.radius.LimitPortal(subscriberClientIPOf(r)) {
 		writeJSONErr(w, 429, "Too many attempts. Try again later.")
 		return
 	}
@@ -191,7 +191,7 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		writeJSONErr(w, 403, "Network is not included in your subscription")
 		return
 	}
-	device, err := s.subscriberDevice(r.Context(), nas, clientIPOf(r))
+	device, err := s.subscriberDevice(r.Context(), nas, subscriberClientIPOf(r))
 	if err != nil {
 		subscriberError(w, err)
 		return
