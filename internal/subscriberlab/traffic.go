@@ -18,17 +18,31 @@ import (
 	"mikrodash/internal/routeros"
 )
 
-func (c *Client) trafficProbe(ctx context.Context, record *recorder) error {
+// RuntimeTrafficProbe leaves the real MikroDash RADIUS/observer running. It
+// serves only bounded synthetic payloads and does not create another ledger.
+func (c *Client) RuntimeTrafficProbe(ctx context.Context, out io.Writer) error {
+	rows, err := c.Do(routeros.Cmd{Path: "/ip/hotspot/active/print", Args: []string{"=.proplist=.id,user,server,mac-address,address"}, Timeout: 3 * time.Second})
+	if err != nil || len(rows) != 1 || rows[0][".id"] == "" || rows[0]["user"] != "chr-lab" || rows[0]["server"] != "hs-lab" || rows[0]["mac-address"] != "02:00:00:00:54:02" || rows[0]["address"] != "198.51.100.2" {
+		return errors.New("exact owned runtime client required for traffic probe")
+	}
+	record := &recorder{w: out}
+	if err := c.trafficProbe(ctx, record, 65536); err != nil {
+		return err
+	}
+	return record.Err()
+}
+
+func (c *Client) trafficProbe(ctx context.Context, record *recorder, downloadSize int) error {
 	listener, err := net.Listen("tcp", "127.0.0.1:18080")
 	if err != nil {
 		return err
 	}
-	server := &http.Server{ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second,
+	server := &http.Server{ReadHeaderTimeout: 3 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second,
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch {
 			case r.Method == "GET" && r.URL.Path == "/download":
 				w.Header().Set("Content-Type", "application/octet-stream")
-				w.Write(bytes.Repeat([]byte{'x'}, 65536))
+				w.Write(bytes.Repeat([]byte{'x'}, downloadSize))
 			case r.Method == "POST" && r.URL.Path == "/upload":
 				n, err := io.Copy(io.Discard, http.MaxBytesReader(w, r.Body, 16384))
 				if err != nil || n != 16384 {
@@ -66,7 +80,7 @@ func (c *Client) trafficProbe(ctx context.Context, record *recorder) error {
 		if err != nil {
 			return err
 		}
-		args := []string{"netns", "exec", "md-subscriber-lab", "curl", "--max-time", "15", "--silent", "--show-error", "--fail", "--output", "/dev/null"}
+		args := []string{"netns", "exec", "md-subscriber-lab", "curl", "--noproxy", "*", "--max-time", "30", "--silent", "--show-error", "--fail", "--output", "/dev/null"}
 		if direction == "upload" {
 			args = append(args, "--data-binary", "@-")
 		}
@@ -76,6 +90,7 @@ func (c *Client) trafficProbe(ctx context.Context, record *recorder) error {
 			cmd.Stdin = bytes.NewReader(bytes.Repeat([]byte{'u'}, 16384))
 		}
 		cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
+		started := time.Now()
 		if err := cmd.Run(); err != nil {
 			return errors.New("isolated one-way traffic failed")
 		}
@@ -84,8 +99,8 @@ func (c *Client) trafficProbe(ctx context.Context, record *recorder) error {
 			return err
 		}
 		deltaIn, deltaOut := after["bytes-in"]-before["bytes-in"], after["bytes-out"]-before["bytes-out"]
-		record.emit("one-way-"+direction, map[string]string{"bytesInDelta": strconv.FormatInt(deltaIn, 10), "bytesOutDelta": strconv.FormatInt(deltaOut, 10)})
-		if direction == "download" && (deltaOut < 65536 || deltaOut <= deltaIn*4) || direction == "upload" && (deltaIn < 16384 || deltaIn <= deltaOut*4) {
+		record.emit("one-way-"+direction, map[string]string{"bytesInDelta": strconv.FormatInt(deltaIn, 10), "bytesOutDelta": strconv.FormatInt(deltaOut, 10), "clientTransferElapsed": time.Since(started).String()})
+		if direction == "download" && (deltaOut < int64(downloadSize) || deltaOut <= deltaIn*4) || direction == "upload" && (deltaIn < 16384 || deltaIn <= deltaOut*4) {
 			return errors.New("HotSpot traffic direction did not match input-upload")
 		}
 	}
@@ -113,14 +128,14 @@ func (c *Client) rateProbe(ctx context.Context, secret, session string, up, down
 	if err != nil || reply.Code != radius.CodeCoAACK {
 		return errors.New("real CHR rate CoA was not acknowledged")
 	}
-	queues, err := c.Do(routeros.Cmd{Path: "/queue/simple/print", Args: []string{"=.proplist=target,max-limit,dynamic,disabled"}, Timeout: 5 * time.Second})
+	queues, err := c.Do(routeros.Cmd{Path: "/queue/simple/print", Args: []string{"=.proplist=target,max-limit,limit-at,dynamic,disabled,invalid,parent,bucket-size,queue,rate,bytes,packets,dropped"}, Timeout: 5 * time.Second})
 	if err != nil {
 		return err
 	}
 	record.emit("rate-readback", queues)
 	matching := 0
 	for _, q := range queues {
-		if q["target"] == "198.51.100.2/32" && q["dynamic"] == "true" && q["disabled"] == "false" && q["max-limit"] == rate {
+		if q["target"] == "198.51.100.2/32" && q["dynamic"] == "true" && q["disabled"] == "false" && q["invalid"] != "true" && q["max-limit"] == rate {
 			matching++
 		}
 	}

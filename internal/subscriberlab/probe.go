@@ -55,7 +55,7 @@ func (r *recorder) Err() error {
 // production PAP/accounting implementation owns a new, durable synthetic ledger.
 // Manual CoA probes deliberately measure semantics before enabling capabilities;
 // they do not claim that the normal worker renewed its persisted reservations.
-func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Writer) error {
+func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Writer, https bool, scenario string) error {
 	if _, err := c.Identity(); err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 	if len(fixture.Secret) < 32 || len(fixture.Password) < 24 {
 		return errors.New("random private fixture credentials required")
 	}
-	if err := c.clearPreviousProbe(ctx); err != nil {
+	if err := c.clearPreviousProbe(ctx, privateDir, https); err != nil {
 		return err
 	}
 	dir, err := os.MkdirTemp(privateDir, "probe-")
@@ -92,6 +92,15 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 			{ID: "download", Kind: "download", State: "limited", Amount: 16 << 20, Action: "disconnect", Period: subscriber.Period{Kind: "none", Zone: "UTC", Anchor: now}},
 			{ID: "upload", Kind: "upload", State: "limited", Amount: 4 << 20, Action: "disconnect", Period: subscriber.Period{Kind: "none", Zone: "UTC", Anchor: now}},
 		}}}}
+	if scenario == "download-limit" {
+		plan.Policies[0].Limits[1].Amount = 65536
+	} else if scenario == "upload-limit" {
+		plan.Policies[0].Limits[2].Amount = 65536
+	} else if scenario == "byte-renew" {
+		plan.Speeds[0], plan.Speeds[1] = plan.Speeds[1], plan.Speeds[0]
+	} else if scenario != "timeout" && scenario != "disconnect" {
+		return errors.New("unknown protocol scenario")
+	}
 	if err = store.SavePlan(ctx, "test:subscriber-chr", "isolated protocol lab", plan); err != nil {
 		return err
 	}
@@ -140,7 +149,10 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 		return err
 	}
 	record.emit("before-login", before)
-	if err = c.login(ctx, fixture.Password); err != nil {
+	if err = verifyProbeBefore(before); err != nil {
+		return err
+	}
+	if err = c.login(ctx, privateDir, fixture.Password, https); err != nil {
 		return err
 	}
 	var session string
@@ -161,6 +173,19 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 	if err != nil || len(rows) != 1 || rows[0]["user"] != "chr-lab" {
 		return errors.New("unique synthetic active session not proven")
 	}
+	initialID := rows[0][".id"]
+	if err = verifyTotalTimeout(rows[0], 60); err != nil {
+		return err
+	}
+	if scenario == "download-limit" || scenario == "upload-limit" {
+		return c.localByteProbe(ctx, privateDir, fixture.Password, https, scenario, store, account.ID, record)
+	}
+	if scenario == "byte-renew" {
+		return c.byteRenewProbe(ctx, fixture.Secret, session, store, account.ID, record)
+	}
+	if scenario == "disconnect" {
+		return c.disconnectProbe(ctx, service, store, account.ID, record)
+	}
 	if err = pause(ctx, 8*time.Second); err != nil {
 		return err
 	}
@@ -178,13 +203,17 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 	if err != nil {
 		return err
 	}
-	if _, err = read("after-extension"); err != nil {
+	rows, err = read("after-extension")
+	if err != nil || len(rows) != 1 || rows[0][".id"] != initialID {
+		return errors.New("extension did not preserve the exact active session")
+	}
+	if err = verifyTotalTimeout(rows[0], 90); err != nil {
 		return err
 	}
 	if err = c.rateProbe(ctx, fixture.Secret, session, 128000, 512000, record); err != nil {
 		return err
 	}
-	if err = c.trafficProbe(ctx, record); err != nil {
+	if err = c.trafficProbe(ctx, record, 65536); err != nil {
 		return err
 	}
 	if err = c.rateProbe(ctx, fixture.Secret, session, 64000, 128000, record); err != nil {
@@ -194,14 +223,16 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 		return err
 	}
 	rows, err = read("past-original-timeout")
-	if err != nil || len(rows) != 1 {
+	if err != nil || len(rows) != 1 || rows[0][".id"] != initialID {
 		return errors.New("CoA did not keep the original session past its admission timeout")
 	}
+	settledSample := rows[0]
 	if err = c.timeoutProbe(ctx, fixture.Secret, session, 5, selector, record); err != nil {
 		return err
 	}
-	if _, err = read("after-shortening"); err != nil {
-		return err
+	rows, err = read("after-shortening")
+	if err != nil || len(rows) != 0 {
+		return errors.New("shortening below current uptime did not terminate a total-mode session")
 	}
 	if err = pause(ctx, 7*time.Second); err != nil {
 		return err
@@ -215,15 +246,20 @@ func (c *Client) ProtocolProbe(ctx context.Context, privateDir string, out io.Wr
 		return err
 	}
 	record.emit("final-ledger", final)
+	if err = verifyProbeFinal(before, final, settledSample, session); err != nil {
+		return err
+	}
 	return record.Err()
 }
 
-func (c *Client) login(ctx context.Context, password string) error {
+func (c *Client) login(ctx context.Context, privateDir, password string, https bool) error {
 	if _, err := c.Identity(); err != nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, "ip", "netns", "exec", "md-subscriber-lab", "curl", "--max-time", "10", "--silent", "--show-error",
-		"--data-urlencode", "username=chr-lab", "--data-urlencode", "password@-", "http://198.51.100.1/login")
+	args := []string{"netns", "exec", "md-subscriber-lab", "curl", "--noproxy", "*", "--max-time", "10", "--silent", "--show-error",
+		"--data-urlencode", "username=chr-lab", "--data-urlencode", "password@-"}
+	args = append(args, labHotSpotURL(privateDir, "/login", https)...)
+	cmd := exec.CommandContext(ctx, "ip", args...)
 	cmd.Stdin = strings.NewReader(password)
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	if err := cmd.Run(); err != nil {
@@ -232,7 +268,7 @@ func (c *Client) login(ctx context.Context, password string) error {
 	return nil
 }
 
-func (c *Client) clearPreviousProbe(ctx context.Context) error {
+func (c *Client) clearPreviousProbe(ctx context.Context, privateDir string, https bool) error {
 	rows, err := c.Do(routeros.Cmd{Path: "/ip/hotspot/active/print", Args: []string{"=.proplist=user,server,mac-address"}, Timeout: 5 * time.Second})
 	if err != nil || len(rows) > 1 {
 		return errors.New("cannot prove empty or owned previous lab session")
@@ -243,12 +279,21 @@ func (c *Client) clearPreviousProbe(ctx context.Context) error {
 	if rows[0]["user"] != "chr-lab" || rows[0]["server"] != "hs-lab" || rows[0]["mac-address"] != "02:00:00:00:54:02" {
 		return errors.New("refusing to log out a different lab user or device")
 	}
-	cmd := exec.CommandContext(ctx, "ip", "netns", "exec", "md-subscriber-lab", "curl", "--max-time", "5", "--silent", "http://198.51.100.1/logout")
+	args := []string{"netns", "exec", "md-subscriber-lab", "curl", "--noproxy", "*", "--max-time", "5", "--silent"}
+	args = append(args, labHotSpotURL(privateDir, "/logout", https)...)
+	cmd := exec.CommandContext(ctx, "ip", args...)
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	if err := cmd.Run(); err != nil {
 		return errors.New("previous synthetic client logout failed")
 	}
 	return pause(ctx, time.Second)
+}
+
+func labHotSpotURL(privateDir, path string, https bool) []string {
+	if https {
+		return []string{"--cacert", filepath.Join(privateDir, "md-lab-ca.crt"), "--resolve", "login.example.test:443:198.51.100.1", "https://login.example.test" + path}
+	}
+	return []string{"http://198.51.100.1" + path}
 }
 
 func (c *Client) timeoutProbe(ctx context.Context, secret, session string, timeout uint32, selector string, record *recorder) error {

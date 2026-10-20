@@ -15,11 +15,15 @@ type SubscriberLabProof struct {
 	PID, APIPort, DisconnectPort                                      int
 	Args, ActualArgs, BridgePorts                                     []string
 	BridgeHasIPv4                                                     bool
+	NativePortal                                                      bool
+	BridgeIPv4                                                        []string
+	NativeFirewallSHA, ActualFirewallSHA                              string
 	Version, Board, Architecture                                      string
 }
 
 var labName = regexp.MustCompile(`^mikrodash-subscriber-chr-[0-9a-f]{8}$`)
 var labRun = regexp.MustCompile(`^run-[0-9a-f]{8}$`)
+var labFirewallDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // SubscriberLabArgs is the entire permitted VM command, including two isolated
 // NICs and management forwards bound only to loopback. No host physical NIC is
@@ -54,7 +58,14 @@ func CheckSubscriberLabProcess(p SubscriberLabProof) bool {
 		filepath.Dir(filepath.Dir(p.Disk)) != p.Root || !labRun.MatchString(filepath.Base(filepath.Dir(p.Disk))) || filepath.Base(p.Disk) != "disk.img" ||
 		!filepath.IsAbs(p.Console) || filepath.Base(p.Console) != "console.sock" ||
 		p.APIPort != 18728 || p.DisconnectPort != 13799 ||
-		p.StartTicks == "" || p.StartTicks != p.ActualStartTicks || p.BridgeHasIPv4 {
+		p.StartTicks == "" || p.StartTicks != p.ActualStartTicks {
+		return false
+	}
+	if p.NativePortal {
+		if !p.BridgeHasIPv4 || !slices.Equal(p.BridgeIPv4, []string{"198.51.100.10/24"}) || !labFirewallDigest.MatchString(p.NativeFirewallSHA) || p.NativeFirewallSHA != p.ActualFirewallSHA {
+			return false
+		}
+	} else if p.BridgeHasIPv4 || p.NativeFirewallSHA != "" {
 		return false
 	}
 	ports := slices.Clone(p.BridgePorts)

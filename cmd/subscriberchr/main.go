@@ -16,33 +16,58 @@ import (
 
 func main() {
 	state := flag.String("state", "", "private owned-VM runtime.json")
-	configure := flag.Bool("configure", false, "bootstrap only the owned disposable CHR")
-	probe := flag.Bool("probe", false, "run isolated PAP/RADIUS timeout probes, not HTTPS portal acceptance")
+	action := flag.String("action", "inspect", "inspect, configure, configure-https, prepare-runtime, repair-runtime-admin, probe, probe-https, probe-download, probe-upload, probe-byte-renew, probe-disconnect or probe-runtime-traffic")
 	flag.Parse()
-	if err := run(*state, *configure, *probe); err != nil {
+	if err := run(*state, *action); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(state string, configure, probe bool) error {
+func run(state, action string) error {
 	if !filepath.IsAbs(state) {
 		return fmt.Errorf("absolute private lab state path required")
+	}
+	switch action {
+	case "inspect", "configure", "configure-https", "prepare-runtime", "repair-runtime-admin", "probe", "probe-https", "probe-download", "probe-upload", "probe-byte-renew", "probe-disconnect", "probe-runtime-traffic":
+	default:
+		return fmt.Errorf("unknown lab action")
 	}
 	c, err := subscriberlab.Open(state)
 	if err != nil {
 		return err
 	}
 	defer c.Close()
-	if probe {
-		if configure {
-			return fmt.Errorf("configure and probe are separate explicit operations")
-		}
+	if action == "repair-runtime-admin" {
+		return c.RepairRuntimeAdmin(filepath.Dir(state))
+	}
+	if action == "probe-runtime-traffic" {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		return c.RuntimeTrafficProbe(ctx, os.Stdout)
+	}
+	if action == "prepare-runtime" {
+		return c.PrepareRuntime(filepath.Dir(state))
+	}
+	if action == "configure-https" {
+		return c.BootstrapHTTPS(filepath.Dir(state))
+	}
+	if action == "probe" || action == "probe-https" || action == "probe-download" || action == "probe-upload" || action == "probe-byte-renew" || action == "probe-disconnect" {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
-		return c.ProtocolProbe(ctx, filepath.Dir(state), os.Stdout)
+		scenario := "timeout"
+		if action == "probe-download" {
+			scenario = "download-limit"
+		} else if action == "probe-upload" {
+			scenario = "upload-limit"
+		} else if action == "probe-byte-renew" {
+			scenario = "byte-renew"
+		} else if action == "probe-disconnect" {
+			scenario = "disconnect"
+		}
+		return c.ProtocolProbe(ctx, filepath.Dir(state), os.Stdout, action != "probe", scenario)
 	}
-	if configure {
+	if action == "configure" {
 		if err := c.Bootstrap(filepath.Dir(state)); err != nil {
 			return err
 		}
@@ -55,5 +80,5 @@ func run(state string, configure, probe bool) error {
 		Synthetic  bool              `json:"synthetic"`
 		Configured bool              `json:"configured"`
 		Identity   map[string]string `json:"identity"`
-	}{true, configure, identity})
+	}{true, action == "configure", identity})
 }

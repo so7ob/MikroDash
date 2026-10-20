@@ -65,7 +65,7 @@ func (c *Client) ensure(path, key, value string, fields map[string]string) error
 	}
 	if len(rows) == 1 {
 		for k, v := range fields {
-			if rows[0][k] != v {
+			if !sameLabValue(rows[0][k], v) {
 				return fmt.Errorf("existing lab row differs in %s", k)
 			}
 		}
@@ -81,4 +81,14 @@ func (c *Client) ensure(path, key, value string, fields map[string]string) error
 		return errors.New("lab row creation failed")
 	}
 	return nil
+}
+
+func sameLabValue(got, expected string) bool {
+	if expected == "yes" {
+		return got == "yes" || got == "true"
+	}
+	if expected == "no" {
+		return got == "no" || got == "false"
+	}
+	return got == expected
 }

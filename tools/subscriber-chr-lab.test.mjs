@@ -5,9 +5,44 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { nativePortalRules } from './subscriber-chr-network.mjs';
 
 const command = fileURLToPath(new URL('./subscriber-chr-lab.mjs', import.meta.url));
 const invoke = args => spawnSync(process.execPath, [command, ...args], { encoding: 'utf8', timeout: 5000 });
+
+function verdict(chain, packet) {
+  for (const command of nativePortalRules('mikrodash-subscriber-chr-0123abcd').nftables) {
+    const rule = command.add.rule;
+    if (rule?.chain !== chain) continue;
+    let matches = true;
+    for (const expression of rule.expr) {
+      if (expression.match) {
+        const { left, op, right } = expression.match;
+        const actual = left.meta ? packet[left.meta.key] : packet[`${left.payload.protocol}.${left.payload.field}`];
+        matches &&= op === '==' ? actual === right : actual !== right;
+      } else if (matches && 'drop' in expression) return 'drop';
+      else if (matches && 'accept' in expression) return 'accept';
+    }
+  }
+  return 'accept'; // The owned base chains preserve unrelated host traffic.
+}
+
+test('native CHR portal policy exposes only its TLS listener to lab clients', () => {
+  for (const address of ['198.51.100.10', '127.0.0.1', '192.168.253.128']) {
+    for (const port of [22, 80, 3082, 5432, 8090, 9444, 13083]) {
+      const expected = address === '198.51.100.10' && port === 9444 ? 'accept' : 'drop';
+      assert.equal(verdict('input', { iifname: 'md-lab-br', l4proto: 'tcp', 'ip.daddr': address, 'tcp.dport': port }), expected);
+    }
+  }
+  assert.equal(verdict('input', { iifname: 'ens37', l4proto: 'tcp', 'ip.daddr': '127.0.0.1', 'tcp.dport': 3082 }), 'accept');
+});
+
+test('native CHR policy preserves bridge traffic and refuses host routing bypass', () => {
+  assert.equal(verdict('forward', { iifname: 'md-lab-br', oifname: 'md-lab-br' }), 'accept');
+  for (const oifname of ['ens33', 'ens37', 'docker0']) assert.equal(verdict('forward', { iifname: 'md-lab-br', oifname }), 'drop');
+  assert.equal(verdict('forward', { iifname: 'ens37', oifname: 'docker0' }), 'accept');
+  assert.throws(() => nativePortalRules('operator-router'), /Owned CHR identity/);
+});
 
 test('CHR lifecycle rejects missing action and relative private path', () => {
   for (const args of [[], ['check', './relative'], ['unknown', '/synthetic']]) {

@@ -1,18 +1,19 @@
 #!/usr/bin/env node
 // Development-only disposable CHR lifecycle. No operator store or physical NIC.
 import { spawn, execFileSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
+import { nativePortalRules, nativePortalAddress, nativePortalTable } from './subscriber-chr-network.mjs';
 
 const root = '/dev/shm/mikrodash-subscriber-chr-lab';
 const names = ['md-lab-br', 'md-lab-tap', 'md-lab-host'];
 const namespace = 'md-subscriber-lab';
 const [action, directory] = process.argv.slice(2);
-if (!['start', 'stop', 'check'].includes(action) || !directory || !path.isAbsolute(directory) || (action !== 'check' && process.geteuid() !== 0)) {
-  console.error('Usage (Linux; start/stop require root): node tools/subscriber-chr-lab.mjs start|stop|check /absolute/private/directory');
+if (!['start', 'stop', 'check', 'native-portal'].includes(action) || !directory || !path.isAbsolute(directory) || (action !== 'check' && process.geteuid() !== 0)) {
+  console.error('Usage (Linux; mutations require root): node tools/subscriber-chr-lab.mjs start|stop|check|native-portal /absolute/private/directory');
   process.exit(1);
 }
 const statePath = path.join(directory, 'runtime.json');
@@ -22,6 +23,8 @@ const startTicks = pid => {
   const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
   return stat.slice(stat.lastIndexOf(')') + 1).trim().split(/\s+/)[19];
 };
+const nft = (...args) => execFileSync('nft', args, { timeout: 5000, stdio: ['ignore', 'pipe', 'pipe'] });
+const firewallHash = () => createHash('sha256').update(nft('-j', 'list', 'table', 'inet', nativePortalTable)).digest('hex');
 
 function privateFile(file) {
   const info = fs.lstatSync(file);
@@ -51,15 +54,51 @@ function ownedProcess(state) {
       !command.includes(`file=${state.disk},format=raw,if=ide`)) throw new Error('Owned QEMU process proof failed');
 }
 
+function ownedTopology(state) {
+  const ports = fs.readdirSync('/sys/class/net/md-lab-br/brif').sort();
+  if (JSON.stringify(ports) !== JSON.stringify(['md-lab-host', 'md-lab-tap'])) throw new Error('Unexpected bridge member; refusing mutation');
+  const addresses = JSON.parse(ip('-j', '-4', 'address', 'show', 'dev', 'md-lab-br'))[0]?.addr_info ?? [];
+  const actual = addresses.map(row => `${row.local}/${row.prefixlen}`);
+  if (state.nativePortal) {
+    if (JSON.stringify(actual) !== JSON.stringify([nativePortalAddress]) || !/^[0-9a-f]{64}$/.test(state.nativeFirewallSHA) || firewallHash() !== state.nativeFirewallSHA) throw new Error('Native portal network proof changed');
+  } else if (actual.length) throw new Error('Unexpected host address on isolated bridge');
+}
+
+function nativePortal() {
+  const state = privateFile(statePath);
+  ownedProcess(state); ownedTopology(state);
+  if (state.nativePortal) { console.log('Owned native portal network already configured.'); return; }
+  const tables = JSON.parse(nft('-j', 'list', 'tables')).nftables;
+  if (tables.some(item => item.table?.family === 'inet' && item.table?.name === nativePortalTable)) throw new Error('Existing native portal table; no takeover allowed');
+  const policyPath = path.join(directory, 'native-policy.json');
+  const policy = nativePortalRules(state.name);
+  if (fs.existsSync(policyPath)) {
+    if (JSON.stringify(privateFile(policyPath)) !== JSON.stringify(policy)) throw new Error('Existing native policy differs');
+  } else save(policyPath, policy);
+  nft('-j', '-f', policyPath);
+  let addressed = false;
+  try {
+    ip('address', 'add', nativePortalAddress, 'dev', 'md-lab-br'); addressed = true;
+    const updated = { ...state, nativePortal: true, nativeFirewallSHA: firewallHash() };
+    ownedTopology(updated);
+    const next = path.join(directory, 'runtime.next.json'); save(next, updated); fs.renameSync(next, statePath);
+    console.log('Owned native portal network exposes TCP 9444 only; other host access and routed bypass are blocked.');
+  } catch (err) {
+    if (addressed) ip('address', 'delete', nativePortalAddress, 'dev', 'md-lab-br');
+    nft('delete', 'table', 'inet', nativePortalTable);
+    throw err;
+  }
+}
+
 async function stop() {
   const state = privateFile(statePath);
   ownedProcess(state);
-  const ports = fs.readdirSync('/sys/class/net/md-lab-br/brif').sort();
-  if (JSON.stringify(ports) !== JSON.stringify(['md-lab-host', 'md-lab-tap'])) throw new Error('Unexpected bridge member; refusing cleanup');
+  ownedTopology(state);
   process.kill(state.pid, 'SIGTERM');
   for (let i = 0; i < 50 && fs.existsSync(`/proc/${state.pid}`); i++) await delay(100);
   if (fs.existsSync(`/proc/${state.pid}`)) throw new Error('QEMU still running; refusing network cleanup');
   ip('netns', 'delete', namespace);
+  if (state.nativePortal) nft('delete', 'table', 'inet', nativePortalTable);
   ip('link', 'delete', 'md-lab-tap');
   ip('link', 'delete', 'md-lab-br');
   save(path.join(directory, 'stopped.json'), { at: new Date().toISOString(), name: state.name });
@@ -169,8 +208,10 @@ try {
     fs.mkdirSync(directory, { mode: 0o700 });
   }
   if (action === 'check') {
-    ownedProcess(privateFile(statePath));
+    const state = privateFile(statePath); ownedProcess(state); ownedTopology(state);
     console.log('Owned QEMU process identity verified; no changes made.');
+  } else if (action === 'native-portal') {
+    nativePortal();
   } else {
     await (action === 'start' ? start() : stop());
   }

@@ -4,11 +4,15 @@ package subscriberlab
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,16 +24,18 @@ import (
 
 // State is written privately by the lab launcher, never copied from /data.
 type State struct {
-	PID            int      `json:"pid"`
-	Name           string   `json:"name"`
-	Disk           string   `json:"disk"`
-	Console        string   `json:"console"`
-	Namespace      string   `json:"namespace"`
-	Interfaces     []string `json:"interfaces"`
-	APIPort        int      `json:"apiPort"`
-	DisconnectPort int      `json:"disconnectPort"`
-	Args           []string `json:"args"`
-	StartTicks     string   `json:"startTicks"`
+	PID               int      `json:"pid"`
+	Name              string   `json:"name"`
+	Disk              string   `json:"disk"`
+	Console           string   `json:"console"`
+	Namespace         string   `json:"namespace"`
+	Interfaces        []string `json:"interfaces"`
+	APIPort           int      `json:"apiPort"`
+	DisconnectPort    int      `json:"disconnectPort"`
+	Args              []string `json:"args"`
+	StartTicks        string   `json:"startTicks"`
+	NativePortal      bool     `json:"nativePortal,omitempty"`
+	NativeFirewallSHA string   `json:"nativeFirewallSHA,omitempty"`
 }
 
 type credentials struct{ Username, Password string }
@@ -69,6 +75,7 @@ func (s State) proof() (guard.SubscriberLabProof, error) {
 	p := guard.SubscriberLabProof{Identity: "test:subscriber-chr", PID: s.PID, Name: s.Name,
 		Root: "/dev/shm/mikrodash-subscriber-chr-lab", Disk: s.Disk, Console: s.Console,
 		APIPort: s.APIPort, DisconnectPort: s.DisconnectPort, Args: s.Args, StartTicks: s.StartTicks}
+	p.NativePortal, p.NativeFirewallSHA = s.NativePortal, s.NativeFirewallSHA
 	if s.Namespace != "md-subscriber-lab" || strings.Join(s.Interfaces, ",") != "md-lab-br,md-lab-tap,md-lab-host" {
 		return p, errors.New("unexpected lab network")
 	}
@@ -106,7 +113,18 @@ func (s State) proof() (guard.SubscriberLabProof, error) {
 		ip, _, err := net.ParseCIDR(addr.String())
 		if err != nil || ip.To4() != nil {
 			p.BridgeHasIPv4 = true
+			p.BridgeIPv4 = append(p.BridgeIPv4, addr.String())
 		}
+	}
+	if s.NativePortal {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		output, err := exec.CommandContext(ctx, "nft", "-j", "list", "table", "inet", "md_subscriber_lab").Output()
+		if err != nil {
+			return p, errors.New("native lab portal firewall unavailable")
+		}
+		digest := sha256.Sum256(output)
+		p.ActualFirewallSHA = hex.EncodeToString(digest[:])
 	}
 	if !guard.CheckSubscriberLabProcess(p) {
 		return p, errors.New("disposable lab ownership proof refused")

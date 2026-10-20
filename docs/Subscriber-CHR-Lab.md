@@ -21,10 +21,19 @@ physical interface to the lab bridge or expose the management forwards.
 The launcher refuses existing resource names. It generates separate random
 credentials in a 0700 directory with 0600 files. Before every command,
 `subscriberchr` checks the exact live QEMU argv, process start ticks, writable
-disk path, bridge members and lack of a host IPv4 address, then reads the pinned
+disk path and bridge members, then reads the pinned
 CHR board, architecture and version. A physical board, reused PID, additional
 device/forward or unexpected bridge member is refused. These are accidental
 target safeguards; they do not defend against a root user rewriting the host.
+
+By default the host bridge has no IPv4. The explicit `native-portal` action adds
+only 198.51.100.10/24, protected by the owned nftables `inet md_subscriber_lab`
+table. Input from the isolated bridge can reach only that address's TCP 9444;
+other host input and routing through the host to other interfaces are dropped.
+The exact firewall digest and sole address become part of every subsequent
+ownership check. No physical interface joins the bridge; the existing default
+route is retained. `stop` removes only this owned policy. A changed policy or
+unexpected pre-existing table is refused rather than overwritten.
 
 Stop validates ownership again, terminates only that QEMU, then removes only
 the created namespace/TAP/bridge. Private images, ledgers and evidence remain.
@@ -34,7 +43,7 @@ which physical configuration to remove.
 ## Prepare development tooling
 
 Use a Linux development host with Node 24, Go 1.27, `ip`, `curl`, TAP/network
-namespace privileges and sufficient RAM. Node and QEMU are lab tooling only;
+namespace privileges, nftables and sufficient RAM. Node and QEMU are lab tooling only;
 they are not production dependencies. No paid CHR trial is needed. CHR Free's
 throughput limit and software emulation prevent hardware performance claims.
 
@@ -66,9 +75,12 @@ need root for namespace/TAP operations. The Go command can be built normally.
 ```sh
 node tools/subscriber-chr-lab.mjs start "$PWD/.temp/chr-acceptance"
 go run ./cmd/subscriberchr -state "$PWD/.temp/chr-acceptance/runtime.json"
-go run ./cmd/subscriberchr -state "$PWD/.temp/chr-acceptance/runtime.json" -configure
-go run ./cmd/subscriberchr -state "$PWD/.temp/chr-acceptance/runtime.json" -probe \
-  > "$PWD/.temp/chr-acceptance/protocol.jsonl"
+go run ./cmd/subscriberchr -state "$PWD/.temp/chr-acceptance/runtime.json" -action configure
+go run ./cmd/subscriberchr -state "$PWD/.temp/chr-acceptance/runtime.json" -action configure-https
+node tools/subscriber-chr-lab.mjs native-portal "$PWD/.temp/chr-acceptance"
+go run ./cmd/subscriberchr -state "$PWD/.temp/chr-acceptance/runtime.json" -action prepare-runtime
+go run ./cmd/subscriberchr -state "$PWD/.temp/chr-acceptance/runtime.json" -action probe-https \
+  > "$PWD/.temp/chr-acceptance/protocol-https.jsonl"
 node tools/subscriber-chr-lab.mjs stop "$PWD/.temp/chr-acceptance"
 ```
 
@@ -76,8 +88,25 @@ Inspection is the default. Configuration and probing are separate explicit
 operations. Bootstrap refuses conflicting existing rows. Each probe uses a
 new persistent SQLite ledger and the production PAP/accounting implementation.
 It admits the actual isolated client with simultaneous time, download and
-upload limits. Its initial HTTP-PAP leg is confined to the isolated namespace;
-it is **not** the required HTTPS single-sign-in portal acceptance path.
+upload limits. `probe-https` uses CA and hostname validation for the real client
+PAP POST. The explicit `probe` compatibility action uses HTTP confined to the
+isolated namespace. Neither manual protocol probe is the complete portal SSO
+journey. Additional HTTPS actions are `probe-download`, `probe-upload`,
+`probe-byte-renew` and `probe-disconnect`.
+
+`configure-https` generates ECDSA keys on the owned appliance, signs the lab
+certificate and exports public certificates only. It never uploads or exports
+a private key. The certificate export is checked as one current public PEM
+certificate with the expected CA/signature/SANs. The pinned firmware requires
+the singular `number` argument when signing; a retained earlier plural-argument
+attempt failed rather than being ignored.
+
+`prepare-runtime` creates fresh independent runtime-data, encrypted router
+credentials, a sealed RADIUS secret and a native portal TLS identity. It refuses
+an existing runtime ledger and starts its configuration in Shadow. It does not
+launch MikroDash, enable Pilot or replace operator /data. Stop the separately
+owned app before stopping its VM. Reviewed real local-limit, timeout, byte and
+Disconnect probes are required before changing only this lab fixture to Pilot.
 
 The probe records only selected packet statistics and synthetic identities,
 never passwords or RADIUS secrets. Keep the raw directory private. Review a
@@ -117,9 +146,9 @@ CoA attributes but does not by itself prove target selector or timeout semantics
 
 ## Remaining acceptance
 
-The real CHR HTTPS portal/browser ticket path, normal shared observer and five
-continuous production-worker renewals remain to be exercised. Local byte-cap
-enforcement/renewal, total/Gigaword CoA support, Disconnect selectors, proxy
+The complete real CHR HTTPS landing/browser journey and five
+continuous production-worker renewals remain under acceptance. Local byte-cap
+enforcement bounds, total/Gigaword CoA support, proxy
 header attribution, User Manager coexistence, outages/restarts and performance
 budgets also remain open. Queue ceiling readback is not measured throughput.
 No latency/CPU/flash SLA, ARM result, live C admission or complete module
@@ -147,3 +176,94 @@ The prototype also found that RouterOS logs file contents supplied through
 one-day key were retired, with redacted diagnostics retained. Subsequent TLS
 bootstrap must generate keys on the appliance and export public certificates
 only. This prototype is not part of the public bootstrap command.
+
+
+## HTTPS and local byte probes
+
+Normal CA/hostname verification returned 200 for the appliance HTTPS login page
+and 401 for an unauthenticated native MikroDash portal session endpoint. The
+client's attempt to reach host administration on TCP 13083 was blocked by the
+owned policy. The appliance Reverse Proxy TLS handshake reset or timed out
+without reaching a confirmed live diagnostic backend; its forwarded headers
+remain unverified. Native TLS is used for the normal-runtime journey. This is
+not a claim that Reverse Proxy fails on all appliances or the operator L009.
+
+A strengthened HTTPS timeout probe passed with explicit total-timeout assertions,
+matching final API/RADIUS counters and retained independent balances. The proof
+rejects malformed/fractional durations instead of parsing them as zero. Byte
+readback accepts monotonic in-flight TCP acknowledgements; changed identity,
+reset counters or incorrect ceilings fail.
+
+| Actual CHR transfer | Result and limits |
+| --- | --- |
+| Initial download limit 65536 bytes | Interrupted a 1 MiB attempt; Stop committed 239996 download bytes, overrun 174460 bytes, subsequent HTTPS admission refused |
+| Initial upload limit 65536 bytes | Interrupted a 1 MiB attempt; Stop committed 67904 upload bytes, overrun 2368 bytes, subsequent admission refused |
+| Byte CoA after about 1 MiB | Cumulative download 1054227, new ceiling 1119763; same session/counters retained; transfer stopped at 1126551, overrun 6788 bytes |
+| Optional 3 GiB total CoA | ACK and exact total-limit readback, without erasing directional ceilings; multi-gigabyte enforcement was not exercised |
+| Production Disconnect | Base request failed; corrected method with confirmed IPv4 verified empty active table and committed Admin-Reset Stop in one 77.169 ms sample |
+
+The large initial download burst is retained as a material measured limit; these
+samples do not establish an acceptable overshoot budget. Local total/gigaword
+CoA flags remain disabled for the normal-runtime lab. A sustained roughly
+18.7-second download under the 512000 bit/s queue ceiling carried 1 MiB; tiny
+initial transfers were bursty. Queue readback alone is not throughput proof.
+
+The clean real MikroDash binary at `71c63233` was started with the fixture's
+existing ledger and reviewed CHR-only capability evidence. The actual browser
+entered credentials once, received a device-bound ticket, POSTed it to the real
+HTTPS HotSpot and returned to a connected account. Fast reached verified
+exact-device queue readback. The first browser test then failed because its
+cooldown assertion expected HTTP 429; this API currently returns a sanitized
+400. Full browser acceptance remains pending validation of that error body and
+the second speed switch. The failure is retained, not reported as a passing
+journey. All browsers were closed before the first normal-worker renewal.
+
+
+## Normal MikroDash runtime evidence
+
+The clean static amd64 binary at `71c63233` (tree identical to develop
+`7d6f8121`) used the normal startup, shared RouterOS connection/observer, native
+TLS portal, RADIUS listeners and existing synthetic persistent ledger. Five
+renewals reached `verified` on one accounting session at 201 connected seconds.
+Every browser had closed before the first renewal. The monitor observed the
+last 128.091 seconds, retaining the same lease/session and monotonic consumption.
+This exercises the real worker rather than a virtual clock or manual CoA loop.
+
+A subsequent actual-client HTTPS reconnect retained 227 consumed seconds and
+3373 spendable seconds before new admission. The final strengthened browser run
+waited for each speed request response before checking verified ledger and
+exact-device queue values; Fast and Economy both passed without changing the
+subscription or expiry. Dashboard return took 2.105 seconds in this one sample.
+An earlier run's no-op Fast check could read a previous verified DOM state while
+the new request was still pending; that weak attempt is retained separately and
+is not the strengthened proof. The actual cooldown response was HTTP 400 with
+`wait before changing speed again`, preserving the selected profile. Screenshots
+at 375 and 1280 are private synthetic evidence. The browser used two explicit
+public-key pins; separate curl probes verified both CA chains and hostnames.
+Automatic HotSpot landing handoff is still unconfigured: the test deliberately
+navigated from the actual HotSpot document to the native portal.
+
+With every browser closed, bounded one-way transfers traversed the real NAS;
+API and RADIUS shared the production ledger. Final Stop retained 67570 download
+and 32609 upload bytes. Actual admin suspension through the protected HTTP API
+caused background Disconnect and committed Stop in one 1271.552 ms sample,
+without losing consumption. The first administrative request was refused with
+403: the fixture had created a legacy admin role string but omitted its RBAC
+grant. Preparation now enrolls the sole synthetic administrator using the
+existing grant API. `repair-runtime-admin` repairs only the owned fixture;
+other user sets are refused. A regression exercises the data-preparation call
+site and proves that repeating preparation cannot replace the existing ledger.
+
+During 65 resource samples over 128.091 seconds, application CPU median/max was
+0.5%/1.0%, RSS 39752–76184 KiB; QEMU CPU median/max was 10.495%/14.495%, RSS
+410688 KiB. Application `write_bytes` increased 7229440 bytes. These process
+measurements cover one idle client with renewals, not a load test, router CPU,
+flash lifetime, API channel count, fsync latency or an accepted operational
+budget. The write volume needs explicit assessment before router-container use.
+
+Important verification correction: Go 1.27's `testing.T.TempDir` follows
+GOTMPDIR. Earlier commands that moved GOTMPDIR to RAM also moved SQLite test
+files there, contrary to the earlier local verification description. The real
+runtime ledger and GitHub CI used separate ordinary storage. Subsequent local
+persistence checks compile a test executable in RAM and run it with GOTMPDIR set
+to an ordinary disk directory. RAM-backed checks remain behavioral checks only.

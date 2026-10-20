@@ -2,6 +2,7 @@ package guard
 
 import (
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -14,6 +15,35 @@ func labProof() SubscriberLabProof {
 	p.Args = SubscriberLabArgs(p)
 	p.ActualArgs = slices.Clone(p.Args)
 	return p
+}
+
+func TestNativeLabPortalRequiresExactAddressAndFirewall(t *testing.T) {
+	p := labProof()
+	p.NativePortal, p.BridgeHasIPv4 = true, true
+	p.BridgeIPv4 = []string{"198.51.100.10/24"}
+	p.NativeFirewallSHA, p.ActualFirewallSHA = strings.Repeat("a", 64), strings.Repeat("a", 64)
+	if !CheckSubscriberLab(p) {
+		t.Fatal("owned isolated native portal refused")
+	}
+	for name, alter := range map[string]func(*SubscriberLabProof){
+		"changed policy": func(p *SubscriberLabProof) { p.ActualFirewallSHA = strings.Repeat("b", 64) },
+		"missing policy": func(p *SubscriberLabProof) { p.NativeFirewallSHA = "" },
+		"invalid digest": func(p *SubscriberLabProof) {
+			p.NativeFirewallSHA, p.ActualFirewallSHA = strings.Repeat("z", 64), strings.Repeat("z", 64)
+		},
+		"another address": func(p *SubscriberLabProof) { p.BridgeIPv4 = []string{"192.168.88.2/24"} },
+		"extra address":   func(p *SubscriberLabProof) { p.BridgeIPv4 = append(p.BridgeIPv4, "198.51.100.11/24") },
+		"no activation":   func(p *SubscriberLabProof) { p.NativePortal = false },
+	} {
+		t.Run(name, func(t *testing.T) {
+			copy := p
+			copy.BridgeIPv4 = slices.Clone(p.BridgeIPv4)
+			alter(&copy)
+			if CheckSubscriberLab(copy) {
+				t.Fatal("unproven portal exposure accepted")
+			}
+		})
+	}
 }
 
 func TestDisposableSubscriberLabRequiresEveryProof(t *testing.T) {
