@@ -204,6 +204,10 @@ func TestGuardedBackgroundDisconnectWithoutBrowsers(t *testing.T) {
 	go nas.Serve(conn)
 	defer nas.Shutdown(context.Background())
 	service.Clients[0].DisconnectPort = conn.LocalAddr().(*net.UDPAddr).Port
+	service.Observe = func(context.Context, string) (RouterObservation, error) {
+		at := time.Now()
+		return RouterObservation{RouterID: "lab", At: at, Complete: true, Sessions: []ObservedSession{{ID: "*synthetic", Server: "hs-lab", Username: a.Username, Device: "device", Address: "198.51.100.2", Seconds: Quantity(at.Sub(now) / time.Second)}}}, nil
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})

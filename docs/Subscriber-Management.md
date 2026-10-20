@@ -48,7 +48,8 @@ retains the existing router session with a collector-free `subscribers` hold. De
 use that shared connection and its concurrency limiter. Disconnect uses authenticated RADIUS
 with a narrowly scoped `service:subscriber` grant through `internal/guard/subscriberguard.go`.
 A fresh API check must still match account, network, device and connection start time before
-a disconnect is sent. An ACK is recorded as acknowledged, never as verified disappearance.
+a disconnect is sent. The request includes that observation's valid IPv4 as
+Framed-IP-Address; absent/stale or mismatched observations cannot send a request. An ACK is recorded as acknowledged, never as verified disappearance.
 
 ## Data and policy contracts
 
