@@ -108,7 +108,8 @@ this review. Full exact-source verification and PR/post-merge CI are recorded on
 the scoped PR; the earlier `93aa15fe` checkpoint is not reported as fully verified.
 The host's disk constraint was mitigated by removing only task-created rebuildable
 compiler-cache entries and using a RAM directory for subsequent compiler caches.
-Test databases and journals continue to use the ordinary filesystem.
+Earlier local RAM GOTMPDIR also placed test databases and journals in RAM;
+see the explicit ordinary-storage rerun in Subscriber-Verification.md.
 
 ### Independent delivery checkpoints
 
@@ -122,8 +123,9 @@ Test databases and journals continue to use the ordinary filesystem.
   Exact implementation head `8225eff7` also passed full local verification,
   race checks, synthetic browser acceptance, a capability-revocation mutation and
   a static ARM64 cross-build. Native supplemental race/browser runs used tmpfs;
-  full verification's SQLite tests used the ordinary filesystem. Neither proves
-  media durability under power loss or execution on the target router.
+  the earlier ordinary-filesystem description for local RAM GOTMPDIR commands
+  was incorrect. Later explicit disk-backed reruns are recorded in verification.
+  Neither proves media durability under power loss or target-router execution.
 - Reconciliation: Issue #41 on its independent branch from `develop`. Migration 40,
   provisional exposure, transactional audited approval APIs and the fourth admin
   tab are implemented. Focused ledger/API checks and actual HTTP/SQLite Chromium
@@ -372,3 +374,21 @@ primary rejection does not fall through to the secondary stand-in. Both normal
 and injected-failure probes restored the owned configuration; the fault run
 verified exact readback after its intentional exit 1. This is not actual User
 Manager or live C routing acceptance. See the lab guide for commands and limits.
+
+
+### Issue #59 delivery and final CHR fault replay
+
+The missing-final accounting grant defect discovered during the real CHR outage
+is delivered by PR #60 at `develop` `3bfdbd25`, with exact-head and post-merge
+CI green. Known counters and holds remain intact, new admission and renewal are
+blocked until final accounting, and unlimited zero-hold sessions have a review
+path. Trusted final Stop and audited administrative recovery remain distinct
+from period-byte allocation review. See [final accounting](Subscriber-Final-Accounting.md).
+
+On clean application source `1abd51de`, the public CHR browser `reconciling`
+case confirms actual HotSpot re-entry refusal with positive known credit and
+continued portal access; no new active session or confirmed counter change is
+accepted. This supplements the earlier short-restart and failed old-code outage
+results without deleting them. The CHR harness full gate, disk-backed lab race
+and ownership/evidence mutations are recorded in verification. #54 delivery and
+all remaining AC-01..AC-19 software/target requirements remain open.

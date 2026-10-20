@@ -173,8 +173,9 @@ performed. The target's reported architecture is arm; prior static ARMv7 build
 success does not prove target execution. Current RouterOS documentation describes
 HTTP proxy upstreams; its 7.26 header description still needs a 7.24.5 target probe.
 
-Actual commands (native Go 1.27.2, linux/amd64; compiler cache in RAM, SQLite files
-in the ordinary temporary filesystem; synthetic accounts and scripted NAS reads):
+Historical commands (native Go 1.27.2, linux/amd64; synthetic accounts and scripted
+NAS reads). The earlier claim of ordinary SQLite temporary storage was incorrect
+for commands using RAM GOTMPDIR; see the explicit disk-backed correction below:
 
 - `go test ./cmd/subscriberconfig ./internal/subscriber ./internal/server -run '^(TestSeal|TestPortal|TestSubscriber|TestShadow)' -count=1`: exit 0
   (0.292 / 0.006 / 5.445 seconds). The sealing tool preserves explicit peer/transport
@@ -230,8 +231,9 @@ Current independent branch: `fix/46-durable-accounting-receipts`, based on verif
 `develop` `baae4f3e`. See [receipt behavior](Subscriber-Accounting-Receipts.md).
 
 - `go test ./internal/subscriber ./internal/db ./internal/server -count=1`: exit 0,
-  13.775 / 13.219 / 61.063 seconds on the development host. SQLite uses ordinary
-  filesystem temporary directories; only compiler caches use RAM.
+  13.775 / 13.219 / 61.063 seconds on the development host. These are behavioral
+  results; RAM GOTMPDIR also places SQLite T.TempDir files in RAM. They do not
+  establish ordinary-storage persistence.
 - `npx --no-install tsc --noEmit` and `npm test --silent`: exit 0, 146 tests passed.
 - `go test -race ./internal/subscriber -run 'TestReceipt|TestRealUDPIncomplete' -count=1`:
   exit 0, 9.065 seconds, native cgo/race instrumentation.
@@ -260,8 +262,9 @@ claimed. A successful commit is not itself an exact-head verification result.
 At implementation `296a7bb5`, `sh tools/verify.sh` passed in an isolated checkout:
 62 Go packages, gofmt, vet, live govulncheck, six Go generators, TypeScript, seven
 JavaScript generators, 146 frontend tests and 22 tooling tests. Raw Docker output
-was retained; no check was skipped. Compiler caches use RAM; SQLite stays on the
-ordinary filesystem. The disk briefly approached capacity during concurrent
+was retained; no check was skipped. Its RAM GOTMPDIR also affected SQLite test
+storage, contrary to the earlier ordinary-filesystem description. The disk
+briefly approached capacity during concurrent
 compilation; both commands completed successfully and released their temporary
 files. No operator data, image, volume or unrelated cache was deleted.
 
@@ -411,3 +414,44 @@ It exercises the real encryption/ledger/RBAC preparation call site and refuses
 repeat preparation without replacing accounts. Private log:
 `/tmp/subscriber-54-disk-unit.log`. New runtime exhaustion helpers added after
 that binary was compiled still require their own final-source checks.
+
+
+## Finality and CHR continuation verification
+
+Issue #59 / PR #60 delivered account-wide missing-final accounting gates at
+`develop` `3bfdbd25`. The reviewed head `1abd51de` and merged trees match;
+[head CI](https://github.com/so7ob/MikroDash/actions/runs/39376922603) and
+[post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39377365380)
+passed. Its complete standalone subscriber race run passed 70 top-level
+checks on ext4 `/tmp`; all six compiling finality mutants failed relevant
+behavioral assertions. The first restart fixture's Store-pointer race was
+repaired by draining the old receiver before storage reopen, without weakening
+production synchronization.
+
+A supplemental 20-second standalone accounting fuzz run passed 33 executions
+in about 21 seconds on that source. Go warned that the binary lacked coverage
+instrumentation; it is random input testing without coverage guidance. The
+first invocation lacked `-test.fuzzcachedir` and executed no fuzz cases. Both
+logs are retained. Do not equate this with a coverage-guided fuzz campaign.
+
+The CHR continuation at `679ad9fd` passed the full local sweep: 63 Go packages,
+gofmt/vet/govulncheck and current generators, TypeScript, 146 frontend and 32
+tooling tests. The Docker wrapper applies `-count=1` and an execution environment
+with both GOTMPDIR and TMPDIR on ordinary `/tmp`; only compilation work/cache
+uses RAM. A separate subscriberlab race executable passed all 11 top-level
+tests on ext4 `/tmp`, including actual encrypted runtime-data/RBAC preparation.
+
+Subsequent isolated assertions for the process binary hash passed and killed
+a compiling omission of that fence. Six Node mutations cover PID start ticks,
+argv, binary/config hashes, app-before-VM teardown and the isolated listener
+firewall. Four compiling Go overlay mutations cover administrator grant at its
+preparation call site, malformed durations, mixed certificate material and
+failed evidence writes. Every mutation fails a behavioral assertion; syntax or
+compilation failure was not counted as a kill.
+
+The clean native application at `1abd51de` also passed the public actual-client
+`reconciling` browser case against the retained CHR outage ledger: positive known
+credit, pending final accounting, refused HTTPS HotSpot re-entry, retained
+confirmed balances and safe portal access. Three themes at 375/1280 pass LTR,
+overflow and axe checks. This is not an L009/C or automatic landing result.
+Final #54 head and post-merge CI remain separate delivery gates.
