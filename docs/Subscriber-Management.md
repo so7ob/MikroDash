@@ -113,7 +113,7 @@ sample. See [reconciliation](Subscriber-Reconciliation.md).
 Admission reserves sub-budgets atomically across all outstanding sessions. It emits local
 Session-Timeout, directional MikroTik byte limits and total byte limits where configured.
 The current implementation limits every delegation to **60 seconds**, the nearest hard period
-or access-window edge, or its smaller time allocation. A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab; target-router proof remains pending. Renewal across a hard calendar-period edge remains outstanding. It never grants a
+or access-window edge, or its smaller time allocation. A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab and the normal MikroDash worker on isolated CHR 7.24.5 with all browsers closed; L009/C proof remains pending. Renewal across a hard calendar-period edge remains outstanding. It never grants a
 new full hour after partial consumption.
 
 A 2-second background loop requests disconnect on expired delegations, suspension and
@@ -150,7 +150,7 @@ from the enrolled router's HotSpot host table, then creates a 30-second network/
 one-use ticket. The browser POSTs it to the configured HTTPS RouterOS `/login` URL, using the
 account's actual username. The owned RADIUS handler consumes the ticket; an exact packet retry
 is idempotent and a different packet cannot reuse it. RouterOS `dst` is the configured portal
-origin, not a browser-provided return URL. This browser-to-router leg still needs live acceptance.
+origin, not a browser-provided return URL. The actual namespace browser/CHR 7.24.5 leg passes in the isolated lab; automatic WiFi landing and target L009/C acceptance remain pending.
 
 The implemented password protocol is PAP over the HTTPS HotSpot login leg. CHAP is refused;
 a one-way scrypt hash cannot provide the original password CHAP needs. Existing HotSpot
@@ -206,8 +206,9 @@ addressing and raw account/topology reports are deliberately excluded from publi
 one profile link, two users and two user-profile rows. The limitation is one hour with daily
 reset. Historical definitions mentioned in the request are not assumed to exist today.
 
-No router write, production disconnect, deployment, RADIUS cutover or certificate replacement
-was performed. The existing logo asset is MikroDash-branded; a separate So7ob logo asset was
+No operator-router write, production disconnect, deployment, live RADIUS cutover
+or operator certificate replacement was performed. Isolated CHR fixture writes
+and their qualified results are described in the [lab guide](Subscriber-CHR-Lab.md). The existing logo asset is MikroDash-branded; a separate So7ob logo asset was
 not found and none was generated.
 
 ## Outstanding acceptance work
