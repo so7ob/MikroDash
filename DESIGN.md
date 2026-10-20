@@ -721,3 +721,31 @@ at 375/1280 with zero axe violations. It covers cancel, invalid input, concurren
 edit conflict, reviewed save, escaped Unicode data and focus. The existing dense
 console structure, local font system and semantic accent roles are retained;
 audit result: zero new decorative patterns or design systems.
+
+
+### Subscriber Internet connection evidence
+
+The standalone portal keeps the existing dense, calm, technical direction and
+local Oxanium/JetBrains Mono tokens. Its first account card places this device's
+Internet status, evidence time and recovery text beside the network/Connect
+action. The header identifies portal sign-in and update transport separately.
+Other device rows cannot supply this device's status. Shared semantic pills and
+plain text distinguish requested, authorized, connected, stale, denied and ended
+states without relying on color. No new font, palette, illustration, icon system
+or decorative motion is introduced.
+
+A network landing hint changes the explicit credential-submit action to Sign in
+and connect. A page load or an existing portal cookie never submits a HotSpot
+form. Return context is an owned opaque reference; errors remain in the account
+without automatic retries or redirect loops. The existing form and action
+components carry busy and keyboard states.
+
+Synthetic Shadow browser checks pass for native TLS and the explicit proxy,
+normal/pending accounting, restricted session storage, explicit login intent,
+owned return recovery, keyboard sign-in/Connect/logout focus, 375/1280, three
+existing themes and zero axe WCAG 2 A/AA plus 2.1 AA findings. The mobile and
+wide renders retain the shared type, density, forms and semantic color roles;
+visual consistency audit: 8/10, with zero new decorative patterns. Complete
+HotSpot handoff, live connected-state browser proof and manual screen-reader
+acceptance remain pending; the automated checks do not establish all WCAG 2.2
+criteria or target-router acceptance.

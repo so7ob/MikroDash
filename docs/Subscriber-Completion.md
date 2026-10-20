@@ -438,3 +438,17 @@ full repository checks and tested develop delivery are still pending. See
 [the backend contract](Subscriber-Connection-Entry.md). The local VS Code NAT
 Shadow preparation and private reachability results do not enable a C pilot
 or modify operator RADIUS/firewall settings.
+
+
+### Issue #64: portal consumer continuation
+
+The generated connection event is consumed by the actual isolated portal.
+Separate portal and Internet states retain fresh exact-device evidence, scoped
+denial reasons and bounded stale recovery. An explicit credential-submit may
+request Internet for an enrolled landing hint; opening a URL or retaining a
+cookie never does. Return references are strict, owned and optional in storage;
+late sign-out responses do not revive the prior view. Ambiguous network keys
+are refused before device lookup. All 149 frontend tests and the four-case
+synthetic TLS/proxy browser journey pass, including keyboard and 375/1280/three
+themes with zero findings under the existing axe tags. These remain Shadow
+checks; the NAS handoff and complete CHR/target entry are still required.

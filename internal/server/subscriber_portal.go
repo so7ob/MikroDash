@@ -164,10 +164,16 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var nas subscriber.NAS
+	matches := 0
 	for _, n := range rt.cfg.Clients {
 		if n.Network == in.Network {
 			nas = n
+			matches++
 		}
+	}
+	if matches > 1 {
+		writeJSONErr(w, 409, "This network needs administrator review. Contact support.")
+		return
 	}
 	if nas.Network == "" {
 		writeJSONErr(w, 403, "Network is not enrolled")

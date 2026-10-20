@@ -1,15 +1,17 @@
-# Subscriber connection entry: backend checkpoint
+# Subscriber connection entry: implementation checkpoint
 
 Issue [#64](https://github.com/so7ob/MikroDash/issues/64) continues the existing
-HTTPS portal/PAP ticket path. This is a backend checkpoint, not completed single
-sign-in or target-router acceptance. The current browser entry interaction and
-HotSpot landing files do not yet consume this contract. Do not enable production
-authentication or capability flags based on these tests.
+HTTPS portal/PAP ticket path. The backend and English/LTR portal now consume the
+owned connection contract. This is not completed single sign-in or target-router
+acceptance: rendered HotSpot handoff and the full browser-originated CHR journey
+remain pending. Do not enable production authentication or capability flags
+based on these tests.
 
 ## Ownership and durable decisions
 
 An authenticated portal session may request a ticket only for an entitled
-enrolled network. The backend resolves the device from that NAS HotSpot host
+enrolled network. An ambiguous network key matching multiple NAS entries is
+refused before ticket issuance; the last entry is not chosen. The backend resolves the device from that NAS HotSpot host
 read using the trusted HTTP peer; browser MAC/IP claims grant nothing.
 
 The ticket request now records the NAS router ID, network, verified device,
@@ -110,15 +112,21 @@ Focused commands compile test executables with the normal project toolchain and
 then run them with both `GOTMPDIR=/tmp` and `TMPDIR=/tmp`. Compilation caches may
 be in RAM; test databases are on the ordinary filesystem. Private red/green
 logs remain under `.temp/subscriber-64-recovery` in the visible workspace.
-Full regression, mutation/race checks, browser integration, generated handoff
-artifacts and the complete real-client journey remain required before delivery.
+The frontend type check and all 149 frontend tests pass. The real synthetic
+Chromium journey passes in four native-TLS/proxy and normal/pending-accounting
+cases, at 375/1280 in three themes, with restricted session storage and keyboard
+checks. It verifies no admission from a GET hint or unowned return and zero axe
+findings under the existing tags. It is Shadow, not actual HotSpot admission.
+Full regression found two stale test-file counts after the new test was added;
+the documents were updated to the measured 113 files without weakening the gate.
+Final full regression, mutation/race checks, generated handoff artifacts and the
+complete real-client journey remain required before delivery.
 
 ## Work still required for this issue
 
-- Connect the generated event to the English/LTR portal and expose distinct
-  portal-authenticated and Internet-connected states with bounded recovery.
-- Complete explicit sign-in-and-connect intent, owned return handling and
-  safe HotSpot handoff artifacts without repeat submissions or redirect loops.
+- Complete safe HotSpot handoff artifacts and prove explicit sign-in-and-connect
+  and owned return handling through the real NAS, without repeat submissions or
+  redirect loops. A GET hint or existing cookie never initiates admission.
 - Test the complete browser-originated HotSpot path on the isolated CHR, including
   post-exhaustion access and a failed admission returning to the account.
 - Finish repository-wide verification and deliver through the tested PR/develop

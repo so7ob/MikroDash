@@ -104,9 +104,15 @@ func TestSubscriberHTTPSProxyBindsTicketToVerifiedClientAndRadius(t *testing.T) 
 	decode(send("POST", "/api/speed", `{"profileId":"economy"}`, "https://evil.example.test", login.CSRF), 403, nil)
 	decode(send("POST", "/api/speed", `{"profileId":"economy"}`, edge.URL, "wrong"), 403, nil)
 	decode(send("POST", "/api/connect", `{"network":"C","device":"02:00:00:00:00:66"}`, edge.URL, login.CSRF), 400, nil)
-	var ticket struct{ Username, Password, Destination, LoginURL string }
+	// A display network key alone cannot select the last of several NAS entries.
+	ambiguous := nas
+	ambiguous.RouterID = "synthetic-secondary-nas"
+	s.subscribers.cfg.Clients = []subscriber.NAS{nas, ambiguous}
+	decode(send("POST", "/api/connect", `{"network":"C"}`, edge.URL, login.CSRF), 409, nil)
+	s.subscribers.cfg.Clients = []subscriber.NAS{nas}
+	var ticket struct{ Username, Password, Destination, LoginURL, FlowID string }
 	decode(send("POST", "/api/connect", `{"network":"C"}`, edge.URL, login.CSRF), 200, &ticket)
-	if ticket.Username != account.Username || ticket.Destination != edge.URL+"/" || ticket.LoginURL != nas.LoginURL || !strings.HasPrefix(ticket.Password, "mdt_") {
+	if ticket.Username != account.Username || ticket.FlowID != subscriber.Digest(ticket.Password) || ticket.Destination != edge.URL+"/?connection="+ticket.FlowID || ticket.LoginURL != nas.LoginURL || !strings.HasPrefix(ticket.Password, "mdt_") {
 		t.Fatal("unexpected owned ticket destinations")
 	}
 	conn, err := net.ListenPacket("udp", "127.0.0.1:0")

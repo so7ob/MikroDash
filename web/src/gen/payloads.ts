@@ -1343,7 +1343,7 @@ export interface Site {
   created_at: number;
 }
 
-export interface ConnectionStatus {
+export interface SubscriberConnectionStatus {
   version: string;
   flowId: string;
   stage: string;
@@ -2493,7 +2493,7 @@ export interface Events {
   'secscan:result': SecScanPayload;
   'secscore:state': SecScorePayload;
   'sites:update': Site[];
-  'subscriber:connection': ConnectionStatus;
+  'subscriber:connection': SubscriberConnectionStatus;
   'subscriber:snapshot': SubscriberSnapshot;
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
