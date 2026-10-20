@@ -451,3 +451,32 @@ node tools/subscriber-chr-lab.mjs stop "$lab_dir"
 This preserves the database, keys and private evidence. VM stop refuses a live
 recorded application process. The owner VS Code preview, physical interfaces,
 operator data, router A/B/C and production authentication are separate.
+
+
+## Fresh final-source replay
+
+A new VM/disk and new runtime-data were prepared with the public launcher and
+clean lab CLI at `a60409cb` (the subsequent `6387693d` change corrects only guide
+lifecycle wording). Fresh preparation granted the sole synthetic administrator;
+the protected administration API returned 200 in Shadow without a manual grant
+repair. The owned runtime was then stopped before the five primary-port probes.
+
+All five HTTPS probes completed successfully on new durable ledgers: timeout
+extension/shortening and directional counters, initial download cap, initial
+upload cap, cumulative byte CoA and production Disconnect with final Stop.
+This replay measured 171724 download bytes against a 65536-byte cap (106188
+bytes over), and 174724 upload bytes against that cap (109188 bytes over).
+Cumulative download renewal overran by 6212 bytes. Together with the earlier
+samples these show material variation; none defines a guaranteed operational
+upper bound. In particular, the earlier 2368-byte upload sample is not a safe
+budget for future sessions. Total-attribute readback still does not prove
+multi-gigabyte/Gigaword enforcement; both capability flags remain false.
+
+Only the stopped synthetic fixture was changed to Pilot after reviewing and
+hashing all five successful probe outputs for that exact VM/version/lifecycle.
+The clean normal application at `1abd51de` passed the public `journey`: actual
+HTTPS device-bound login, account return in 2113 ms, cooldown, two distinct
+verified speed profiles and all six responsive/theme axe checks. The same
+session then reached 238 connected seconds and five verified worker renewals
+with every browser closed. Owned HTTPS logout followed. Original outage ledgers,
+images and evidence were retained; no operator router or data was changed.
