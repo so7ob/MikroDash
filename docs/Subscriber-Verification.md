@@ -294,3 +294,10 @@ was a behavioral red, not an initial compile failure.
 Only NAS data is synthetic. Screenshots are private in
 `.screenshots/subscriber-name-52/`. Full final-head checks, mutation evidence and
 pre/post-merge CI remain delivery gates; the name editor is not target acceptance.
+
+
+The first full #52 sweep failed `TestEveryLookupHasAProducer`: the generated
+input helper hid the literal `subEditName` producer from the static scan, while
+the browser journey had passed. The field now declares its input ID explicitly,
+using the same local form classes. The audit and all its assertions remain intact.
+The failed full sweep is not reported as green.
