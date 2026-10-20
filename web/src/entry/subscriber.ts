@@ -125,7 +125,7 @@ async function connectInternet(): Promise<void> {
     const ticket = await api<{ loginUrl: string; username: string; password: string; destination: string; flowId: string }>('/api/connect', { network: value('subscriberNetwork') });
     if (!signedIn || epoch !== authEpoch) return;
     const login = new URL(ticket.loginUrl), destination = new URL(ticket.destination);
-    if (login.protocol !== 'https:' || login.pathname !== '/login' || login.username || login.password || login.search || login.hash || !connectionReference(ticket.flowId) || destination.origin !== location.origin || destination.pathname !== '/' || destination.hash || destination.username || destination.password || destination.searchParams.size !== 1 || destination.searchParams.get('connection') !== ticket.flowId) throw new Error('The secure HotSpot destination could not be verified.');
+    if (login.protocol !== 'https:' || login.pathname !== '/login' || login.username || login.password || login.search || login.hash || !connectionReference(ticket.flowId) || destination.origin !== location.origin || destination.pathname !== '/' || destination.hash || destination.username || destination.password || Array.from(destination.searchParams).length !== 1 || destination.searchParams.get('connection') !== ticket.flowId) throw new Error('The secure HotSpot destination could not be verified.');
     flowId = ticket.flowId; connection = null; saveReference(); closeSocket();
     const form = document.createElement('form'); form.method = 'POST'; form.action = login.href;
     for (const [name, v] of Object.entries({ username: ticket.username, password: ticket.password, dst: ticket.destination, popup: 'false' })) {

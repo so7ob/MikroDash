@@ -3,8 +3,8 @@
 Issue [#64](https://github.com/so7ob/MikroDash/issues/64) continues the existing
 HTTPS portal/PAP ticket path. The backend and English/LTR portal now consume the
 owned connection contract. This is not completed single sign-in or target-router
-acceptance: rendered HotSpot handoff and the full browser-originated CHR journey
-remain pending. Do not enable production authentication or capability flags
+acceptance: reviewable HotSpot handoff rendering and the owned-CHR installer are implemented;
+the full browser-originated CHR journey remains pending. Do not enable production authentication or capability flags
 based on these tests.
 
 ## Ownership and durable decisions
@@ -131,3 +131,50 @@ complete real-client journey remain required before delivery.
   post-exhaustion access and a failed admission returning to the account.
 - Finish repository-wide verification and deliver through the tested PR/develop
   workflow. The larger AC-01..AC-19 scope and live C approval remain separate.
+
+## Reviewed HotSpot handoff artifacts
+
+Build the frontend, then render an explicit enrolled network into a new directory:
+
+```sh
+go run ./cmd/webbuild -dir web
+go run ./cmd/subscriberlanding -subscriber-config /private/subscriber.json \
+  -network C -web web/dist -out /private/review/hotspot-C
+```
+
+The command is offline. It neither decrypts secrets nor connects to RouterOS.
+It writes ten English/LTR servlet pages, the small classic JavaScript helper,
+`api.json`, and a sorted SHA-256/size manifest. Each public asset is limited to
+4096 bytes for bounded readback. Identical output repeats without rewriting;
+changed or unknown files and symlinks are refused. Keep the full private runtime
+configuration outside the public directory. Only the reviewed public assets are
+intended for the NAS; the manifest is review metadata.
+
+The helper accepts only the exact configured HTTPS portal root. A successful
+return additionally requires one well-formed connection reference. Escaped
+RouterOS return variables are decoded once; arbitrary paths, origins, credentials,
+fragments, duplicate parameters and doubly encoded destinations are refused.
+Login links carry only the encoded network hint. An existing portal cookie or
+visiting that hint does not initiate Internet admission. Failure pages retain
+an owned reference when available and return to the account without retrying.
+A visible Continue to subscriber portal link remains available without JavaScript.
+No raw RouterOS error, browser device claim, password or RADIUS secret is rendered.
+Fonts and shared styles load from the local portal origin; only licensed public
+font responses allow cross-origin loading, never account or administration APIs.
+
+The owned lab tool provides `install-landing` and `rollback-landing` actions.
+Both retain its existing per-command QEMU/NAS/topology guards. Installation
+requires the idle exact `hs-lab`/`hsprof-lab`/`ether2` HTTPS fixture. It records
+the original override privately, creates a manifest-derived directory, uploads
+only absent files, reads each back before changing the profile, and verifies the
+final override. A partial upload can resume only with the same review. Rollback
+restores only the recorded override, refuses drift and preserves files/evidence.
+These actions cannot target an enrolled operator router or read operator `/data`.
+
+The isolated CHR 7.24.5 accepted the documented `/file/add` operations, returned
+matching contents and served the rendered header policy. Repeated installation
+and repeated rollback passed. Full browser admission/return acceptance remains
+pending; these artifact checks do not establish C or L009 readiness.
+
+References: [HotSpot customisation](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/hotspot-customisation/)
+and [RouterOS file operations](https://help.mikrotik.com/docs/spaces/ROS/pages/2555971/Files).

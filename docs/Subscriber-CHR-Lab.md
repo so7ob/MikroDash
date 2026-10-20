@@ -480,3 +480,27 @@ verified speed profiles and all six responsive/theme axe checks. The same
 session then reached 238 connected seconds and five verified worker renewals
 with every browser closed. Owned HTTPS logout followed. Original outage ledgers,
 images and evidence were retained; no operator router or data was changed.
+
+### Reviewed landing installation
+
+After building the frontend and preparing the isolated runtime, install only the
+owned fixture's reviewed handoff directory while no synthetic session is active:
+
+```sh
+go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action install-landing -web web/dist
+# Restore the original override while idle; retain the new files and ledger.
+go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action rollback-landing
+```
+
+Both actions refuse another VM lifecycle, a changed review/profile, a busy
+HotSpot, unknown files or differing readback. Do not copy these commands onto an
+operator router. `journey`, `exhausted` and `reconciling` browser actions now require
+the rendered landing: they navigate to the NAS once, submit one portal credential
+form, perform the actual browser HTTPS HotSpot POST, and assert the owned account
+return. Browser storage is blocked, so the owned return URL must carry context.
+These checks still require execution before they are evidence.
+
+For a separate build directory, set `SUBSCRIBER_CHR_WEB` to its absolute path
+when starting the owned runtime. It must contain built `subscriber.html` and
+`subscriber.js`. This avoids replacing assets served by an existing development
+runtime. Its resolved argument is retained in the process ownership receipt.

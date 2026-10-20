@@ -18,7 +18,12 @@ func (s *Server) subscriberPortal(webDir string) http.Handler {
 	mux.HandleFunc("GET /logo.png", subscriberAsset(s.staticDir, "logo.png"))
 	mux.HandleFunc("GET /vendor/tabler.min.css", subscriberAsset(s.staticDir, "vendor/tabler.min.css"))
 	for _, prefix := range []string{"css/", "fonts/", "vendor/fonts/"} {
-		mux.Handle("GET /"+prefix, http.StripPrefix("/"+prefix, http.FileServer(http.Dir(filepath.Join(s.staticDir, prefix)))))
+		directory := filepath.Join(s.staticDir, prefix)
+		var files http.Handler = http.FileServer(http.Dir(directory))
+		if prefix != "css/" {
+			files = subscriberPublicFonts(directory)
+		}
+		mux.Handle("GET /"+prefix, http.StripPrefix("/"+prefix, files))
 	}
 	mux.HandleFunc("GET /api/session", s.subscriberPortalSession)
 	mux.HandleFunc("POST /api/login", s.subscriberPortalLogin)

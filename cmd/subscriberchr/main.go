@@ -17,20 +17,21 @@ import (
 
 func main() {
 	state := flag.String("state", "", "private owned-VM runtime.json")
-	action := flag.String("action", "inspect", "inspect, configure, configure-https, prepare-runtime, repair-runtime-admin, runtime-status, logout-runtime, probe, probe-https, probe-download, probe-upload, probe-byte-renew, probe-disconnect, probe-runtime-traffic, probe-runtime-exhaust, probe-radius-selection or probe-radius-selection-fault")
+	action := flag.String("action", "inspect", "inspect, configure, configure-https, prepare-runtime, repair-runtime-admin, install-landing, rollback-landing, runtime-status, logout-runtime, probe, probe-https, probe-download, probe-upload, probe-byte-renew, probe-disconnect, probe-runtime-traffic, probe-runtime-exhaust, probe-radius-selection or probe-radius-selection-fault")
+	web := flag.String("web", "web/dist", "built frontend directory for the owned landing installer")
 	flag.Parse()
-	if err := run(*state, *action); err != nil {
+	if err := run(*state, *action, *web); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }
 
-func run(state, action string) error {
+func run(state, action, web string) error {
 	if !filepath.IsAbs(state) {
 		return fmt.Errorf("absolute private lab state path required")
 	}
 	switch action {
-	case "inspect", "configure", "configure-https", "prepare-runtime", "repair-runtime-admin", "runtime-status", "logout-runtime", "probe", "probe-https", "probe-download", "probe-upload", "probe-byte-renew", "probe-disconnect", "probe-runtime-traffic", "probe-runtime-exhaust", "probe-radius-selection", "probe-radius-selection-fault":
+	case "install-landing", "rollback-landing", "inspect", "configure", "configure-https", "prepare-runtime", "repair-runtime-admin", "runtime-status", "logout-runtime", "probe", "probe-https", "probe-download", "probe-upload", "probe-byte-renew", "probe-disconnect", "probe-runtime-traffic", "probe-runtime-exhaust", "probe-radius-selection", "probe-radius-selection-fault":
 	default:
 		return fmt.Errorf("unknown lab action")
 	}
@@ -39,6 +40,9 @@ func run(state, action string) error {
 		return err
 	}
 	defer c.Close()
+	if action == "install-landing" || action == "rollback-landing" {
+		return c.InstallLanding(filepath.Dir(state), web, action == "rollback-landing")
+	}
 	if action == "runtime-status" {
 		rows, err := c.RuntimeStatus()
 		if err != nil {

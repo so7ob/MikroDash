@@ -150,7 +150,7 @@ func appOpts(here, dist string) api.BuildOptions {
 	}
 }
 
-// classic are the two classic scripts. Same target, NO SOURCEMAP — they are
+// classic are the separate document scripts. Same target, NO SOURCEMAP — they are
 // short, and a map for a file served to an unauthenticated browser is a file
 // served to an unauthenticated browser.
 //
@@ -160,6 +160,7 @@ func appOpts(here, dist string) api.BuildOptions {
 var classic = []struct{ src, out string }{
 	{"entry/login.ts", "login.js"},
 	{"entry/subscriber.ts", "subscriber.js"},
+	{"entry/subscriber-handoff.ts", "subscriber-handoff.js"},
 	{"entry/preflight.ts", "preflight.js"},
 }
 
@@ -174,7 +175,11 @@ func classicOpts(here, dist string) []api.BuildOptions {
 			Target:        api.ES2020,
 			Outfile:       filepath.Join(dist, c.out),
 			LogLevel:      api.LogLevelInfo,
-			Write:         true,
+			// The router-served helper is kept within the validated small-file budget.
+			MinifyWhitespace:  c.out == "subscriber-handoff.js",
+			MinifyIdentifiers: c.out == "subscriber-handoff.js",
+			MinifySyntax:      c.out == "subscriber-handoff.js",
+			Write:             true,
 		})
 	}
 	return out

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { connectionReference, connectionReason, connectionView, portalEntry } from '../src/subscriber-connection';
+import { hotspotDestination, hotspotReturn } from '../src/subscriber-handoff';
 import type { SubscriberConnectionStatus } from '../src/gen/payloads';
 
 const flow = 'a'.repeat(64);
@@ -35,4 +36,30 @@ test('denial messages preserve original constraint names without translating use
   assert.match(connectionReason('accounting-reconciliation-required'),/reconciliation/);
   const view=connectionView({...status,stage:'rejected',reasons:['exhausted:DAILY-1H','session-limit']},observed);
   assert.equal(view.tone,'err');assert.match(view.message,/DAILY-1H/);assert.match(view.message,/session limit/);
+});
+
+
+test('HotSpot returns accept only one owned root reference after a single decode', () => {
+  const origin='https://portal.example.test:9444';
+  const owned=`${origin}/?connection=${flow}`;
+  assert.equal(hotspotReturn(encodeURIComponent(owned),origin),owned);
+  for (const destination of [
+    `https://foreign.example.test/?connection=${flow}`,
+    `${origin}/admin?connection=${flow}`,
+    `${origin}/?connection=${flow}&return=https://foreign.example.test`,
+    `${origin}/?connection=${flow}&connection=${flow}`,
+    `${origin}/?connection=not-a-reference`,
+    `${origin}/?connection=${flow}#fragment`,
+    `https://user:pass@portal.example.test:9444/?connection=${flow}`,
+    `http://portal.example.test:9444/?connection=${flow}`,
+    '%2568ttps%253A%252F%252Fforeign.example.test',
+    '$(link-redirect-esc)', '%E0%A4%A', 'javascript:alert(1)',
+  ]) assert.equal(hotspotReturn(encodeURIComponent(destination),origin),'',destination);
+  assert.equal(hotspotDestination('success',origin,origin,encodeURIComponent(owned),''),owned);
+  assert.equal(hotspotDestination('failure',origin,origin,'',encodeURIComponent(owned)),owned+'&hotspot=failed');
+  assert.equal(hotspotDestination('failure',origin,origin,'',''),origin+'/?hotspot=failed');
+  assert.equal(hotspotDestination('account',origin,origin,'',''),origin+'/');
+  assert.equal(hotspotDestination('login',origin,origin+'/?connect=C','',''),origin+'/?connect=C');
+  assert.throws(()=>hotspotDestination('login',origin,'https://foreign.example.test/','',''));
+  assert.throws(()=>hotspotDestination('success','http://portal.example.test',origin,'',''));
 });

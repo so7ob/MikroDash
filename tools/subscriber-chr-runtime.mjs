@@ -48,7 +48,9 @@ try {
    const old=readPrivateJSON(directory,'app-owned.json');if(!Number.isSafeInteger(old.pid)||old.pid<=1||fs.existsSync(`/proc/${old.pid}`))throw Error('Existing app receipt requires inspection/stop; no takeover');
    fs.renameSync(receiptPath,path.join(directory,`app-retired-${old.pid}-${token()}.json`));
   }
-  const args=['-listen','127.0.0.1:13083','-data',fixture.data,'-web',path.join(root,'web/dist'),'-static',path.join(root,'web/public'),'-geo',path.join(root,'.temp/geo'),'-no-pool','-subscriber-config',path.join(directory,'runtime-config.json')];
+  const web=process.env.SUBSCRIBER_CHR_WEB||path.join(root,'web/dist');
+  if(!path.isAbsolute(web)||!fs.statSync(path.join(web,'subscriber.html')).isFile()||!fs.statSync(path.join(web,'subscriber.js')).isFile())throw Error('Absolute built subscriber frontend required');
+  const args=['-listen','127.0.0.1:13083','-data',fixture.data,'-web',web,'-static',path.join(root,'web/public'),'-geo',path.join(root,'.temp/geo'),'-no-pool','-subscriber-config',path.join(directory,'runtime-config.json')];
   const log=path.join(directory,`runtime-app-${token()}.log`),logFD=fs.openSync(log,'wx',0o600);
   const child=spawn(binary,args,{cwd:root,detached:true,stdio:['ignore',logFD,logFD]});fs.closeSync(logFD);let failure;child.on('error',e=>{failure=e;});child.unref();
   await delay(100);if(failure||!child.pid)throw Error('MikroDash failed to spawn; inspect retained runtime log');
