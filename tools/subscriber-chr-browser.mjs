@@ -10,8 +10,8 @@ import {readPrivateJSON, runtimeFixture, verifyApp} from './subscriber-chr-proof
 
 const script=fileURLToPath(import.meta.url), root=path.dirname(path.dirname(script));
 const [action,directory,inside,...extra]=process.argv.slice(2);
-if(!['journey','exhausted'].includes(action)||!directory||!path.isAbsolute(directory)||extra.length||(inside&&inside!=='--inside')) {
- console.error('Usage: node tools/subscriber-chr-browser.mjs journey|exhausted /absolute/private/lab');process.exit(1);
+if(!['journey','exhausted','reconciling'].includes(action)||!directory||!path.isAbsolute(directory)||extra.length||(inside&&inside!=='--inside')) {
+ console.error('Usage: node tools/subscriber-chr-browser.mjs journey|exhausted|reconciling /absolute/private/lab');process.exit(1);
 }
 process.umask(0o077);
 const privateJSON=name=>readPrivateJSON(directory,name);
@@ -49,15 +49,18 @@ const snapshot=()=>page.evaluate(async()=>{const r=await fetch('/api/account');i
 try {
  await page.goto('https://login.example.test/login'); // Actual HotSpot document; automatic handoff is a separate gap.
  await page.goto(origin);await page.locator('#subscriberUsername').fill(credentials.username);await page.locator('#subscriberPassword').fill(credentials.password);await page.locator('#subscriberLoginForm button').click();await page.locator('#portalAccount').waitFor({state:'visible'});
- const before=await snapshot();save('before.json',before);assert.equal(before.pendingAccounting,0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
+ const before=await snapshot();save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
  assert.equal(await page.evaluate(async()=>(await fetch('/api/routers')).status),404);
  phase='actual browser HotSpot POST';const response=page.waitForResponse(r=>r.url().startsWith('https://login.example.test/login')&&r.request().method()==='POST',{timeout:15000});
  await page.locator('#internetConnect').click();assert.equal((await response).status(),200);const repliedAt=Date.now();
- if(action==='exhausted') {
-  assert.equal(before.decision.allowed,false);assert.equal(before.decision.limits.find(x=>x.limit.kind==='download').remaining,'0');
+ if(action!=='journey') {
+  assert.equal(before.decision.allowed,false);
+  const remaining=before.decision.limits.find(x=>x.limit.kind==='download').remaining;
+  if(action==='exhausted')assert.equal(remaining,'0');
+  else {assert.ok(BigInt(remaining)>0n,'missing-finality case needs positive known credit');assert.equal(before.quality,'reconciling');}
   await page.waitForURL('https://login.example.test/login',{timeout:10000});const text=await page.locator('body').innerText();assert.match(text,/invalid|denied|reject|not allowed|not permitted|failed/i);save('router-refusal.json',{text});
-  await page.goto(origin);await page.locator('#portalAccount').waitFor({state:'visible'});const after=await snapshot();assert.equal(after.decision.allowed,false);assert.equal(after.sessions.filter(s=>s.state==='active').length,0);assert.equal(after.lifetimeDownload,before.lifetimeDownload);
-  save('result.json',{synthetic:true,result:'network-passed',scope:'actual exhausted re-entry denied; portal available; admin route 404',runtimeBinarySHA256:app.binarySHA256,automaticRecovery:false});
+  await page.goto(origin);await page.locator('#portalAccount').waitFor({state:'visible'});const after=await snapshot();assert.equal(after.decision.allowed,false);assert.equal(after.sessions.filter(s=>s.state==='active').length,0);for(const key of ['pendingAccounting','lifetimeSeconds','lifetimeDownload','lifetimeUpload'])assert.equal(after[key],before[key]);
+  save('result.json',{synthetic:true,result:'network-passed',scope:`actual ${action} re-entry denied; portal available; admin route 404`,runtimeBinarySHA256:app.binarySHA256,automaticRecovery:false});
  } else {
   assert.equal(before.decision.allowed,true);await page.waitForURL(origin+'/',{timeout:10000});await page.waitForFunction(()=>document.querySelector('#sessionCount')?.textContent==='1',null,{timeout:10000});
   const dashboardReturnMs=Date.now()-repliedAt;assert.ok(dashboardReturnMs<=5000,'dashboard return exceeded five seconds');

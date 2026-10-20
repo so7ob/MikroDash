@@ -146,13 +146,13 @@ CoA attributes but does not by itself prove target selector or timeout semantics
 
 ## Remaining acceptance
 
-The complete real CHR HTTPS landing/browser journey and five
-continuous production-worker renewals remain under acceptance. Local byte-cap
-enforcement bounds, total/Gigaword CoA support, proxy
-header attribution, User Manager coexistence, outages/restarts and performance
-budgets also remain open. Queue ceiling readback is not measured throughput.
-No latency/CPU/flash SLA, ARM result, live C admission or complete module
-acceptance is claimed by these probes.
+The normal-runtime browser/ticket path, five continuous worker renewals,
+directional local byte caps and bounded outage behavior have the qualified lab
+evidence below. Automatic WiFi landing/rejection handoff, continuous renewal at
+hard calendar edges, total/Gigaword enforcement, proxy header attribution,
+actual User Manager coexistence and operational performance budgets remain open.
+Queue ceiling readback is not measured throughput. No latency/CPU/flash SLA, ARM
+result, live L009/C admission or complete module acceptance is claimed.
 
 ## Development checkpoint
 
@@ -324,7 +324,7 @@ The public runtime controller also exercised graceful stop, preserved the
 ledger and verified all four new-process listeners on restart.
 
 A longer deliberate outage proved local enforcement: the observed remaining
-authorization was 43 seconds and the complete API read saw no active client at
+authorization was 44 seconds and the complete API read saw no active client at
 44615.115 ms, including polling/read latency. Accounting Stop did not recover
 after the additional downtime. The normal app closed the absent session seat
 and retained unresolved holds, but its snapshot still allowed a new admission.
@@ -333,3 +333,118 @@ new admission`. This is a production policy gap, not a passing outage acceptance
 or a reason to enable a live C pilot. The focused correction must deny admission
 and renewal until covering final accounting or reasoned review. The saved actual
 ledger remains intact for regression/recovery testing.
+
+
+## Normal runtime and browser replay
+
+Manual protocol probes and the normal runtime bind the same lab RADIUS ports.
+Stop the owned runtime before running a manual probe. Never start a second
+accounting writer against its ledger. On a fresh configured VM, run each HTTPS
+probe separately and retain its exit status and private JSONL output:
+
+```sh
+umask 077
+set -euC
+lab_dir="$PWD/.temp/chr-acceptance"
+for probe in https download upload byte-renew disconnect; do
+  go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action "probe-$probe" \
+    > "$lab_dir/protocol-$probe.jsonl"
+done
+```
+
+Do not continue after a failed command. Review actual timeout extension and
+shortening, queue ceilings, one-way counters, local cap overrun and final Stop.
+An ACK alone does not meet this review. The current demonstrated semantics are
+`timeoutMode: total`, `byteMode: total`, `counterMode: input-upload`, and
+`coaRate: true`. Keep `coaTotal` and `coaGigawords` false: readback is not proof
+of multi-gigabyte enforcement. This review applies only to that owned VM,
+version and lifecycle, never to an enrolled operator router.
+
+For the explicit lab-only Pilot review, retain a 0600
+`pilot-capability-review.json` in the 0700 lab directory with these fields:
+
+- `vm`, `startTicks`: the exact current `runtime.json` identity.
+- `version`: the complete inspected RouterOS version string.
+- `review`: the reasoned reviewer statement and any unverified capabilities.
+- `source`: the tested commit SHA.
+- `sha256`: a nonempty map from each reviewed JSONL filename without its
+  `.jsonl` suffix to its SHA-256 hex digest. Names accept lowercase letters,
+  digits and hyphens. All five probe outputs above must be retained.
+
+While the runtime is stopped, change only this synthetic `runtime-config.json`:
+set mode to `pilot`, `allowCoA`, `allowDisconnect`, `localLimitsVerified` to true,
+and its sole client's `capabilities` to the reviewed version, absolute review
+file path and the semantics above. Preserve its sealed secret, Pilot account,
+network and listener addresses. `prepare-runtime` already created these in
+Shadow. The runtime tool checks VM ownership, the sole encrypted loopback NAS,
+private file modes and the hashed evidence; it does not replace semantic review
+or authorize a live cutover.
+
+Build the current application and frontend, then use the process controller:
+
+```sh
+go run ./cmd/webbuild -dir web
+go build -o "$lab_dir/mikrodash" ./cmd/mikrodash
+node tools/subscriber-chr-runtime.mjs start "$lab_dir" "$lab_dir/mikrodash"
+node tools/subscriber-chr-runtime.mjs check "$lab_dir"
+```
+
+The normal binary uses the independent ledger, native portal TLS, shared router
+connection and production background worker. Process ownership receipts pin PID,
+start ticks, argv, binary and configuration hashes. Four listener inodes must
+belong to that process. Restart with `stop` followed by `start`; do not replace a
+running binary or guess which development process to kill.
+
+Using the existing development browser harness, set
+`SUBSCRIBER_BROWSER_MODULE` to its directory containing Playwright and
+`@axe-core/playwright`; optionally set `SUBSCRIBER_CHROMIUM` to its installed
+Chromium executable. No browser or Node service becomes a production dependency.
+The command launches the browser inside the isolated client namespace, validates
+both TLS chains/hostnames with curl and pins just those two certificate keys in
+Chromium. It never disables all TLS verification.
+
+```sh
+node tools/subscriber-chr-browser.mjs journey "$lab_dir"
+go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action runtime-status
+```
+
+`journey` needs an eligible account with no active session. It performs the
+browser HTTPS POST, verifies the actual session, tests cooldown and two distinct
+speed profiles against persisted/read-back ceilings, then closes every browser.
+A result is complete only with `complete.json`; earlier network-pass output does
+not prove subsequent responsive/accessibility checks passed. Images and raw
+account/packet evidence stay private.
+
+`probe-runtime-traffic` measures directional transfers on the existing real
+runtime session. `probe-runtime-exhaust` requires a deliberate synthetic plan
+version with a 65536-byte download limit and 3600 seconds; it consumes that test
+allowance. It does not reassign plans or erase history. After exhaustion,
+`subscriber-chr-browser.mjs exhausted` verifies genuine re-entry refusal and
+continued account access. Do not run this case on the default 16 MiB allowance
+and interpret failure to exhaust as success.
+
+For a retained missing-Stop outage ledger with one pending final reading and
+positive known credit, use `subscriber-chr-browser.mjs reconciling`. It requires
+`reconciling`, performs a real refused HotSpot POST, and checks unchanged
+confirmed time/bytes, no active session, safe portal access and all six
+responsive/theme accessibility variants. The saved CHR outage ledger passed
+this case on clean application commit `1abd51de` after the #59 correction.
+A covering final Stop or reasoned review remains required; the test does not
+invent final counters to release credit.
+
+`logout-runtime` verifies the owned current device over HTTPS before logout.
+The ordered selection probes are `probe-radius-selection` and
+`probe-radius-selection-fault`; run them with the normal runtime stopped.
+The latter deliberately exits 1 and must show verified rollback, not be counted
+as a green admission test. Its secondary is a synthetic legacy service, not UM.
+
+Before retiring the VM:
+
+```sh
+node tools/subscriber-chr-runtime.mjs stop "$lab_dir"
+node tools/subscriber-chr-lab.mjs stop "$lab_dir"
+```
+
+This preserves the database, keys and private evidence. VM stop refuses a live
+recorded application process. The owner VS Code preview, physical interfaces,
+operator data, router A/B/C and production authentication are separate.
