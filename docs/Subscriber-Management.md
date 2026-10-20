@@ -33,7 +33,8 @@ to bypass startup checks. See the [lab guide](Subscriber-Lab-Guide.md).
 
 MikroDash owns subscriber credentials, immutable plan versions, subscriptions, period usage,
 reservations and the accounting journal in the existing `mikrodash.db`. Schema migrations 38 through 41
-add `subscriber_*` tables; migration 42 adds partial finality/account lookup indexes; it does not rewrite `users.json` or use User Manager as a hidden
+add `subscriber_*` tables; migration 42 adds partial finality/account lookup indexes,
+and migration 43 adds NAS/peer-bound connection-flow metadata. They do not rewrite `users.json` or use User Manager as a hidden
 runtime backend. User Manager is currently a read-only preview source.
 
 `internal/subscriber/policy.go` is a pure policy evaluator. `storage.go` and `accounting.go`
@@ -150,7 +151,12 @@ from the enrolled router's HotSpot host table, then creates a 30-second network/
 one-use ticket. The browser POSTs it to the configured HTTPS RouterOS `/login` URL, using the
 account's actual username. The owned RADIUS handler consumes the ticket; an exact packet retry
 is idempotent and a different packet cannot reuse it. RouterOS `dst` is the configured portal
-origin, not a browser-provided return URL. The actual namespace browser/CHR 7.24.5 leg passes in the isolated lab; automatic WiFi landing and target L009/C acceptance remain pending.
+root with an owned connection reference, not a browser-provided return URL.
+The portal confirms that exact request only against a fresh matching NAS session.
+The actual namespace browser/CHR 7.24.5 automatic landing, one credential submission,
+HTTPS POST and owned return pass in the isolated lab. Exhausted re-entry is refused
+while the account remains available. Target L009/C and operating-system captive
+browsers remain unverified. See [connection entry and handoff artifacts](Subscriber-Connection-Entry.md).
 
 The implemented password protocol is PAP over the HTTPS HotSpot login leg. CHAP is refused;
 a one-way scrypt hash cannot provide the original password CHAP needs. Existing HotSpot
@@ -174,10 +180,11 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | Portal `GET /api/session` | CSRF token, enrolled network keys and mode |
 | Portal `GET /api/account` | Session-owned versioned snapshot; account query parameters confer no access |
 | Portal `POST /api/speed` | Entitled `profileId`, 10-second cooldown; returns the persisted requested/pending-reconnect state |
-| Portal `POST /api/connect` | Enrolled `network`; returns one-use credentials and allowlisted destinations |
+| Portal `POST /api/connect` | Enrolled `network`; returns one-use credentials, `flowId` and fixed owned HTTPS destination |
+| Portal `GET /api/connection?flow=...` | Connection state for the authenticated account and trusted requesting peer |
 | Portal `POST /api/disconnect` | Owned `leaseId` and `confirm: true` |
 | Portal `POST /api/logout` | Revokes only the portal session |
-| Portal `GET /ws` | `subscriber:snapshot`, generated TypeScript payload contract |
+| Portal `GET /ws` | `subscriber:snapshot`; optional owned `?flow=...` adds `subscriber:connection`; generated payload contracts |
 
 The administrative `name` action accepts `accountId`, `expectedName`, `name` and
 `reason`. `expectedName` is mandatory, including an explicit empty string when

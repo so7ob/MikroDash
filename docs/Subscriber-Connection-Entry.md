@@ -2,10 +2,10 @@
 
 Issue [#64](https://github.com/so7ob/MikroDash/issues/64) continues the existing
 HTTPS portal/PAP ticket path. The backend and English/LTR portal now consume the
-owned connection contract. This is not completed single sign-in or target-router
-acceptance: reviewable HotSpot handoff rendering and the owned-CHR installer are implemented;
-the full browser-originated CHR journey remains pending. Do not enable production authentication or capability flags
-based on these tests.
+owned connection contract. Reviewable handoff rendering, the owned-CHR installer
+and the actual CHR success/exhaustion/reconciliation browser journeys pass.
+This is isolated virtual-router acceptance, not L009/C or full module completion.
+Do not enable production authentication or capability flags based on another NAS's tests.
 
 ## Ownership and durable decisions
 
@@ -112,25 +112,24 @@ Focused commands compile test executables with the normal project toolchain and
 then run them with both `GOTMPDIR=/tmp` and `TMPDIR=/tmp`. Compilation caches may
 be in RAM; test databases are on the ordinary filesystem. Private red/green
 logs remain under `.temp/subscriber-64-recovery` in the visible workspace.
-The frontend type check and all 149 frontend tests pass. The real synthetic
+The frontend type check and all 150 frontend tests pass. The real synthetic
 Chromium journey passes in four native-TLS/proxy and normal/pending-accounting
 cases, at 375/1280 in three themes, with restricted session storage and keyboard
 checks. It verifies no admission from a GET hint or unowned return and zero axe
 findings under the existing tags. It is Shadow, not actual HotSpot admission.
 Full regression found two stale test-file counts after the new test was added;
 the documents were updated to the measured 113 files without weakening the gate.
-Final full regression, mutation/race checks, generated handoff artifacts and the
-complete real-client journey remain required before delivery.
+Full revision `85817872` regression, mutation/race and instrumented fuzz checks
+passed; see [verification](Subscriber-Verification.md). Final delivery also
+requires current PR-head and post-merge CI.
 
-## Work still required for this issue
+## Delivery and remaining acceptance
 
-- Complete safe HotSpot handoff artifacts and prove explicit sign-in-and-connect
-  and owned return handling through the real NAS, without repeat submissions or
-  redirect loops. A GET hint or existing cookie never initiates admission.
-- Test the complete browser-originated HotSpot path on the isolated CHR, including
-  post-exhaustion access and a failed admission returning to the account.
-- Finish repository-wide verification and deliver through the tested PR/develop
-  workflow. The larger AC-01..AC-19 scope and live C approval remain separate.
+The implemented artifacts and actual CHR journeys cover Issue #64's scoped
+success and failure paths. A GET hint or existing cookie never initiates
+admission. Deliver through the tested PR/develop workflow after final current
+checks; record post-merge CI separately. L009/C approval, operating-system
+captive browsers and the larger AC-01..AC-19 software/acceptance scope remain.
 
 ## Reviewed HotSpot handoff artifacts
 
@@ -173,8 +172,8 @@ These actions cannot target an enrolled operator router or read operator `/data`
 
 The isolated CHR 7.24.5 accepted the documented `/file/add` operations, returned
 matching contents and served the rendered header policy. Repeated installation
-and repeated rollback passed. Full browser admission/return acceptance remains
-pending; these artifact checks do not establish C or L009 readiness.
+and repeated rollback passed. The full browser journeys below also passed;
+neither establishes C or L009 readiness.
 
 References: [HotSpot customisation](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/hotspot-customisation/)
 and [RouterOS file operations](https://help.mikrotik.com/docs/spaces/ROS/pages/2555971/Files).
@@ -193,8 +192,12 @@ against the same device/lease and actual queue ceilings. Subscription identity,
 expiry and byte totals remained unchanged; time continued accumulating. All six
 375/1280 and blue/green/purple accessibility/overflow cases passed. The first
 harness attempt failed because it read an API response body after navigation;
-response bodies are now captured immediately, and the subsequent complete
-journey passed. The failed evidence is retained, not counted as a product pass.
+the subsequent complete journey passed. Faster exhaustion rejection also
+invalidated immediate CDP body reads, and holding the outbound form did not
+resolve that race. The harness now reads a response clone inside the requesting
+browser before returning the real response to the shipped page. Requests,
+responses and the NAS POST remain unchanged. All failed attempts are retained
+and are not counted as product passes.
 
 After that acceptance browser closed, the same lease and RADIUS session stayed
 active through 19 further verified normal-worker renewal operations. A read-only
@@ -203,9 +206,46 @@ zero Chrome processes in the client namespace. No subscription reset or periodic
 reconnection was used. This is actual virtual-router evidence, independent of
 WebSocket watchers, and does not close the target-router or hard-calendar gaps.
 
-A separate authenticated loopback viewer now permits owner interaction with a
-full browser in that namespace. It is a local development fixture, not a product
-service or router deployment. The owner trial retains the same independent
-ledger. Do not run disruptive automated exhaustion/outage probes on it while
-it is reserved for manual testing. Exhausted and reconciliation failure-return
-journeys, final source verification and delivery still remain required here.
+A separate authenticated loopback viewer allowed owner interaction with a full
+browser in that namespace. It is a local development fixture, not a product
+service or router deployment. After the owner finished and explicitly approved
+the disruptive synthetic cases, only that owned viewer was stopped. The normal
+application, VM and independent ledger were retained.
+
+## Exhaustion and missing-Stop acceptance
+
+An audited immutable v2 plan assigned 3600 seconds and 65536 download bytes to
+the synthetic account, preserving its previous subscription and lifetime usage.
+The actual browser connected, switched both speeds against queue readback and
+closed. A 1 MiB transfer was interrupted: 89148 client body bytes and 89564
+accounted download bytes, including protocol overhead. API absence and final
+accounting were confirmed. The measured accounted excess was 24028 bytes;
+neither zero overrun nor an accepted production budget is claimed. The 12011 ms
+transfer observation includes the incomplete-transfer timeout and is not a
+measured disconnect latency.
+
+The `exhausted` browser case then made one credential submission, one connect
+request and one actual NAS HTTPS POST. RADIUS refused re-entry; the automatic
+owned return displayed `Allowance exhausted: download`. Account access remained
+available, administration returned 404, and confirmed counters were unchanged.
+
+A separate audited v3 assignment prepared the missing-Stop case without
+restoring an old database or erasing the exhausted subscription. After another
+real browser journey, the normal application was stopped for 91.679 seconds.
+The last local remaining authorization was 26 seconds. The complete API read
+first proved absence 25874.270 ms after stop, including polling/read delay.
+The same application binary and ledger restarted. No final Stop recovered:
+one pending final reading remained, the absent session seat closed, and known
+positive credit was retained with `reconciling` and admission denied.
+
+The `reconciling` browser case also passed actual RADIUS refusal and automatic
+owned failure return without a retry loop. Account access, unchanged confirmed
+counters and administration isolation passed. Each success/exhausted/reconciling
+journey completed all six 375/1280 by blue/green/purple axe/overflow cases with
+session storage disabled. The latest two success return samples were 2166 and
+2183 ms; they are individual local observations, not a percentile or target SLA.
+
+The unresolved outage evidence remains intact for a covering Stop or an audited,
+evidence-backed review. No counters were invented to make it eligible again.
+Private receipts and screenshots remain under `.temp/subscriber-chr-entry-64`.
+These tests did not change the operator router or deploy a live C service.

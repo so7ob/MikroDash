@@ -47,19 +47,37 @@ page.on('pageerror',e=>errors.push(e.message));
 await context.addInitScript(()=>Object.defineProperty(window,'sessionStorage',{get(){throw new DOMException('Storage disabled for the synthetic captive-browser case','SecurityError');}}));
 const submissions={portal:0,connect:0,hotspot:0};page.on('request',r=>{if(r.method()!=='POST')return;const u=new URL(r.url());if(u.hostname==='portal.example.test'&&u.pathname==='/api/login')submissions.portal++;if(u.hostname==='portal.example.test'&&u.pathname==='/api/connect')submissions.connect++;if(u.hostname==='login.example.test'&&u.pathname==='/login')submissions.hotspot++;});
 const origin='https://portal.example.test:9444';let phase='sign-in';
+const accountBody=Promise.withResolvers(),connectBody=Promise.withResolvers();
+await page.exposeBinding('__subscriberLabEvidence',({frame},kind,body)=>{
+ assert.equal(new URL(frame.url()).origin,origin);
+ if(kind==='account')accountBody.resolve(body);
+ else if(kind==='connect')connectBody.resolve(body);
+ else throw Error('Unexpected browser evidence');
+});
+// Read a clone in the requesting browser before its real response is returned
+// to the shipped page. CDP may lose bodies at a fast cross-origin navigation.
+// Requests, responses and the subsequent NAS form remain real and unchanged.
+await context.addInitScript(()=>{
+ const nativeFetch=window.fetch;
+ window.fetch=async(...args)=>{
+  const response=await nativeFetch(...args),url=new URL(response.url);
+  if(response.ok&&url.origin==='https://portal.example.test:9444'&&['/api/account','/api/connect'].includes(url.pathname))await window.__subscriberLabEvidence(url.pathname==='/api/account'?'account':'connect',await response.clone().json());
+  return response;
+ };
+});
 const snapshot=()=>page.evaluate(async()=>{const r=await fetch('/api/account');if(!r.ok)throw Error('Owned account unavailable');return r.json();});
 try {
  await page.goto('https://login.example.test/login');
  await page.locator('#subscriberUsername').waitFor({state:'visible'});assert.equal(new URL(page.url()).origin,origin,'NAS landing did not hand off to the portal');
  assert.equal(await page.locator('#portalLoginSubmit').textContent(),'Sign in and connect');
- const initial=page.waitForResponse(r=>new URL(r.url()).origin===origin&&new URL(r.url()).pathname==='/api/account'&&r.status()===200,{timeout:15000}).then(r=>r.json());
  const response=page.waitForResponse(r=>r.url().startsWith('https://login.example.test/login')&&r.request().method()==='POST',{timeout:15000});
- const connectReply=page.waitForResponse(r=>new URL(r.url()).origin===origin&&new URL(r.url()).pathname==='/api/connect'&&r.request().method()==='POST',{timeout:15000}).then(r=>r.json());
+ const submitted=Promise.all([accountBody.promise,connectBody.promise,response]);
+ void submitted.catch(()=>{}); // The assertion below owns any early timeout.
  await page.locator('#subscriberUsername').fill(credentials.username);await page.locator('#subscriberPassword').fill(credentials.password);
  phase='single sign-in and actual browser HotSpot POST';await page.locator('#portalLoginSubmit').click({noWaitAfter:true});
- const before=await initial;save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
- const ticket=await connectReply, flowId=ticket.flowId;assert.match(flowId,/^[a-f0-9]{64}$/);assert.equal(ticket.destination,origin+'/?connection='+flowId);
- assert.equal((await response).status(),200);const repliedAt=Date.now();
+ const [before,ticket,hotspot]=await submitted;save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
+ const flowId=ticket.flowId;assert.match(flowId,/^[a-f0-9]{64}$/);assert.equal(ticket.destination,origin+'/?connection='+flowId);
+ assert.equal(hotspot.status(),200);const repliedAt=Date.now();
  await page.locator('#portalAccount').waitFor({state:'visible',timeout:10000});assert.equal(new URL(page.url()).origin,origin,'HotSpot did not return to the owned account');
  assert.equal(await page.evaluate(async()=>(await fetch('/api/routers')).status),404);
  if(action!=='journey') {
