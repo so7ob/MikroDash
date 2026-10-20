@@ -689,3 +689,19 @@ The subscriber table uses the existing optional-page header palette rule, so the
 same tokens provide readable headers without changing global typography or colors.
 The synthetic browser journey covers creation with no runtime, retained Unicode,
 375/1280 layouts, persistent status and the existing reconciliation workflow.
+
+
+### Subscriber accounting receipts
+
+Receipt state and missing-statistic explanations stay within the existing dense
+technical console. Native disclosure elements reveal original whitelisted fields;
+shared semantic pills identify pending/covered/applied states, with explicit text
+alongside color. Evidence and reasoned final-reading approval remain beside the
+affected session. The portal and Inspect retain confirmed balances while a
+separate message explains blocked admission. No new typography, palette, cards,
+icons, animations or translation system are introduced.
+
+The synthetic protected HTTP/SQLite browser journey passes at 375/1280 in
+default dark, default light and Nord, with keyboard/account isolation, escaped
+Unicode content, retained evidence, final correction and zero axe violations. This extends the existing technical console
+direction; checklist: zero new decorative patterns.

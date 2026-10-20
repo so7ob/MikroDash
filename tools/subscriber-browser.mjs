@@ -18,6 +18,17 @@ try {
  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
  await page.locator('#portalAccount').waitFor({ state: 'visible' });
  await page.getByRole('heading', { name: 'Synthetic test', exact: true }).waitFor();
+ if (process.env.SUBSCRIBER_PENDING_RECEIPT === 'true') {
+  await page.locator('#portalNotice').filter({hasText:'Accounting reconciliation required (1 pending)'}).waitFor();
+  const snapshot=await (await context.request.get(process.env.SUBSCRIBER_TEST_URL+'/api/account')).json();
+  assert.equal(snapshot.pendingAccounting,1);
+  assert.equal(snapshot.quality,'reconciling');
+  assert.equal(snapshot.decision.allowed,false);
+  assert.equal(snapshot.lifetimeSeconds,'20');
+  await page.locator('#subscriberLimits').getByText('00:00:20',{exact:true}).waitFor();
+  await page.locator('#subscriberLimits').getByText('00:59:40',{exact:true}).first().waitFor();
+  assert.doesNotMatch(await page.locator('#subscriberLimits').innerText(),/Unknown/);
+ }
  await page.getByRole('button', { name: 'Fast', exact: true }).click();
  await page.getByText('Speed selected. Reconnect a device').waitFor();
  assert.match(await page.locator('#speedState').innerText(), /pending-reconnect/);

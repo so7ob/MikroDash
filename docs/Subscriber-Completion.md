@@ -16,20 +16,20 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles and post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
 | AC-04 | Concurrent daily/monthly time/byte limits | Pure/ledger tests; live exhaustion pending | policy/accounting/runtime | partial | prior pass | pending: traffic test |
 | AC-05 | Live rate switch/throttle, correct device | Real UDP rate switch and active throttle with exact-device queue readback pass; burst/minimum/priority/network ceilings pending | persistent CoA operations, queue readback, capabilities | partial | passed: UDP + queue readback | pending: rate probe |
-| AC-06 | Reordered/retried accounting, reused IDs | High-water journal tests; more retransmission faults needed | radius/accounting | partial | prior pass | pending: retransmission capture |
+| AC-06 | Reordered/retried accounting, reused IDs | Durable partial receipts, exact retry identity, complete-Stop coverage and late partial/final recovery implemented; target retransmission capture remains | radius/accounting | partial | prior pass | pending: retransmission capture |
 | AC-07 | API/RADIUS unified debit, one-second skew | Shared capability-bound API observations use the cumulative ledger; overlapping older RADIUS sample regression passes | observation matching and accounting | partial | passed: shared ledger regression | pending: direction proof |
-| AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Audited admin settlement and explicit byte-gap allocations implemented; incomplete telemetry review remains pending | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
+| AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Audited admin settlement and explicit byte-gap allocations implemented; incomplete telemetry receipts/review implemented, including physical SQLite close/reopen and late partial counter corrections | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
 | AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; approved byte-gap settlement implemented; continuous hard-edge renewal pending | policy, journal adjustments | partial | passed: calendar anchors and approved settlement | pending: boundary observations |
 | AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
 | AC-11 | No browsers required | Actual startup and watcher-free observer checks for both portal transports; background Disconnect UDP test | explicit runtime lifecycle and observer | partial | passed: scoped lifecycle/UDP | pending: closed-browser run |
 | AC-12 | Local outage bounds and fail-closed admission | Initial 60-second/byte delegation | verified renewal and local limits | partial | partial | pending: service outage probe |
 | AC-13 | Single C sign-in and safe exhausted portal | Native TLS and HTTPS-proxy portal/ticket to owned real UDP RADIUS pass; actual HotSpot browser POST pending | actual client HTTPS POST and verified session | partial | partial | pending: client behind C |
 | AC-14 | Ownership/device/network/ticket isolation | HTTPS/HTTP/SQLite/UDP tests cover peer, forwarded-client, device, ticket, admin-route and WebSocket isolation | expanded runtime/operations security | partial | prior pass | pending: C isolation |
-| AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/storage failure tests; incomplete counter-payload validation remains a software gap | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
+| AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/unknown-source/storage fault tests, strict presence/duplicate/range validation and commit-before-reply receipts implemented | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
 | AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation; full editors/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
 | AC-17 | Idempotent import/opening/cutover/rollback | Read-only User Manager preview | transactional mapping/apply/approval | partial | missing | pending: approved live batch |
 | AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
-| AC-19 | Target build and existing app compatibility | Verified develop CI, prior ARM64 build and current b200018c ARMv7 static build; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
+| AC-19 | Target build and existing app compatibility | Verified develop CI, prior ARM64 build and clean 27d17730 ARMv7 static build; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
 
 ## Capability matrix
 
@@ -254,3 +254,43 @@ reported a Go failure with no useful filtered cause; the unchanged traced Go hal
 passed. A final full sweep retains raw Docker output to preserve a future cause.
 No root cause is claimed from an absent diagnostic. Current ARMv7 source built
 successfully at `b200018c`; target execution still needs approved deployment.
+
+
+### Durable accounting receipts (Issue #46)
+
+Issue #49 / PR #50 delivered the trusted proxy transport to `develop` at
+`baae4f3e3c8bcf9565f97028684b12f1fd8b91eb`. Both
+[exact-head CI](https://github.com/so7ob/MikroDash/actions/runs/39347203885) and
+[post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39347735715) passed.
+The final full local sweep passed all 62 Go packages, 145 frontend and 22 tooling
+tests. The additional clean ARMv7 build records `vcs.modified=false`; target
+execution is still pending.
+
+The preserved #46 work is resumed on its independent branch from that verified
+base. Migration 41, original whitelisted receipt evidence, missing-versus-zero
+statistics, durable pending acknowledgment, unified final/API coverage, admission
+and operation fences, reasoned final corrections and existing-panel review are
+implemented. New regressions reproduced malformed Start accepted as zero, distinct
+malformed evidence collapsing and a new late partial Stop blocking a settled
+account. These defects were corrected without dropping or clearing usage.
+
+Focused subscriber/database/server packages passed (13.775/13.219/61.063 s).
+TypeScript and 146 frontend tests passed. Native receipt race tests passed in
+9.065 s; a five-second exact-counter/retry fuzz run passed 37,000 executions.
+The actual protected HTTP/SQLite Chromium review journey passed in 4.566 s,
+including original evidence, a corrective final reading, retained balances,
+Unicode, 375/1280 and axe. These are synthetic lab results. Full exact-head
+verification and PR/post-merge delivery remain required for this milestone.
+
+No Internet admission, local-limit/CoA target claim or live configuration change
+is inferred from these tests. The remaining original AC rows remain in scope.
+
+
+Implementation `296a7bb5` passed the full repository gate: 62 Go packages,
+146 frontend and 22 tooling tests, generated contracts and live vulnerability
+checking. Administrative Chromium coverage also passed default dark/light/Nord
+at 375/1280 (7.316 s). Native-TLS and trusted-proxy portal journeys passed clean
+and pending-receipt accounts (13.551 s), retaining 20 used seconds and 3580
+remaining. Early-success and API lifecycle-authority mutations were killed;
+source was restored exactly. See the verification record for commands and limits.
+This evidence does not close unimplemented #38 requirements or target acceptance.

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { quantity, percentage, limitCard } from '../src/subscriber-view';
+import { accountingStatusMessage, quantity, percentage, limitCard } from '../src/subscriber-view';
 import type { SubscriberLimitView } from '../src/gen/payloads';
 
 test('subscriber quantities preserve large integers and exact time', () => {
@@ -15,4 +15,10 @@ test('limit cards preserve Unicode data, escape markup and distinguish zero from
  const html=limitCard(v);assert.ok(html.includes('اختبار &lt;script&gt;'));assert.ok(!html.includes('<script>'));assert.ok(html.includes('00:00:00'));assert.ok(html.includes('Remaining'));
  v.limit.state='unlimited';assert.ok(limitCard(v).includes('unlimited'));
  v.limit.state='unknown';assert.ok(limitCard(v).includes('unknown'));
+});
+
+test('pending accounting keeps last confirmed balances distinct from new admission',()=>{
+ assert.equal(accountingStatusMessage({pendingAccounting:0}),'');
+ const message=accountingStatusMessage({pendingAccounting:2});
+ assert.match(message,/2 pending/);assert.match(message,/Last confirmed balances/);assert.match(message,/New Internet connections are blocked/);assert.ok(!message.includes('Unknown'));
 });

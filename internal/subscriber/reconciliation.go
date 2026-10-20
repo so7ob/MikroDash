@@ -222,11 +222,11 @@ func (s *Store) ReconcileMissingStop(ctx context.Context, actor string, in Final
 		return errors.New("review requires an absent settled session and non-regressing cumulative counters")
 	}
 	var proof int
-	if err = tx.QueryRow(`SELECT count(*) FROM subscriber_reconciliations WHERE lease_id=? AND actor='service:subscriber'`, in.LeaseID).Scan(&proof); err != nil {
+	if err = tx.QueryRow(`SELECT (SELECT count(*) FROM subscriber_reconciliations WHERE lease_id=? AND actor='service:subscriber') + (SELECT count(*) FROM subscriber_events WHERE lease_id=? AND status='stop')`, in.LeaseID, in.LeaseID).Scan(&proof); err != nil {
 		return err
 	}
 	if proof == 0 {
-		return errors.New("trusted absence settlement is required before manual final accounting")
+		return errors.New("trusted absence or a committed final Stop is required before manual final accounting")
 	}
 	if started == 0 {
 		started = created
@@ -237,7 +237,19 @@ func (s *Store) ReconcileMissingStop(ctx context.Context, actor string, in Final
 	e.Download = in.Download
 	e.Upload = in.Upload
 	e.At = time.Unix(started+int64(in.Seconds), 0)
+	e, err = preserveReceiptSeconds(tx, e)
+	if err != nil {
+		return err
+	}
+	if covered, err := coversPendingFinal(tx, e); err != nil {
+		return err
+	} else if !covered {
+		return errors.New("approved final reading does not cover recorded counters")
+	}
 	if err = s.accountTx(tx, e); err != nil {
+		return err
+	}
+	if err = resolveReceiptCoverage(tx, e); err != nil {
 		return err
 	}
 	if _, err = tx.Exec(`INSERT INTO subscriber_reconciliations VALUES(?,?,?,?,?,?,?,?,?)`, id, in.LeaseID, actor, in.Reason, in.Evidence, at.Unix(), in.Seconds, in.Download, in.Upload); err != nil {
@@ -337,7 +349,7 @@ type SessionReview struct {
 }
 
 func (s *Store) SessionReviews(ctx context.Context, account string) ([]SessionReview, error) {
-	rows, err := s.sql.QueryContext(ctx, `SELECT l.id,l.network,l.device,l.seconds,l.download,l.upload,count(h.id) FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id JOIN subscriber_holds h ON h.lease_id=l.id AND h.resolved_at=0 WHERE sub.account_id=? AND l.state='stopped' AND h.id NOT IN (SELECT hold_id FROM subscriber_gap_periods) GROUP BY l.id ORDER BY l.created_at LIMIT 1000`, account)
+	rows, err := s.sql.QueryContext(ctx, `SELECT l.id,l.network,l.device,l.seconds,l.download,l.upload,count(h.id) FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id LEFT JOIN subscriber_holds h ON h.lease_id=l.id AND h.resolved_at=0 AND h.id NOT IN (SELECT hold_id FROM subscriber_gap_periods) WHERE sub.account_id=? AND l.state='stopped' AND (h.id IS NOT NULL OR EXISTS(SELECT 1 FROM subscriber_accounting_receipts r WHERE r.lease_id=l.id AND r.state='pending')) GROUP BY l.id ORDER BY l.created_at LIMIT 1000`, account)
 	if err != nil {
 		return nil, err
 	}

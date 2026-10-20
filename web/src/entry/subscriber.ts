@@ -1,6 +1,6 @@
 import { esc, pill } from '../dom';
 import { fmtTs } from '../timefmt';
-import { boundedElapsed, quantity, snapshotCards } from '../subscriber-view';
+import { accountingStatusMessage, boundedElapsed, quantity, snapshotCards } from '../subscriber-view';
 import type { SubscriberSnapshot } from '../gen/payloads';
 
 function node(id: string): HTMLElement { const v = document.getElementById(id); if (!v) throw new Error('Missing portal element'); return v; }
@@ -12,6 +12,7 @@ async function api<T>(path: string, body?: unknown): Promise<T> {
   const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Request failed'); return result;
 }
 function render(v: SubscriberSnapshot): void {
+  const wasPending = (current?.pendingAccounting || 0) > 0;
   current = v;
   node('subscriptionTitle').textContent = v.subscription.plan.name;
   node('subscriptionSummary').textContent = `Subscription ${v.subscription.id} · ${v.subscription.status} · Expires ${v.subscription.expiresAt.startsWith('0001-') ? 'after first connection' : fmtTs(v.subscription.expiresAt, true, 'Asia/Aden')}`;
@@ -22,7 +23,9 @@ function render(v: SubscriberSnapshot): void {
   node('subscriberSessions').innerHTML = v.sessions.map(l => `<div class="subscriber-session"><span>${esc(l.device)}</span>${pill(l.connectionState || 'unknown', l.connectionState === 'connected' ? 'ok' : 'muted')}<span>${esc(l.network)} · ${quantity(l.seconds, 'seconds')} · Applied queue ceiling: ${!l.rateState || l.rateState === 'unknown' ? 'Unknown' : `${esc(l.appliedDown)} bit/s download / ${esc(l.appliedUp)} bit/s upload (${esc(l.rateState)})`}</span>${l.state === 'active' ? `<button class="sbtn sbtn-danger" data-disconnect="${esc(l.id)}">Disconnect device</button>` : ''}</div>`).join('') || 'No internet sessions yet.';
   node('sessionCount').textContent = String(v.sessions.filter(l => l.connectionState === 'connected').length);
   node('lifetimeUsage').textContent = `Connected time ${quantity(v.lifetimeSeconds, 'seconds')} · Download ${quantity(v.lifetimeDownload, 'download')} · Upload ${quantity(v.lifetimeUpload, 'upload')}`;
-  if (v.decision.reasons.length) notice(v.decision.reasons.join(' · '));
+  if (v.pendingAccounting > 0) notice(accountingStatusMessage(v));
+  else if (v.decision.reasons.length) notice(v.decision.reasons.join(' · '));
+  else if (wasPending) notice('Accounting reconciled. The displayed balances are updated.');
 }
 function openSocket(): void {
   socket?.close(); socket = new WebSocket(location.origin.replace(/^http/, 'ws') + '/ws');

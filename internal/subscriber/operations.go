@@ -129,6 +129,11 @@ func (s *Store) PrepareOperation(ctx context.Context, lease, kind string, at tim
 	if state != "active" || q.SessionID == "" || status != "active" || deadline <= at.Unix() {
 		return o, ErrDenied
 	}
+	if pending, err := pendingAccounting(tx, account); err != nil {
+		return o, err
+	} else if pending > 0 {
+		return o, ErrDenied
+	}
 	sub, err := subscription(tx, account)
 	if err != nil {
 		return o, err

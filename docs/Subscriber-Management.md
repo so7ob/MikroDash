@@ -32,7 +32,7 @@ to bypass startup checks. See the [lab guide](Subscriber-Lab-Guide.md).
 ## Ownership and architecture
 
 MikroDash owns subscriber credentials, immutable plan versions, subscriptions, period usage,
-reservations and the accounting journal in the existing `mikrodash.db`. Schema migrations 38 and 39
+reservations and the accounting journal in the existing `mikrodash.db`. Schema migrations 38 through 41
 add `subscriber_*` tables; it does not rewrite `users.json` or use User Manager as a hidden
 runtime backend. User Manager is currently a read-only preview source.
 
@@ -91,13 +91,23 @@ high-water marks. Only increases are charged. Lower or duplicate snapshots never
 previously committed usage. Accounting-Response is sent only after commit; storage failure
 receives no acknowledgement. Production startup requires SQLite synchronous FULL.
 
+[Accounting receipts](Subscriber-Accounting-Receipts.md) retain missing, malformed,
+repeated and unsupported-range statistics without converting them to zero. A durable
+pending receipt preserves the last reliable balances and blocks fresh admission and
+renewal. Complete Start packets may omit initially zero statistics; malformed Start
+statistics are not treated as absent. API observations are interim only and cannot
+establish final Stop. A covering final packet or evidence-backed administrative
+review resolves uncertainty without deleting the original record.
+
 RADIUS input octets are subscriber upload; output octets are subscriber download. Gigawords
 are combined before checked conversion to signed 64-bit storage. Version/evidence-bound API observations enter the same cumulative high-water transaction as RADIUS, so overlapping readings are not charged a second time. API octet direction requires a recorded HotSpot traffic probe; an unknown or different router version cannot renew a session. A one-second snapshot skew does not invalidate the account.
 
 Connection seconds are split at period boundaries. Bytes inside an unsampled boundary gap
-are charged conservatively to every touched period and labelled `boundary-conservative`;
-account lifetime bytes are counted only once. This is an upper bound, not a claim of measured
-per-period distribution. There is no automatic refund/reconciliation implementation yet.
+remain provisional exposure in each touched period while lifetime bytes are counted once.
+An explicit reasoned allocation must conserve the original delta before confirmed period
+usage is settled. Legacy `boundary-conservative` balances retain their original bounds and
+require approval. Neither the reservation nor its approved distribution is a measured byte
+sample. See [reconciliation](Subscriber-Reconciliation.md).
 
 Admission reserves sub-budgets atomically across all outstanding sessions. It emits local
 Session-Timeout, directional MikroTik byte limits and total byte limits where configured.
@@ -108,7 +118,7 @@ new full hour after partial consumption.
 A 2-second background loop requests disconnect on expired delegations, suspension and
 applicable exhausted disconnect policies. Requests have a 3-second transport deadline and
 10-second retry spacing. These are configured timings, **not measured router response bounds**.
-A missing Stop retains its reservation until a complete shared API read proves absence after the maximum attempted local delegation. The session slot then closes, while unresolved quota remains in explicit holds rather than becoming measured usage or free credit. A covering final Stop resolves those holds. Administrative resolution and boundary-byte settlement remain outstanding.
+A missing Stop retains its reservation until a complete shared API read proves absence after the maximum attempted local delegation. The session slot then closes, while unresolved quota remains in explicit holds rather than becoming measured usage or free credit. A covering final Stop resolves those holds. Administrative final readings and boundary-byte allocations are implemented with evidence, reasons and atomic audit. Target-router acceptance remains pending.
 
 `deny` affects admission; `disconnect` also triggers enforcement. `alert` produces decision
 reasons only (notification delivery is not implemented). `throttle` also changes active session rates through guarded CoA when its capability is recorded. Durable operations distinguish requested, applying, acknowledged, verified, failed and pending-reconnect. Only a fresh exact-device queue readback verifies a live rate; ACK alone is insufficient. Unknown capabilities retain pending status. Burst/minimum/priority and network ceilings remain outstanding.
@@ -151,6 +161,8 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | `GET /api/subscribers` | Accounts, immutable plans and runtime mode |
 | `POST /api/subscribers` | `create`, `plan`, `assign`, or `status`; each requires a reason |
 | `GET /api/subscribers/snapshot?account=...` | Read-only policy evaluation and current ledger snapshot |
+| `GET /api/subscribers/reconciliation?account=...` | Account-scoped byte gaps, holds, final-reading reviews and accounting receipts |
+| `POST /api/subscribers/reconciliation` | Reasoned final reading, byte-gap allocation or legacy balance approval |
 | Portal `POST /api/login` | Username/password, or blank username with voucher |
 | Portal `GET /api/session` | CSRF token, enrolled network keys and mode |
 | Portal `GET /api/account` | Session-owned versioned snapshot; account query parameters confer no access |
@@ -161,7 +173,7 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | Portal `GET /ws` | `subscriber:snapshot`, generated TypeScript payload contract |
 
 Snapshots include a content-derived version, `observedAt`, `lastSyncedAt`, quality, separate
-lifetime counters, subscription, per-limit decisions and recent sessions. The portal delivers
+lifetime counters, subscription, per-limit decisions, `pendingAccounting` and recent sessions. Pending accounting reports `reconciling`, preserves known values and explains the admission block. The portal delivers
 ledger snapshots every two seconds; this **does not mean the router was measured every two
 seconds**. Standard RADIUS interim is 60 seconds, not 5. The display's interpolated advance is
 bounded and labelled. The retained shared router connection now reads active sessions and dynamic queue ceilings every worker cycle, with explicit version/counter evidence and separate API observation/RADIUS synchronization times. Freshness and resource measurements, source-gap settlement and the target 5-second acceptance are still pending.
@@ -172,7 +184,7 @@ Read-only inspection on 2026-10-19 found RouterOS 7.24.5 (stable), L009UiGS-2Hax
 Asia/Aden, three HotSpot servers and C using HTTPS, RADIUS accounting and its local 5s interim
 setting. Incoming RADIUS is enabled on 3799 and the application bridge still exists. No active
 FastTrack rule was found in that snapshot. This does not prove forwarding/IPv6 isolation.
-The configured router-container application address was not independently verified. Private
+A later read-only veth inspection confirmed the configured router-container address; this does not verify that the container runs the subscriber build. Private
 addressing and raw account/topology reports are deliberately excluded from public documentation. User Manager currently exposes one profile, one limitation,
 one profile link, two users and two user-profile rows. The limitation is one hour with daily
 reset. Historical definitions mentioned in the request are not assumed to exist today.
@@ -197,7 +209,7 @@ This is a development preview, not the complete requested module. Outstanding it
 - User Manager mapping/apply and approved period opening balances. The CLI implements preview
   only and cannot silently import lifetime totals into period balances.
 - Target verification of implemented same-NAS HotSpot network mapping and days 29/30/31; expiry
-  activation grace semantics, boundary-byte reconciliation,
+  activation grace semantics, target acceptance of explicit boundary-byte reconciliation,
   and notification delivery for alert-only limits.
 
 ## Official references

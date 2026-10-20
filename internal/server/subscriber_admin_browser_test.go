@@ -52,6 +52,12 @@ func TestSubscriberAdminReconciliationBrowserAcceptance(t *testing.T) {
 	if err = ledger.Account(t.Context(), subscriber.Accounting{LeaseID: grant.LeaseID, RouterID: "synthetic-router", Network: "C", Device: "02:00:00:00:00:41", SessionID: "synthetic-session", Status: "stop", Source: "radius", At: start.Add(20 * time.Second), Seconds: 20, Download: 100}); err != nil {
 		t.Fatal(err)
 	}
+	// A late partial Stop contradicts the old final byte count by one byte.
+	// Keep it visible until the browser approves an evidence-backed correction.
+	receipt := subscriber.AccountingReceipt{ID: "synthetic-browser-receipt", LeaseID: grant.LeaseID, RouterID: "synthetic-router", Network: "C", Device: "02:00:00:00:00:41", SessionID: "synthetic-session", Status: "stop", Seconds: "20", TimeKnown: true, Download: "101", DownloadKnown: true, At: start.Add(21 * time.Second), ReceivedAt: start.Add(21 * time.Second), Fields: map[string]string{"Acct-Session-Time": "20", "Acct-Output-Octets": "101"}}
+	if ack, err := ledger.ReceiveAccounting(t.Context(), receipt); err != nil || !ack {
+		t.Fatal(ack, err)
+	}
 	root, err := filepath.Abs("../..")
 	if err != nil {
 		t.Fatal(err)
@@ -88,7 +94,7 @@ func TestSubscriberAdminReconciliationBrowserAcceptance(t *testing.T) {
 		t.Fatal(gaps, err)
 	}
 	snapshot, err := ledger.Snapshot(t.Context(), id, time.Now())
-	if err != nil || snapshot.LifetimeDownload != 100 || snapshot.LifetimeSeconds != 20 {
+	if err != nil || snapshot.LifetimeDownload != 101 || snapshot.LifetimeSeconds != 20 || snapshot.PendingAccounting != 0 {
 		t.Fatal(snapshot, err)
 	}
 }

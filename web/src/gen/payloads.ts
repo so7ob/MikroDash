@@ -1448,6 +1448,7 @@ export interface SubscriberLease {
 }
 
 export interface SubscriberSnapshot {
+  pendingAccounting: number;
   version: string;
   subscription: SubscriberSubscription;
   decision: SubscriberDecision;

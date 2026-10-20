@@ -145,7 +145,7 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 			u[Key(v.Limit.ID, v.PeriodStart)] = Usage{Used: v.Used, Reserved: v.Provisional, Provisional: v.Provisional, Quality: v.Quality}
 		}
 		decision := Evaluate(current.Subscription.Plan, current.Subscription.SpeedID, at, current.Subscription.ExpiresAt, u)
-		if !decision.Allowed || (o.Kind == "rate" && (current.Subscription.SpeedID != o.Request.SpeedID || o.Request.Admission.Decision.Down > decision.Down || o.Request.Admission.Decision.Up > decision.Up)) {
+		if current.PendingAccounting > 0 || !decision.Allowed || (o.Kind == "rate" && (current.Subscription.SpeedID != o.Request.SpeedID || o.Request.Admission.Decision.Down > decision.Down || o.Request.Admission.Decision.Up > decision.Up)) {
 			if err = s.Store.transitionOperation(ctx, o, "failed", "policy or selected speed changed before application", "", at); err != nil {
 				return err
 			}

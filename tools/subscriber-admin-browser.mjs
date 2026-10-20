@@ -35,6 +35,9 @@ try {
   await page.screenshot({path:`${out}/subscriber-admin-offline-synthetic-${width}.png`,fullPage:true});
  }
 
+ await page.locator(`[data-sub-inspect="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).click();
+ await page.locator('#subscriberInspect').getByText('Accounting reconciliation required (1 pending). Last confirmed balances are shown. New Internet connections are blocked until the counters are settled.',{exact:true}).waitFor();
+ assert.ok(!(await page.locator('#subscriberInspect').innerText()).includes('Unknown'),'pending accounting hid trusted limit cards');
  await page.getByRole('tab',{name:'Subscribers',exact:true}).focus();
  await page.keyboard.press('End');
  assert.equal(await page.getByRole('tab',{name:'Reconciliation'}).getAttribute('aria-selected'),'true');
@@ -53,6 +56,11 @@ try {
  await account.selectOption(process.env.SUBSCRIBER_ACCOUNT_ID);
  await page.getByRole('button',{name:'Load reconciliation'}).click();
  const form=page.locator('form[data-review="byte-gap"]');await form.waitFor();
+ const receipt=page.locator('#subReviewRows > details').first();
+ await receipt.locator('summary').first().click();
+ await receipt.getByText('Not supplied or malformed',{exact:false}).waitFor();
+ await receipt.getByText('Original accounting fields',{exact:true}).click();
+ assert.match(await receipt.locator('pre').innerText(),/"Acct-Output-Octets": "101"/);
  const periods=form.locator('[data-reconcile-period]');assert.equal(await periods.count(),2);
  await periods.nth(0).fill('39');await periods.nth(1).fill('60');
  await form.getByLabel('Reason',{exact:true}).fill('Synthetic approved distribution');
@@ -62,6 +70,8 @@ try {
  await form.getByRole('button',{name:'Approve distribution'}).click();assert.equal((await rejected).status(),400);
  await page.waitForFunction(()=>document.querySelector('#subReviewNotice').textContent!=='Loading reconciliation records…');
  assert.equal(await periods.nth(0).inputValue(),'39','failed approval cleared evidence');
+ for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
+  await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
  for(const width of [375,1280]) {
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.locator('html').getAttribute('dir'),'ltr');
@@ -76,8 +86,10 @@ try {
   }
   const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
   assert.deepEqual(result.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
-  await page.screenshot({path:`${out}/subscriber-admin-reconciliation-synthetic-${width}.png`,fullPage:true});
+  await page.screenshot({path:`${out}/subscriber-admin-reconciliation-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`,fullPage:true});
  }
+ }
+ await page.evaluate(()=>{document.documentElement.dataset.theme='dark';document.documentElement.dataset.bsTheme='dark';delete document.documentElement.dataset.palette;});
  await periods.nth(0).fill('40');page.once('dialog',d=>d.accept());
  const approved=page.waitForResponse(r=>r.url().endsWith('/api/subscribers/reconciliation')&&r.request().method()==='POST');
  await form.getByRole('button',{name:'Approve distribution'}).click();assert.equal((await approved).status(),200);
@@ -87,6 +99,20 @@ try {
  const snapshot=await (await context.request.get(origin+'/api/subscribers/snapshot?account='+encodeURIComponent(process.env.SUBSCRIBER_ACCOUNT_ID))).json();
  assert.equal(snapshot.lifetimeDownload,'100');assert.equal(snapshot.lifetimeSeconds,'20');
  assert.equal(snapshot.decision.limits[0].used,'40');assert.equal(snapshot.decision.limits[0].provisional,'0');
+ assert.equal(snapshot.pendingAccounting,1);
+ const final=page.locator('form[data-review="missing-stop"]');
+ await final.getByLabel('Final cumulative seconds',{exact:true}).fill('20');
+ await final.getByLabel('Final cumulative download bytes',{exact:true}).fill('101');
+ await final.getByLabel('Final cumulative upload bytes',{exact:true}).fill('0');
+ await final.getByLabel('Reason',{exact:true}).fill('Synthetic correction of incomplete final accounting');
+ await final.getByLabel('Evidence reference',{exact:true}).fill('Synthetic independent final byte reading');
+ page.once('dialog',d=>d.accept());
+ const corrected=page.waitForResponse(r=>r.url().endsWith('/api/subscribers/reconciliation')&&r.request().method()==='POST');
+ await final.getByRole('button',{name:'Approve final reading'}).click();assert.equal((await corrected).status(),200);
+ await page.getByText('Settlement approved and recorded.',{exact:true}).waitFor();
+ const settled=await (await context.request.get(origin+'/api/subscribers/snapshot?account='+encodeURIComponent(process.env.SUBSCRIBER_ACCOUNT_ID))).json();
+ assert.equal(settled.pendingAccounting,0);assert.equal(settled.lifetimeDownload,'101');assert.equal(settled.lifetimeSeconds,'20');
+ assert.equal(await final.count(),0);
  assert.deepEqual(errors,[]);
  await context.close();
  console.log('Subscriber admin browser acceptance passed: protected SQLite approval, conservation refusal, retained evidence, account-race isolation, keyboard tabs, Unicode, 375/1280 and axe.');

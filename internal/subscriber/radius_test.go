@@ -126,7 +126,7 @@ func TestRealUDPAccessAccountingAndReplay(t *testing.T) {
 	}
 }
 func TestUnauthenticatedAccessAndForgedAccountingReceiveNoReply(t *testing.T) {
-	_, _, _, addr := protocolFixture(t)
+	s, _, _, addr := protocolFixture(t)
 	for _, p := range []*radius.Packet{access("synthetic-password"), radius.New(radius.CodeAccountingRequest, []byte("wrong-synthetic-secret"))} {
 		if p.Code == radius.CodeAccessRequest {
 			rfc2869.MessageAuthenticator_Del(p)
@@ -138,6 +138,11 @@ func TestUnauthenticatedAccessAndForgedAccountingReceiveNoReply(t *testing.T) {
 			t.Fatal("forged packet accepted")
 		}
 	}
+	var receipts int
+	if err := s.sql.QueryRow(`SELECT count(*) FROM subscriber_accounting_receipts`).Scan(&receipts); err != nil || receipts != 0 {
+		t.Fatal("forged accounting reached durable storage", receipts, err)
+	}
+
 }
 func TestOneUseTicketDeviceBindingAndRetransmission(t *testing.T) {
 	s, _, a, addr := protocolFixture(t)
