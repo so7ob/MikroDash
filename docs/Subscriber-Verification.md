@@ -301,3 +301,38 @@ input helper hid the literal `subEditName` producer from the static scan, while
 the browser journey had passed. The field now declares its input ID explicitly,
 using the same local form classes. The audit and all its assertions remain intact.
 The failed full sweep is not reported as green.
+
+## Confirmed HotSpot CoA address, Issue #55
+
+Real isolated CHR 7.24.5 testing found that the original CoA selectors received
+Unsupported-Extension. Adding the API-confirmed Framed-IP-Address produced ACK
+and actual timeout/rate readback; see [the detailed evidence](Subscriber-CoA-Targets.md).
+The private raw successful journey ran Start, a standard 60-second Interim and
+Stop; final counters were 63 seconds, 66746 download and 18027 upload bytes.
+The original compile error, selector NAKs and rerun-with-existing-session failure
+remain retained, separately from the successful probes. No L009 write was made.
+
+`go test ./internal/subscriber ./internal/subscriberlab ./internal/guard` on the
+development checkout passed after the production correction (7.497 s / 0.007 s /
+cached). The subscriberlab package is separate work under #54 and is not part of
+this focused fix. `go test ./internal/subscriber -run
+'Test(CoA|IssuedCoA|FiveContinuous)' -count=1` passed in 0.142 s. Full exact-source,
+mutation and CI delivery evidence follows only after those checks complete.
+
+Focused delivery source: `84c1bee9fd89dc3ddc6bdd595e1900a07d32d78a`.
+The isolated worktree's `sh tools/verify.sh` passed: gofmt, vet, 62 Go packages,
+live govulncheck, all generated contracts, tsc, 146/146 frontend tests and 22/22
+tooling tests. Raw Docker output was retained; only the compiler cache and
+GOTMPDIR moved to RAM. SQLite test files remained on the ordinary temporary
+filesystem. The task-created node_modules symlink was removed after checking.
+
+`go test -race ./internal/subscriber -run
+'Test(CoA|IssuedCoA|FiveContinuous)' -count=1` passed in 2.270 s. Two compiling
+mutants were killed: omitting the Framed-IP-Address setter and bypassing the
+processor's issued-address fence. Their specific regressions failed; neither
+was a compilation failure. The working source was restored byte-for-byte.
+Raw private logs: `/tmp/subscriber-55-full.log`,
+`/tmp/subscriber-55-raw-docker.log`, `/tmp/subscriber-55-race.log` and
+`/tmp/subscriber-55-mutation-*.log`. No browser UI changed in this correction;
+existing frontend coverage passed. Required PR and post-merge CI remain separate
+checks and are recorded in the issue after delivery.

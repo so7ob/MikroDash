@@ -314,3 +314,15 @@ busy state, Unicode escaping, keyboard, dark/light/Nord, 375/1280 and axe.
 TypeScript passed. Full final-revision verification and PR/post-merge delivery
 remain required. No username/password edit, search, bulk or completed #38 claim
 is inferred from this limited name-editor milestone.
+
+### Issue #55: confirmed HotSpot CoA target
+
+The isolated real CHR work under #54 discovered that CoA without the observed
+Framed-IP-Address received Unsupported-Extension. The focused production fix
+adds only the fresh owned-device IPv4 and fences persisted packets before retry
+or readback against an absent/changed address. Credit and identity remain intact.
+The five-cycle UDP NAS now requires the address, and processor replay, packet
+and race regressions pass. See [target semantics and actual CHR evidence](Subscriber-CoA-Targets.md)
+and [verification](Subscriber-Verification.md). The real CHR normal-worker,
+HTTPS portal, byte-limit and target L009 acceptance remain pending; this does
+not close #38 or the broader #54 lab.
