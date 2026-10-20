@@ -18,6 +18,7 @@ import (
 	"layeh.com/radius/rfc2865"
 	"layeh.com/radius/rfc2869"
 	"layeh.com/radius/vendors/mikrotik"
+	"mikrodash/internal/safe"
 )
 
 type NAS struct {
@@ -203,27 +204,55 @@ func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) 
 	user := rfc2865.UserName_GetString(p)
 	device := rfc2865.CallingStationID_GetString(p)
 	request := Digest(c.RouterID + ":" + hex.EncodeToString(p.Authenticator[:]) + ":" + fmt.Sprint(p.Identifier))
+	binding := TicketBinding{RouterID: c.RouterID, Network: c.Network, Device: device, Username: user}
+	ticket := strings.HasPrefix(password, "mdt_")
 	var a Account
-	if strings.HasPrefix(password, "mdt_") {
-		a, err = s.Store.RedeemTicket(r.Context(), password, c.Network, device, request, time.Now())
+	if ticket {
+		a, err = s.Store.RedeemTicket(r.Context(), password, binding, request, time.Now())
 	} else {
 		a, err = s.Authenticate(r.Context(), user, password)
 	}
 	if err != nil || a.Username != user || (s.Mode == "pilot" && !s.PilotAccounts[a.ID]) {
+		if ticket {
+			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: []string{"authentication-not-authorized"}})
+		}
 		reject()
 		return
 	}
 	admitted, err := s.Store.Reserve(r.Context(), a.ID, c.RouterID, c.Network, device, request, time.Now())
 	if err != nil {
+		reason := "authorization-unavailable"
+		if errors.Is(err, ErrDenied) {
+			reason = "authorization-denied"
+		}
+		if ticket {
+			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: []string{reason}})
+		}
 		reject()
 		return
 	}
 	out := r.Response(radius.CodeAccessAccept)
 	err = acceptAttributes(out, admitted)
 	if err != nil || signResponse(out) != nil {
+		if ticket {
+			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: []string{"authorization-unavailable"}})
+		}
+		reject()
+		return
+	}
+	if ticket && !s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{LeaseID: admitted.LeaseID}) {
+		reject()
 		return
 	}
 	_ = w.Write(out)
+}
+
+func (s *RadiusService) recordTicketOutcome(ctx context.Context, token string, binding TicketBinding, request string, outcome TicketOutcome) bool {
+	err := s.Store.RecordTicketOutcome(ctx, token, binding, request, outcome, time.Now())
+	if err != nil && !errors.Is(err, ErrDenied) && !errors.Is(err, ErrConflict) {
+		log.Printf("subscriber authorization outcome could not be recorded: %s", safe.Message(err.Error()))
+	}
+	return err == nil
 }
 func acceptAttributes(p *radius.Packet, a Admission) error {
 	for _, err := range []error{

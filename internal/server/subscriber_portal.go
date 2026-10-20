@@ -30,6 +30,7 @@ func (s *Server) subscriberPortal(webDir string) http.Handler {
 	mux.HandleFunc("POST /api/login", s.subscriberPortalLogin)
 	mux.HandleFunc("POST /api/logout", s.subscriberPortalLogout)
 	mux.HandleFunc("GET /api/account", s.subscriberPortalAccount)
+	mux.HandleFunc("GET /api/connection", s.subscriberPortalConnection)
 	mux.HandleFunc("POST /api/speed", s.subscriberPortalSpeed)
 	mux.HandleFunc("POST /api/connect", s.subscriberPortalConnect)
 	mux.HandleFunc("POST /api/disconnect", s.subscriberPortalDisconnect)
@@ -201,12 +202,12 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		subscriberError(w, err)
 		return
 	}
-	ticket, err := rt.radius.Store.IssueTicket(r.Context(), v.AccountID, nas.Network, device, time.Now())
+	ticket, err := rt.radius.Store.IssueTicket(r.Context(), subscriber.TicketRequest{AccountID: v.AccountID, RouterID: nas.RouterID, Network: nas.Network, Device: device, ClientAddress: subscriberClientIPOf(r)}, time.Now())
 	if err != nil {
 		subscriberError(w, err)
 		return
 	}
-	writeJSON(w, map[string]string{"loginUrl": nas.LoginURL, "username": account.Username, "password": ticket, "destination": rt.cfg.PortalOrigin + "/"})
+	writeJSON(w, map[string]string{"loginUrl": nas.LoginURL, "username": account.Username, "password": ticket, "flowId": subscriber.Digest(ticket), "destination": rt.cfg.PortalOrigin + "/?connection=" + subscriber.Digest(ticket)})
 }
 func (s *Server) subscriberPortalDisconnect(w http.ResponseWriter, r *http.Request) {
 	v, ok := s.subscriberIdentity(w, r)

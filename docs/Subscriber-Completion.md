@@ -407,3 +407,14 @@ journey/rate/renewal path also passes on actual short-session wire values.
 Full delivery and target L009 acceptance remain separate gates. See
 [duration observations](Subscriber-Duration-Observations.md) for source, storage
 and fuzz instrumentation limits. The wider AC-01..AC-19 gaps remain in scope.
+
+
+### Issue #64: connection-entry backend checkpoint
+
+The independent feature branch adds NAS/peer-bound one-use ticket metadata,
+atomic authorization outcomes and an owned connection-status read. This is a
+backend checkpoint: WebSocket connection events, the portal entry interaction,
+HotSpot handoff files and complete real-client acceptance are still pending.
+The interrupted RAM worktree was recovered into persistent storage after the
+host restarted. Earlier focused tests do not replace the required fresh rerun;
+no completion or live-C claim follows from this checkpoint.
