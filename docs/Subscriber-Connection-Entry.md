@@ -178,3 +178,34 @@ pending; these artifact checks do not establish C or L009 readiness.
 
 References: [HotSpot customisation](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/hotspot-customisation/)
 and [RouterOS file operations](https://help.mikrotik.com/docs/spaces/ROS/pages/2555971/Files).
+
+## Normal-runtime CHR browser checkpoint
+
+The isolated CHR 7.24.5 journey now passes on application source `58452ee3`.
+It starts at the actual NAS login page, follows the rendered landing, submits
+one portal credential form and one actual browser HTTPS HotSpot POST, then
+returns to the account with a fresh owned connection. The measured return to
+`Internet connected` was 2250 ms in this single local sample; this is not a
+p95, a guarantee or an L009/C measurement.
+
+The browser had session storage blocked. Both Economy and Fast became verified
+against the same device/lease and actual queue ceilings. Subscription identity,
+expiry and byte totals remained unchanged; time continued accumulating. All six
+375/1280 and blue/green/purple accessibility/overflow cases passed. The first
+harness attempt failed because it read an API response body after navigation;
+response bodies are now captured immediately, and the subsequent complete
+journey passed. The failed evidence is retained, not counted as a product pass.
+
+After that acceptance browser closed, the same lease and RADIUS session stayed
+active through 19 further verified normal-worker renewal operations. A read-only
+SQLite query selected operations created after browser closure; inspection found
+zero Chrome processes in the client namespace. No subscription reset or periodic
+reconnection was used. This is actual virtual-router evidence, independent of
+WebSocket watchers, and does not close the target-router or hard-calendar gaps.
+
+A separate authenticated loopback viewer now permits owner interaction with a
+full browser in that namespace. It is a local development fixture, not a product
+service or router deployment. The owner trial retains the same independent
+ledger. Do not run disruptive automated exhaustion/outage probes on it while
+it is reserved for manual testing. Exhausted and reconciliation failure-return
+journeys, final source verification and delivery still remain required here.

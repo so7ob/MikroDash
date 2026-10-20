@@ -52,13 +52,13 @@ try {
  await page.goto('https://login.example.test/login');
  await page.locator('#subscriberUsername').waitFor({state:'visible'});assert.equal(new URL(page.url()).origin,origin,'NAS landing did not hand off to the portal');
  assert.equal(await page.locator('#portalLoginSubmit').textContent(),'Sign in and connect');
- const initial=page.waitForResponse(r=>new URL(r.url()).origin===origin&&new URL(r.url()).pathname==='/api/account'&&r.status()===200,{timeout:15000});
+ const initial=page.waitForResponse(r=>new URL(r.url()).origin===origin&&new URL(r.url()).pathname==='/api/account'&&r.status()===200,{timeout:15000}).then(r=>r.json());
  const response=page.waitForResponse(r=>r.url().startsWith('https://login.example.test/login')&&r.request().method()==='POST',{timeout:15000});
- const connectReply=page.waitForResponse(r=>new URL(r.url()).origin===origin&&new URL(r.url()).pathname==='/api/connect'&&r.request().method()==='POST',{timeout:15000});
+ const connectReply=page.waitForResponse(r=>new URL(r.url()).origin===origin&&new URL(r.url()).pathname==='/api/connect'&&r.request().method()==='POST',{timeout:15000}).then(r=>r.json());
  await page.locator('#subscriberUsername').fill(credentials.username);await page.locator('#subscriberPassword').fill(credentials.password);
- phase='single sign-in and actual browser HotSpot POST';await page.locator('#portalLoginSubmit').click();
- const before=await(await initial).json();save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
- const ticket=await(await connectReply).json(), flowId=ticket.flowId;assert.match(flowId,/^[a-f0-9]{64}$/);assert.equal(ticket.destination,origin+'/?connection='+flowId);
+ phase='single sign-in and actual browser HotSpot POST';await page.locator('#portalLoginSubmit').click({noWaitAfter:true});
+ const before=await initial;save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
+ const ticket=await connectReply, flowId=ticket.flowId;assert.match(flowId,/^[a-f0-9]{64}$/);assert.equal(ticket.destination,origin+'/?connection='+flowId);
  assert.equal((await response).status(),200);const repliedAt=Date.now();
  await page.locator('#portalAccount').waitFor({state:'visible',timeout:10000});assert.equal(new URL(page.url()).origin,origin,'HotSpot did not return to the owned account');
  assert.equal(await page.evaluate(async()=>(await fetch('/api/routers')).status),404);
