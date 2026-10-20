@@ -43,7 +43,7 @@ type Admission struct {
 func (s *Store) Reserve(ctx context.Context, account, router, network, device, request string, at time.Time) (Admission, error) {
 	var a Admission
 	if router == "" || network == "" || device == "" || request == "" {
-		return a, ErrDenied
+		return a, denyAdmission("admission-context-missing")
 	}
 	tx, err := s.sql.BeginTx(ctx, nil)
 	if err != nil {
@@ -55,21 +55,30 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		return a, err
 	}
 	if count > 0 {
-		return a, ErrDenied
+		return a, denyAdmission("accounting-reconciliation-required")
 	}
 	var legacy bool
 	if err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM subscriber_operations o JOIN subscriber_leases l ON l.id=o.lease_id JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND o.kind='renew' AND o.state IN ('requested','applying','acknowledged') AND coalesce(json_extract(o.request,'$.timeBasis'),'')!=?)`, account, renewalTimeBasis).Scan(&legacy); err != nil {
 		return a, err
 	}
 	if legacy {
-		return a, ErrDenied
+		return a, denyAdmission("authorization-reconciliation-required")
 	}
 	var previous, owner, oldRouter, oldNetwork, oldDevice, oldState, accountStatus string
 	var deadline int64
 	err = tx.QueryRow(`SELECT l.decision,s.account_id,l.deadline,l.router_id,l.network,l.device,l.state,a.status FROM subscriber_leases l JOIN subscriber_subscriptions s ON s.id=l.subscription_id JOIN subscriber_accounts a ON a.id=s.account_id WHERE l.request_key=?`, request).Scan(&previous, &owner, &deadline, &oldRouter, &oldNetwork, &oldDevice, &oldState, &accountStatus)
 	if err == nil {
-		if owner != account || at.Unix() >= deadline || oldRouter != router || oldNetwork != network || oldDevice != device || oldState == "stopped" || accountStatus != "active" {
-			return a, ErrDenied
+		if owner != account || oldRouter != router || oldNetwork != network || oldDevice != device {
+			return a, denyAdmission("connection-request-mismatch")
+		}
+		if at.Unix() >= deadline {
+			return a, denyAdmission("authorization-expired")
+		}
+		if oldState == "stopped" {
+			return a, denyAdmission("session-ended")
+		}
+		if accountStatus != "active" {
+			return a, denyAdmission("account-suspended")
 		}
 		err = json.Unmarshal([]byte(previous), &a)
 		return a, err
@@ -78,23 +87,39 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		return a, err
 	}
 	var status string
-	if err = tx.QueryRow(`SELECT status FROM subscriber_accounts WHERE id=?`, account).Scan(&status); err != nil || status != "active" {
-		return a, ErrDenied
+	if err = tx.QueryRow(`SELECT status FROM subscriber_accounts WHERE id=?`, account).Scan(&status); errors.Is(err, sql.ErrNoRows) {
+		return a, denyAdmission("account-unavailable")
+	}
+	if err != nil {
+		return a, err
+	}
+	if status != "active" {
+		return a, denyAdmission("account-suspended")
 	}
 	sub, err := subscription(tx, account)
+	if errors.Is(err, sql.ErrNoRows) {
+		return a, denyAdmission("subscription-unavailable")
+	}
 	if err != nil {
 		return a, err
 	}
 	if !slices.Contains(sub.Plan.Networks, network) {
-		return a, ErrDenied
+		return a, denyAdmission("network-not-entitled")
 	}
 	var active, duplicate int
 	err = tx.QueryRow(`SELECT count(*),coalesce(sum(CASE WHEN device=? THEN 1 ELSE 0 END),0) FROM subscriber_leases WHERE subscription_id=? AND state!='stopped'`, device, sub.ID).Scan(&active, &duplicate)
 	if err != nil {
 		return a, err
 	}
-	if active >= sub.Plan.MaxSessions || duplicate > 0 {
-		return a, ErrDenied
+	blocked := []string{}
+	if active >= sub.Plan.MaxSessions {
+		blocked = append(blocked, "session-limit")
+	}
+	if duplicate > 0 {
+		blocked = append(blocked, "device-already-connected")
+	}
+	if len(blocked) > 0 {
+		return a, denyAdmission(blocked...)
 	}
 	u, err := usage(tx, sub.ID)
 	if err != nil {
@@ -106,7 +131,7 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 	}
 	a.Decision = Evaluate(sub.Plan, sub.SpeedID, at, sub.ExpiresAt, u)
 	if !a.Decision.Allowed {
-		return a, ErrDenied
+		return a, denyAdmission(a.Decision.Reasons...)
 	}
 	slots := Quantity(sub.Plan.MaxSessions - active)
 	for _, v := range a.Decision.Limits {
@@ -116,7 +141,7 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		}
 		budget := v.Remaining / slots
 		if budget <= 0 {
-			return a, ErrDenied
+			return a, denyAdmission("insufficient-shared-budget:" + l.ID)
 		}
 		switch l.Kind {
 		case "seconds":
@@ -134,7 +159,7 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 	a.Download = smallest(a.Download, Quantity(a.Decision.Timeout)*a.Decision.Down/8)
 	a.Upload = smallest(a.Upload, Quantity(a.Decision.Timeout)*a.Decision.Up/8)
 	if a.Download <= 0 || a.Upload <= 0 || a.Decision.Timeout <= 0 {
-		return a, ErrDenied
+		return a, denyAdmission("delegation-unavailable")
 	}
 	a.LeaseID = ID()
 	raw, err := json.Marshal(a)

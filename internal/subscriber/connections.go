@@ -12,7 +12,7 @@ import (
 // ConnectionStatusFor reads one coherent SQLite snapshot. It never asks the NAS
 // per browser and never derives this device's state from another account lease.
 func (s *Store) ConnectionStatusFor(ctx context.Context, q ConnectionQuery, clients []NAS, at time.Time) (ConnectionStatus, error) {
-	out := ConnectionStatus{Reasons: []string{}}
+	out := EmptyConnectionStatus()
 	peer, valid := connectionPeer(q.ClientAddress)
 	if !valid || q.AccountID == "" || len(q.FlowID) != 64 || strings.IndexFunc(q.FlowID, func(c rune) bool { return !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) }) >= 0 {
 		return out, ErrDenied
@@ -62,9 +62,22 @@ func (s *Store) ConnectionStatusFor(ctx context.Context, q ConnectionQuery, clie
 		case leaseState.String == "stopped":
 			out.Stage = "disconnected"
 			out.Reasons = []string{"session-ended"}
+		case !observed.Valid:
+			out.Stage = "authorized"
+			out.Reasons = []string{"waiting-for-hotspot-confirmation"}
+			if at.Sub(out.RequestedAt) > 5*time.Second || out.RequestedAt.After(at.Add(time.Second)) {
+				out.Stage = "unconfirmed"
+				out.Reasons = []string{"hotspot-confirmation-unavailable"}
+			}
+		case at.Sub(out.ObservedAt) > 5*time.Second || out.ObservedAt.After(at.Add(time.Second)):
+			out.Stage = "unconfirmed"
+			out.Reasons = []string{"router-observation-stale"}
+		case !present.Valid || !present.Bool:
+			out.Stage = "authorized"
+			out.Reasons = []string{"waiting-for-hotspot-confirmation"}
 		default:
 			out.Stage = "unconfirmed"
-			out.Reasons = []string{"waiting-for-hotspot-confirmation"}
+			out.Reasons = []string{"connection-identity-unconfirmed"}
 			n, enrolled := findNAS(clients, router, out.Network)
 			if enrolled && present.Valid && present.Bool && observed.Valid && at.Sub(out.ObservedAt) <= 5*time.Second && !out.ObservedAt.After(at.Add(time.Second)) {
 				var row ObservedSession

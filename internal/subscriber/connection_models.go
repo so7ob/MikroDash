@@ -26,3 +26,8 @@ type ConnectionStatus struct {
 	RequestedAt time.Time `json:"requestedAt"`
 	ObservedAt  time.Time `json:"observedAt"`
 }
+
+// EmptyConnectionStatus is the same non-null empty payload used by the reader.
+func EmptyConnectionStatus() ConnectionStatus {
+	return ConnectionStatus{Reasons: []string{}}
+}

@@ -1,19 +1,13 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/coder/websocket"
-	"mikrodash/internal/hub"
 	"mikrodash/internal/subscriber"
 )
-
-var EvSubscriberSnapshot = hub.Declare[subscriber.Snapshot]("subscriber:snapshot")
 
 func (s *Server) subscriberPortal(webDir string) http.Handler {
 	mux := http.NewServeMux()
@@ -242,65 +236,4 @@ func (s *Server) subscriberPortalDisconnect(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	writeJSONErr(w, 404, "Session not found")
-}
-func (s *Server) subscriberPortalWS(w http.ResponseWriter, r *http.Request) {
-	identity, ok := s.subscriberIdentity(w, r)
-	if !ok {
-		return
-	}
-	if !exactOrigin(r, s.subscribers.cfg.PortalOrigin) {
-		writeJSONErr(w, 403, "Request origin rejected")
-		return
-	}
-	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: []string{strings.TrimPrefix(s.subscribers.cfg.PortalOrigin, "https://")}})
-	if err != nil {
-		return
-	}
-	defer ws.CloseNow()
-	// Read frames only to process control messages. No subscriber may join rooms.
-	ws.SetReadLimit(1024)
-	requestCtx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-	if s.subscribers.ctx != nil {
-		stop := context.AfterFunc(s.subscribers.ctx, cancel)
-		defer stop()
-	}
-	ctx := ws.CloseRead(requestCtx)
-	cookie, _ := r.Cookie("__Host-mikrodash_subscriber")
-	c := hub.NewClient(subscriber.ID(), 2)
-	s.subscribers.hub.Add(c)
-	defer s.subscribers.hub.Remove(c)
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-	send := func() bool {
-		if _, ok := s.subscribers.sessions.Get(cookie.Value); !ok {
-			return false
-		}
-		snapshot, err := s.subscribers.radius.Store.Snapshot(ctx, identity.AccountID, time.Now())
-		if err != nil {
-			return true
-		}
-		EvSubscriberSnapshot.Send(s.subscribers.hub, c, snapshot)
-		select {
-		case frame := <-c.Send:
-			writeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-			defer cancel()
-			return ws.Write(writeCtx, websocket.MessageText, frame) == nil
-		default:
-			return true
-		}
-	}
-	if !send() {
-		return
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if !send() {
-				return
-			}
-		}
-	}
 }

@@ -221,12 +221,8 @@ func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) 
 	}
 	admitted, err := s.Store.Reserve(r.Context(), a.ID, c.RouterID, c.Network, device, request, time.Now())
 	if err != nil {
-		reason := "authorization-unavailable"
-		if errors.Is(err, ErrDenied) {
-			reason = "authorization-denied"
-		}
 		if ticket {
-			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: []string{reason}})
+			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: admissionReasons(err)})
 		}
 		reject()
 		return

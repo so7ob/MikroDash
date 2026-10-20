@@ -418,3 +418,23 @@ HotSpot handoff files and complete real-client acceptance are still pending.
 The interrupted RAM worktree was recovered into persistent storage after the
 host restarted. Earlier focused tests do not replace the required fresh rerun;
 no completion or live-C claim follows from this checkpoint.
+
+
+### Issue #64: tested connection backend continuation
+
+The coherent owned connection reader now distinguishes committed authorization
+from fresh router confirmation and stale evidence. Declared connection socket
+events recheck owner/peer before upgrade and session validity per send, using
+the existing delivery loop and no per-browser NAS polling. Authenticated UDP
+regressions retain transaction-time quota/network/device reasons and immutable
+rejections; a new ticket recovers after an entitlement renewal. Audit fault
+injection retains conservative grants and never sends Access-Accept before the
+verdict commits. Disk-backed migration preserves v42 credentials, Unicode,
+balances and active leases; v37 migration also passes.
+
+These are focused automated results, not completed entry or target acceptance.
+The English portal interaction, handoff artifacts, full real-client CHR journey,
+full repository checks and tested develop delivery are still pending. See
+[the backend contract](Subscriber-Connection-Entry.md). The local VS Code NAT
+Shadow preparation and private reachability results do not enable a C pilot
+or modify operator RADIUS/firewall settings.

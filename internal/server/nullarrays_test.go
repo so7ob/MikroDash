@@ -39,7 +39,8 @@ func TestNoServerPayloadSendsANullArray(t *testing.T) {
 	}
 
 	builders := map[string]func() any{
-		"subscriber:snapshot": func() any { return subscriber.EmptySnapshot() },
+		"subscriber:snapshot":   func() any { return subscriber.EmptySnapshot() },
+		"subscriber:connection": func() any { return subscriber.EmptyConnectionStatus() },
 		"backups:state": func() any {
 			return backups.StatePayload{
 				Settings: backups.SettingsFrom(nil, nil, nil, ""),

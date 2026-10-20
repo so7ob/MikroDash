@@ -1,0 +1,125 @@
+# Subscriber connection entry: backend checkpoint
+
+Issue [#64](https://github.com/so7ob/MikroDash/issues/64) continues the existing
+HTTPS portal/PAP ticket path. This is a backend checkpoint, not completed single
+sign-in or target-router acceptance. The current browser entry interaction and
+HotSpot landing files do not yet consume this contract. Do not enable production
+authentication or capability flags based on these tests.
+
+## Ownership and durable decisions
+
+An authenticated portal session may request a ticket only for an entitled
+enrolled network. The backend resolves the device from that NAS HotSpot host
+read using the trusted HTTP peer; browser MAC/IP claims grant nothing.
+
+The ticket request now records the NAS router ID, network, verified device,
+trusted peer and account in the existing SQLite authority. Only a SHA-256 ticket
+digest is retained as the connection reference. The 30-second secret is returned
+once for the browser HTTPS POST; no password or ticket enters browser storage or
+public assets. A reference alone cannot authorize Internet or read a flow.
+
+Redeeming requires the authenticated NAS router, network, device and actual
+username to match before consumption. The same RADIUS request may repeat;
+another NAS or request cannot consume or reuse the ticket. A verdict records the
+exact bounded lease/request identity, not another account session. The positive
+verdict and its audit commit before Access-Accept may be sent. Failed audit or
+storage keeps the conservative reservation and sends no Access-Accept. An exact
+retry can recover the same reservation after a transient verdict failure.
+
+Reserve supplies transaction-time denial reasons, including exhausted/unknown
+limit IDs, network entitlement, session/device conflicts and reconciliation
+requirements. Unexpected database failures become authorization-unavailable,
+not guessed quota failures. A committed rejection is immutable under exact
+retransmission, including after an administrator renews entitlement; the client
+must request a new ticket. Outcome retries never create another audit or lease.
+
+Migration 43 adds only `subscriber_connection_flows`, with foreign keys to the
+existing ticket and lease. It does not rewrite credentials, subscriptions,
+usage, reservations or active sessions. Legacy short-lived tickets without NAS
+and peer metadata cannot redeem; request a new ticket. Existing active leases
+continue accounting. No old database is restored for rollback.
+
+## Owned read and event contracts
+
+`POST /api/connect` also returns `flowId` and a server-built destination:
+`<configured HTTPS portal origin>/?connection=<digest>`. The destination accepts
+no browser return URL. The reference is not an Internet or portal credential.
+
+`GET /api/connection?flow=<digest>` requires the subscriber cookie, the same
+account and trusted peer. Missing/foreign/malformed references return a generic
+404; an anonymous request returns 401. The read is a single coherent SQLite
+query and performs no browser-specific RouterOS request.
+
+The existing isolated `GET /ws` supports optional `?flow=<digest>`. It rejects
+unowned context before upgrade and rechecks the portal session before each
+frame. It continues `subscriber:snapshot` and sends declared, generated
+`subscriber:connection` frames when the owned connection version changes. Both
+reuse the existing two-second delivery loop and shared background observations.
+Subscribers cannot join administration rooms or send administration events.
+Disconnecting browsers does not stop accounting or enforcement.
+
+The connection payload contains `version`, `flowId`, `stage`, `network`, `device`,
+`leaseId`, non-null `reasons`, `requestedAt` and `observedAt`. Times are UTC RFC3339.
+The content-derived version changes with a state or evidence change; it does not
+turn the rendering frequency into a router observation frequency.
+
+| Stage | Evidence |
+| --- | --- |
+| requested | Ticket issued; no network authorization yet. |
+| authorizing | The bound NAS request redeemed the credential; no committed positive verdict yet. |
+| authorized | A bounded lease is committed; this device is awaiting router confirmation. |
+| connected | Fresh exact-device/NAS/server/start/address observation matches the linked lease and recorded router version. |
+| unconfirmed | Observation missing after the initial five seconds, stale, future-dated or mismatched. Known account balances are retained. |
+| rejected | Immutable local authentication/admission refusal with retained reasons. |
+| expired | An uncompleted ticket passed its 30-second expiry. |
+| disconnected | The exact linked lease ended; a newer session does not revive this flow. |
+
+Start or Access-Accept alone does not establish connected. Another device in the
+same account cannot confirm this requesting device. Observations older than
+five seconds or more than one second in the future are unconfirmed. The original
+trusted observation timestamp is preserved. Ticket expiry does not expire an
+already authorized and independently confirmed Internet session.
+
+For NAT/proxy deployment, verify the actual NAS and HTTP source paths first.
+Never compensate for translated sources by trusting browser headers. The
+existing explicit trusted-proxy boundary remains the only proxy authority.
+
+## Verification at this checkpoint
+
+The new regressions run against ordinary disk-backed SQLite, real authenticated
+loopback UDP RADIUS, and real TLS/WebSocket connections. Router observations in
+these tests are synthetic; this is not an L009/C or captive-browser result.
+
+- Migration preserves the password, Unicode name, subscription/usage and active
+  lease from v42, refuses legacy unbound tickets, and repeats idempotently. The
+  existing v37 compatibility test also passes with the new metadata table.
+- The lifecycle test distinguishes authorization from fresh confirmation, stale
+  and future readings, a different router version, ticket expiry and final Stop.
+- A negative-control device is positively observed connected while the owned
+  requesting flow remains requested. Foreign peers/accounts cannot obtain it.
+- Injected audit failures roll back ticket/flow issuance together and prevent a
+  positive response. Exact-request recovery reuses the retained grant and audit.
+- UDP denial cases cover exhausted and unknown time, network entitlement,
+  concurrent session and duplicate device conflicts. Replays preserve balances,
+  expiry and subscription; a newly entitled ticket can recover after renewal.
+- TLS sockets reject foreign owners, peers, origins and invalid references before
+  upgrade, deliver owned transitions, and stop delivery after session revocation.
+- The declared-event no-null gate and portal administration/CSRF guards pass.
+
+Focused commands compile test executables with the normal project toolchain and
+then run them with both `GOTMPDIR=/tmp` and `TMPDIR=/tmp`. Compilation caches may
+be in RAM; test databases are on the ordinary filesystem. Private red/green
+logs remain under `.temp/subscriber-64-recovery` in the visible workspace.
+Full regression, mutation/race checks, browser integration, generated handoff
+artifacts and the complete real-client journey remain required before delivery.
+
+## Work still required for this issue
+
+- Connect the generated event to the English/LTR portal and expose distinct
+  portal-authenticated and Internet-connected states with bounded recovery.
+- Complete explicit sign-in-and-connect intent, owned return handling and
+  safe HotSpot handoff artifacts without repeat submissions or redirect loops.
+- Test the complete browser-originated HotSpot path on the isolated CHR, including
+  post-exhaustion access and a failed admission returning to the account.
+- Finish repository-wide verification and deliver through the tested PR/develop
+  workflow. The larger AC-01..AC-19 scope and live C approval remain separate.
