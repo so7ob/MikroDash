@@ -796,3 +796,12 @@ mutant omitting unchanged outcomes failed the mixed-result regression. A first
 command used the visible positive control rather than the archive; its passing
 log is retained separately and is not counted as a mutation kill. Full final-head
 repository/CI checks remain separately required after this code change.
+
+
+The per-item pending-feedback mutant type-checked and then failed the real browser
+assertion that old results must be hidden while the next genuine response is
+pending. Its first failure was obscured by an undrained response promise; that
+failed run is retained separately. The harness now always drains the response
+before propagating an assertion, and the diagnostic replay reports the intended
+stale-result assertion (61.305 s). This is test instrumentation repair, not a
+weakened product assertion. The isolated source was restored afterward.

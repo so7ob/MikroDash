@@ -192,9 +192,14 @@ try {
  await page.route('**/api/subscribers',async route=>{const response=await route.fetch();secondFetched();await secondGate;await route.fulfill({response});},{times:1});
  const reactivated=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='POST');
  await apply.click();await secondReady;
- assert.equal(await page.locator('#subscriberBatchResults').isVisible(),false,'previous batch results remained visible during the next request');
- assert.equal(await page.locator('#subscriberAdminNotice').innerText(),'Applying reviewed status change…','prior success remained visible during the next request');
- releaseSecond();const secondResponse=await reactivated;assert.equal(secondResponse.status(),200);
+ try {
+  assert.equal(await page.locator('#subscriberBatchResults').isVisible(),false,'previous batch results remained visible during the next request');
+  assert.equal(await page.locator('#subscriberAdminNotice').innerText(),'Applying reviewed status change…','prior success remained visible during the next request');
+ } finally {
+  // Drain the genuine response even when an assertion fails, preserving its cause.
+  releaseSecond();await reactivated;
+ }
+ const secondResponse=await reactivated;assert.equal(secondResponse.status(),200);
  const secondResult=await secondResponse.json();assert.equal(secondResult.changed.length,2);assert.equal(secondResult.skipped,1);
  assert.deepEqual(secondResult.results.map(item=>[item.account.id,item.outcome]),[[createdAccount.id,'changed'],[otherAccount.id,'changed'],[process.env.SUBSCRIBER_ACCOUNT_ID,'unchanged']]);
  await page.getByText('Status updated for 2 subscribers. 1 already had that status.',{exact:true}).waitFor();
