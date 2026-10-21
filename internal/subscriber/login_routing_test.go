@@ -12,7 +12,7 @@ func routingFixture() (Readiness, NAS, LoginRoutingTarget) {
 	r := Readiness{ObservedAt: time.Unix(1792550000, 0), Version: "7.24.5 (stable)", Menus: map[string][]routeros.Reply{
 		"/ip/hotspot/print":         {{"name": "hs-C", "profile": "hsprof-C", "disabled": "false"}},
 		"/ip/hotspot/profile/print": {{"name": "hsprof-C", "use-radius": "true", "radius-accounting": "true", "login-by": "https", "radius-default-domain": "", "split-user-domain": "true"}},
-		"/radius/print":             {{"address": "198.51.100.10", "authentication-port": "11812", "accounting-port": "11813", "domain": "md-pilot", "realm": "", "service": "hotspot", "protocol": "udp", "require-message-auth": "yes-for-request-resp", "disabled": "false"}, {"domain": "", "realm": "", "address": "127.0.0.1", "service": "hotspot", "disabled": "false"}},
+		"/radius/print":             {{"address": "198.51.100.10", "authentication-port": "11812", "accounting-port": "11813", "domain": "md-pilot", "realm": "", "service": "hotspot", "protocol": "udp", "require-message-auth": "yes-for-request-resp", "disabled": "false"}},
 		"/ip/hotspot/user/print":    {},
 	}}
 	return r, NAS{CalledStationID: "hs-C", LoginDomain: "md-pilot"}, LoginRoutingTarget{Address: "198.51.100.10", AuthPort: 11812, AccountingPort: 11813}
@@ -24,7 +24,7 @@ func TestLoginRoutingReviewRequiresExactMetadataWithoutWriting(t *testing.T) {
 	if !got.ConfigurationMatches || len(got.BlockingReasons) != 0 || got.NamesRequiringReview == nil || got.ObservedAt != r.ObservedAt {
 		t.Fatal("valid metadata not recognized", got)
 	}
-	for _, mode := range []string{"missing-menu", "unavailable-with-stale-rows", "blank-first", "split-off", "default-domain", "unknown-default-domain", "wrong-target", "wrong-auth-port", "wrong-accounting-port", "untrusted-responses", "unknown-domain", "unknown-service", "unknown-enabled", "wrong-realm", "local-precedence", "unknown-local-name", "legacy-unknown", "legacy-separator", "legacy-collision", "no-version", "no-observation"} {
+	for _, mode := range []string{"missing-menu", "unavailable-with-stale-rows", "blank-first", "blank-fallback-last", "split-off", "default-domain", "unknown-default-domain", "wrong-target", "wrong-auth-port", "wrong-accounting-port", "untrusted-responses", "unknown-domain", "unknown-service", "unknown-enabled", "wrong-realm", "local-precedence", "unknown-local-name", "legacy-unknown", "legacy-separator", "legacy-collision", "no-version", "no-observation"} {
 		t.Run(mode, func(t *testing.T) {
 			r, n, target := routingFixture()
 			legacy := []string{"existing-legacy"}
@@ -36,7 +36,9 @@ func TestLoginRoutingReviewRequiresExactMetadataWithoutWriting(t *testing.T) {
 				delete(r.Menus, "/ip/hotspot/user/print")
 			case "blank-first":
 				rows := r.Menus["/radius/print"]
-				rows[0], rows[1] = rows[1], rows[0]
+				r.Menus["/radius/print"] = append([]routeros.Reply{{"domain": "", "realm": "", "address": "127.0.0.1", "service": "hotspot", "disabled": "false"}}, rows...)
+			case "blank-fallback-last":
+				r.Menus["/radius/print"] = append(r.Menus["/radius/print"], routeros.Reply{"domain": "", "realm": "", "service": "hotspot", "disabled": "false"})
 			case "split-off":
 				r.Menus["/ip/hotspot/profile/print"][0]["split-user-domain"] = "false"
 			case "default-domain":
@@ -93,5 +95,20 @@ func TestLoginRoutingReviewDoesNotMutateOrTranslateSourceNames(t *testing.T) {
 	got.NamesRequiringReview[0] = "modified output"
 	if names[0] != "سحب@قديم" || !maps.Equal(before, r.Menus["/radius/print"][0]) {
 		t.Fatal("routing review mutated original metadata")
+	}
+}
+
+func TestLoginRoutingSeparatesTransitionNamespaceAndDisabledHistory(t *testing.T) {
+	r, n, target := routingFixture()
+	target.LegacyDomain = "md-legacy"
+	r.Menus["/ip/hotspot/profile/print"][0]["radius-default-domain"] = "md-legacy"
+	r.Menus["/radius/print"] = append(r.Menus["/radius/print"], routeros.Reply{"domain": "md-legacy", "realm": "", "address": "127.0.0.1", "authentication-port": "1812", "accounting-port": "1813", "service": "hotspot", "disabled": "false", "protocol": "udp", "require-message-auth": "yes-for-request-resp"})
+	got := ReviewLoginRouting(r, n, target, "pilot", []string{"legacy"}, true)
+	if !got.ConfigurationMatches {
+		t.Fatal("explicit independent namespaces were refused", got)
+	}
+	target.LegacyDomain = ""
+	if ReviewLoginRouting(r, n, target, "pilot", nil, true).ConfigurationMatches {
+		t.Fatal("extra transition authority accepted without explicit configuration")
 	}
 }

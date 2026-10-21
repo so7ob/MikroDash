@@ -25,6 +25,7 @@ export function connectionReason(reason: string): string {
     'account-suspended': 'Your account is suspended.',
     'session-limit': 'Your concurrent session limit has been reached.',
     'device-already-connected': 'This device already has an outstanding connection.',
+    'authentication-routing-unavailable': 'Network sign-in requires administrator review. Try again after configuration is verified.',
     'authentication-not-authorized': 'HotSpot authentication was not authorized.',
     'authorization-denied': 'Internet admission was denied. Review your subscription or contact support.',
     'admission-context-missing': 'The network request could not be verified.',

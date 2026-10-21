@@ -8,9 +8,10 @@ import (
 )
 
 type LoginRoutingTarget struct {
-	Address        string
-	AuthPort       int
-	AccountingPort int
+	Address        string `json:"address"`
+	AuthPort       int    `json:"authPort"`
+	AccountingPort int    `json:"accountingPort"`
+	LegacyDomain   string `json:"legacyDomain,omitempty"`
 }
 
 type LoginRoutingReview struct {
@@ -20,12 +21,12 @@ type LoginRoutingReview struct {
 	NamesRequiringReview []string  `json:"namesRequiringReview"`
 }
 
-// ReviewLoginRouting compares non-secret metadata, never authorizes admission.
-// Protocol capability, local limits and the live pilot need separate acceptance.
+// ReviewLoginRouting returns a pure configuration verdict. Runtime admission
+// additionally requires fresh version-bound evidence and account policy.
 func ReviewLoginRouting(r Readiness, n NAS, target LoginRoutingTarget, username string, legacyNames []string, legacyComplete bool) LoginRoutingReview {
 	out := LoginRoutingReview{ObservedAt: r.ObservedAt, BlockingReasons: []string{}, NamesRequiringReview: []string{}}
 	block := func(reason string) { out.BlockingReasons = append(out.BlockingReasons, reason) }
-	if n.LoginDomain == "" || !validLoginDomain(n.LoginDomain) {
+	if n.LoginDomain == "" || !validLoginDomain(n.LoginDomain) || !validLoginDomain(target.LegacyDomain) || target.LegacyDomain == n.LoginDomain {
 		block("A valid explicit login domain is required for this review")
 	}
 	qualified, err := n.HotspotUsername(username)
@@ -68,14 +69,15 @@ func ReviewLoginRouting(r Readiness, n NAS, target LoginRoutingTarget, username 
 		}
 		profiles++
 		defaultDomain, known := row["radius-default-domain"]
-		if !known || defaultDomain != "" || row["split-user-domain"] != "true" || row["use-radius"] != "true" || row["radius-accounting"] != "true" || row["login-by"] != "https" {
-			block("The profile requires HTTPS, RADIUS/accounting, splitting and an explicitly empty default domain")
+		if !known || defaultDomain != target.LegacyDomain || row["split-user-domain"] != "true" || row["use-radius"] != "true" || row["radius-accounting"] != "true" || row["login-by"] != "https" {
+			block("The profile requires HTTPS, RADIUS/accounting, splitting and the reviewed default domain")
 		}
 	}
 	if profiles != 1 {
 		block("Exactly one matching server profile is required")
 	}
 	selected, eligible := false, false
+	legacyEntries, hotspotEntries := 0, 0
 	for _, row := range r.Menus["/radius/print"] {
 		if row["disabled"] == "true" {
 			continue
@@ -97,13 +99,25 @@ func ReviewLoginRouting(r Readiness, n NAS, target LoginRoutingTarget, username 
 			block("A HotSpot RADIUS domain is unknown")
 			continue
 		}
-		if domain != "" && domain != n.LoginDomain {
+		hotspotEntries++
+		if domain == "" {
+			block("A blank-domain RADIUS entry permits fallback to another authority")
+		}
+		if target.LegacyDomain != "" && domain == target.LegacyDomain {
+			legacyEntries++
+			if row["address"] != "127.0.0.1" || row["authentication-port"] != "1812" || row["accounting-port"] != "1813" || row["protocol"] != "udp" || row["require-message-auth"] != "yes-for-request-resp" {
+				block("The transition authority must be the explicitly reviewed local User Manager endpoint")
+			}
+		}
+		if domain != n.LoginDomain || eligible {
 			continue
 		}
 		eligible = true
 		realm, realmKnown := row["realm"]
 		selected = domain == n.LoginDomain && realmKnown && (realm == "" || realm == n.LoginDomain) && row["protocol"] == "udp" && row["require-message-auth"] == "yes-for-request-resp" && row["address"] == target.Address && row["authentication-port"] == strconv.Itoa(target.AuthPort) && row["accounting-port"] == strconv.Itoa(target.AccountingPort)
-		break // A blank-domain primary first intercepts qualified names on the measured NAS.
+	}
+	if target.LegacyDomain == "" && hotspotEntries != 1 || target.LegacyDomain != "" && (hotspotEntries != 2 || legacyEntries != 1) {
+		block("Only the owned authority and an explicit isolated transition authority may serve this HotSpot")
 	}
 	if !eligible || !selected {
 		block("The first matching RADIUS entry does not select the intended authenticated domain endpoint")

@@ -207,6 +207,10 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		subscriberError(w, err)
 		return
 	}
+	if !rt.radius.LoginRoutingAllows(nas, account.Username, time.Now()) {
+		writeJSONErr(w, 409, "Network authentication routing requires administrator review")
+		return
+	}
 	loginUsername, err := nas.HotspotUsername(account.Username)
 	if err != nil {
 		subscriberError(w, err)

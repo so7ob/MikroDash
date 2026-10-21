@@ -34,6 +34,8 @@ test('Internet connected requires this flow fresh router evidence and expires vi
 test('denial messages preserve original constraint names without translating user data', () => {
   assert.equal(connectionReason('exhausted:باقة-1'),'Allowance exhausted: باقة-1');
   assert.match(connectionReason('accounting-reconciliation-required'),/reconciliation/);
+  assert.match(connectionReason('authentication-routing-unavailable'),/administrator review/);
+  assert.doesNotMatch(connectionReason('authentication-routing-unavailable'),/authentication-routing-unavailable/);
   const view=connectionView({...status,stage:'rejected',reasons:['exhausted:DAILY-1H','session-limit']},observed);
   assert.equal(view.tone,'err');assert.match(view.message,/DAILY-1H/);assert.match(view.message,/session limit/);
 });

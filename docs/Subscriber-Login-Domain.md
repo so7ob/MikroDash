@@ -1,9 +1,10 @@
 # Optional HotSpot login domain
 
-Issue #72 is in progress. The configuration, portal handoff and authenticated
-RADIUS domain checks are implemented and covered by focused automated tests.
-Actual domain session accounting, renewal, speed changes and finality still need
-the owned-CHR acceptance run. No target C change or acceptance is implied.
+Issue #72 is in progress. The initial transport passed actual owned-CHR browser, speed, five-renewal and
+accounting acceptance. Its timeout test exposed cross-authority fallback. The
+strengthened background routing guard is implemented and covered by automated
+tests; its final normal-runtime CHR replay remains pending. No target C change
+or acceptance is implied.
 
 ## Identity and authority
 
@@ -50,18 +51,63 @@ go run ./cmd/subscribercheck -data /path/to/data -router '<stored ID or label>' 
 ```
 
 `routing.configurationMatches` means only that the observed metadata matches.
-It never grants admission or sets capability flags. The review requires current
+The runtime requires this verdict, fresh version-bound background evidence and
+account checks before domain admission or new CoA writes. The CLI does not set
+capability flags. The review requires current
 identity/time, exact HTTPS/accounting/split/default-domain profile metadata,
 ordered domain endpoint and response-authenticator settings, both explicit ports,
-local-account precedence and a complete legacy username inventory. Missing,
-unavailable or incomplete fields block a match. Legacy names with separators or
-a pilot-name collision require review without renaming or changing those names.
+local-account precedence and, for explicit transition mode, a complete active
+legacy username inventory. Missing,
+unavailable or incomplete fields block a match. Active legacy names with separators or a pilot-name collision require review
+without renaming or changing those names. Disabled historical identities are
+retained and do not become a competing authority.
 
-A NAS transport timeout can behave differently from Access-Reject. Prove that
-fallback cannot authorize the pilot through another authority during outage;
-ordering alone is insufficient. Target UDP delivery, actual session identity,
-local quota/timeout behavior, renewal, speed readback and rollback remain explicit
-acceptance steps. The tool issues read-only RouterOS commands and changes no ledger.
+Actual CHR timeout tests sent a request to the next blank-domain endpoint. A
+second measured trial used distinct `md-legacy` and `md-pilot` domains, with the
+profile default set to `md-legacy`. Plain names reached only the legacy stand-in;
+qualified names reached only MikroDash. Both qualified syntaxes timed out without
+any legacy request when the pilot port was unreachable. Exact original metadata
+was restored. This is NAS selection proof, not actual User Manager acceptance.
+
+The guard rejects blank-domain fallback entries anywhere in the enabled HotSpot
+list, including after the intended endpoint. Standalone domain mode requires one
+enabled authority. Explicit transition mode permits that authority plus the
+reviewed local User Manager endpoint, with a different domain/default domain.
+For example, the private server NAS configuration can include:
+
+```json
+{
+  "loginDomain": "md-pilot",
+  "loginRouting": {
+    "address": "198.51.100.10",
+    "authPort": 11812,
+    "accountingPort": 11813,
+    "legacyDomain": "md-legacy"
+  }
+}
+```
+
+Omit `legacyDomain` for standalone operation. This requires no User Manager
+package or API. A transition checks active legacy names without reading their
+credentials. Existing account names, disabled histories and balances remain
+unchanged. The read-only CLI accepts `-legacy-domain md-legacy` for this review.
+
+One background reader per NAS refreshes immutable routing metadata every ten
+seconds, separately from enforcement and display collectors. Cold, failed,
+older-than-fifteen-second or different-version evidence blocks new domain
+admission and renewal. Failed reads retain the last view for diagnosis, but do
+not reuse it as permission. Existing accounting continues; already issued local
+time/byte bounds remain. These are configuration timings, not measured latency
+or a guarantee about external administrator changes. Account observations and
+RADIUS accounting retain their separate cadences.
+
+Administrative `GET /api/subscribers` includes cached `routing[]` metadata
+freshness (`fresh`, `stale`, `unavailable`, `not-required`), observation time,
+network and domain. This is not an account authorization result and triggers no
+router read. The subscriber listener still exposes none of these admin routes.
+
+Target UDP delivery, actual local User Manager transition compatibility and the
+final guarded-runtime session/restart acceptance remain explicit steps. The tool issues read-only RouterOS commands and changes no ledger.
 
 The current operator C runtime remains Shadow. Existing User Manager, A/B and
 HotSpot pages are unchanged. A concrete reviewed pilot and its rollback need

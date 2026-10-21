@@ -176,6 +176,9 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 			}
 			continue
 		}
+		if !s.LoginRoutingAllows(n, o.Request.Username, at) {
+			continue
+		}
 		current, err := s.Store.Snapshot(ctx, owner, at)
 		if err != nil {
 			return err
@@ -286,6 +289,9 @@ func (s *RadiusService) Tick(ctx context.Context, at time.Time) error {
 		for _, e := range leases {
 			n, ok := findNAS(s.Clients, router, e.Network)
 			if !ok {
+				continue
+			}
+			if !s.LoginRoutingAllows(n, e.Username, at) {
 				continue
 			}
 			row, observed, present, err := s.Store.observation(ctx, e.LeaseID)

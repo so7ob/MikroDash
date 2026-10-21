@@ -58,8 +58,11 @@ func (c Config) Validate() error {
 	peers := map[string]string{}
 	networks := map[string]bool{}
 	for _, n := range c.Clients {
-		if !validLoginDomain(n.LoginDomain) {
+		if !validLoginDomain(n.LoginDomain) || n.LoginRouting != nil && (!validLoginDomain(n.LoginRouting.LegacyDomain) || n.LoginRouting.LegacyDomain == n.LoginDomain) {
 			return errors.New("invalid NAS login domain")
+		}
+		if n.LoginDomain != "" && (c.Mode == "pilot" || c.Mode == "managed") && (n.LoginRouting == nil || net.ParseIP(n.LoginRouting.Address) == nil || n.LoginRouting.AuthPort < 1 || n.LoginRouting.AuthPort > 65535 || n.LoginRouting.AccountingPort < 1 || n.LoginRouting.AccountingPort > 65535) {
+			return errors.New("domain admission requires an explicit router-visible routing target")
 		}
 		if previous, ok := peers[n.Address]; ok && previous != n.RouterID {
 			return errors.New("one router identity per NAS source address is required")
@@ -166,6 +169,8 @@ func (s *Store) RecordEnforcement(ctx context.Context, e Enforcement, result str
 // Outstanding leases survive restarts; a missing Stop retains its reservation
 // and blocks unsafe re-admission rather than inventing unused credit.
 func (s *RadiusService) Run(ctx context.Context, allowDisconnect bool, report func(error)) {
+	joinRouting := s.startLoginRouting(ctx, report)
+	defer joinRouting()
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 	last := map[string]time.Time{}

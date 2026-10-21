@@ -73,7 +73,7 @@ func (s *Server) StartSubscribers(configPath, webDir string) error {
 	if err != nil {
 		return err
 	}
-	service := &subscriber.RadiusService{Store: ledger, Observe: s.subscriberObserveRouter, AllowCoA: cfg.AllowCoA, VerifySession: s.subscriberVerifySession, Mode: cfg.Mode, Clients: cfg.Clients, PilotAccounts: map[string]bool{}}
+	service := &subscriber.RadiusService{Store: ledger, Observe: s.subscriberObserveRouter, ReadLoginRouting: s.subscriberReadLoginRouting, AllowCoA: cfg.AllowCoA, VerifySession: s.subscriberVerifySession, Mode: cfg.Mode, Clients: cfg.Clients, PilotAccounts: map[string]bool{}}
 	for _, id := range cfg.PilotAccounts {
 		service.PilotAccounts[id] = true
 	}
@@ -202,10 +202,14 @@ func (s *Server) subscribersGet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	mode := "disabled"
+	routing := []subscriber.LoginRoutingStatus{}
 	if s.subscribers != nil {
 		mode = s.subscribers.cfg.Mode
+		for _, n := range s.subscribers.cfg.Clients {
+			routing = append(routing, s.subscribers.radius.LoginRoutingStatus(n, time.Now()))
+		}
 	}
-	writeJSON(w, map[string]any{"accounts": accounts, "plans": plans, "mode": mode})
+	writeJSON(w, map[string]any{"accounts": accounts, "plans": plans, "mode": mode, "routing": routing})
 }
 func (s *Server) subscribersSnapshot(w http.ResponseWriter, r *http.Request) {
 	if s.subscriberAdmin(w, r) == nil {

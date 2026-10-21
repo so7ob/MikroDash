@@ -22,6 +22,7 @@ func main() {
 	username := flag.String("subscriber", "", "original subscriber username for local precedence review")
 	endpoint := flag.String("radius-endpoint", "", "explicit router-visible RADIUS IPv4/IPv6 address:authentication-port")
 	accountingPort := flag.Int("radius-accounting-port", 0, "explicit router-visible RADIUS accounting port")
+	legacyDomain := flag.String("legacy-domain", "", "explicit isolated local User Manager transition domain")
 	flag.Parse()
 	var target subscriber.LoginRoutingTarget
 	if *domain != "" {
@@ -31,7 +32,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "domain review requires explicit HotSpot, subscriber and router-visible RADIUS address/ports; it cannot be combined with import preview")
 			os.Exit(1)
 		}
-		target = subscriber.LoginRoutingTarget{Address: host, AuthPort: authPort, AccountingPort: *accountingPort}
+		target = subscriber.LoginRoutingTarget{Address: host, AuthPort: authPort, AccountingPort: *accountingPort, LegacyDomain: *legacyDomain}
 	}
 	st, err := store.Open(*data)
 	if err != nil {
@@ -58,14 +59,20 @@ func main() {
 		if *preview {
 			report = subscriber.PreviewUserManager(c)
 		} else if *domain != "" {
-			legacy := subscriber.PreviewUserManager(c)
-			rows, complete := legacy.Rows["/user-manager/user/print"]
 			names := []string{}
-			for _, row := range rows {
-				if row["name"] == "" {
-					complete = false
+			complete := true
+			if target.LegacyDomain != "" {
+				legacy := subscriber.PreviewUserManager(c)
+				rows, known := legacy.Rows["/user-manager/user/print"]
+				complete = known
+				for _, row := range rows {
+					if row["name"] == "" || row["disabled"] != "true" && row["disabled"] != "false" {
+						complete = false
+					}
+					if row["disabled"] != "true" {
+						names = append(names, row["name"])
+					}
 				}
-				names = append(names, row["name"])
 			}
 			review := subscriber.ReviewLoginRouting(readiness, subscriber.NAS{LoginDomain: *domain, CalledStationID: *hotspot}, target, *username, names, complete)
 			report = struct {
