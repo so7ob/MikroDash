@@ -755,3 +755,18 @@ hash shape, router credentials decrypted, the in-memory encrypted Unicode
 round-trip passed, and existing audit visibility/detail checks passed. No password
 challenge was requested and no migration/runtime restart was performed by that
 check. This is separate from the synthetic v44 migration tests.
+
+Five compiling safety mutants on implementation `6867d50e` were behaviorally
+killed: ignored restored-status revision, committed partial failed transaction,
+ignored audit failure, omitted index migration and reused prior settlement
+success. The last mutant ran the real browser journey and failed its held-response
+assertion. Archived sources were restored; visible source was never mutated.
+
+The first complete repository pass stopped on three static integration findings:
+the documented frontend file count needed 114, the ARIA-only review heading
+needed its explicit existing-ledger entry, and the producer scanner did not know
+literal IDs passed to the real shared toggle helper. No check or orphan ID was
+exempted. The scanner now recognizes that producer syntax; its positive control
+passes and renaming the actual toggle producer while retaining the lookup is
+detected by a separately compiling behavioral mutant. The three affected static
+checks pass (17.671 s). Full final-source checks and CI remain separate evidence.

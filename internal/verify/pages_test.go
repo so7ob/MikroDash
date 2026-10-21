@@ -114,6 +114,12 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 	for _, m := range regexp.MustCompile(`id=\\?["']([A-Za-z][\w-]*)\\?["']`).FindAllStringSubmatch(ts, -1) {
 		produced[m[1]] = true
 	}
+	// A literal ID passed to the shared toggle helper is produced by that
+	// helper's real input markup, just as a literal markup ID is. Dynamic
+	// helper arguments remain outside this literal scan; no ID is exempted.
+	for _, m := range regexp.MustCompile(`\btoggleHtml\(\s*['"]([A-Za-z][\w-]*)['"]`).FindAllStringSubmatch(ts, -1) {
+		produced[m[1]] = true
+	}
 	// AND IDS ASSIGNED TO AN ELEMENT, which is markup built without markup:
 	// `st.id = 'navBoot'` in preflight, `node.id = 'sysMetaTemp'` created lazily
 	// on first use. Missing these made two real producers look absent.
