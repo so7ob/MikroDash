@@ -1,10 +1,9 @@
 # Optional HotSpot login domain
 
-Issue #72 is in progress. The initial transport passed actual owned-CHR browser, speed, five-renewal and
-accounting acceptance. Its timeout test exposed cross-authority fallback. The
-strengthened background routing guard is implemented and covered by automated
-tests; its final normal-runtime CHR replay remains pending. No target C change
-or acceptance is implied.
+The optional transport and background routing guard pass automated tests and
+actual normal-runtime CHR 7.24.5 browser, speed, five-renewal and final accounting
+acceptance. An earlier timeout test exposed cross-authority fallback; the runtime
+now refuses that configuration. No target C change or acceptance is implied.
 
 ## Identity and authority
 
@@ -106,8 +105,44 @@ freshness (`fresh`, `stale`, `unavailable`, `not-required`), observation time,
 network and domain. This is not an account authorization result and triggers no
 router read. The subscriber listener still exposes none of these admin routes.
 
-Target UDP delivery, actual local User Manager transition compatibility and the
-final guarded-runtime session/restart acceptance remain explicit steps. The tool issues read-only RouterOS commands and changes no ledger.
+The CLI issues read-only RouterOS commands and changes no ledger. Target UDP
+delivery, actual local User Manager transition compatibility and guarded-runtime
+outage acceptance on the target remain explicit steps.
+
+## Measured owned-CHR acceptance
+
+Implementation `f83b1337` ran against an isolated owned CHR 7.24.5 using the normal
+server, HTTPS portal and namespace client. A fresh Unicode account entered its
+credentials once, submitted the configured domain identity to HotSpot and returned
+to its confirmed dashboard in 2158 ms. Both entitled speeds were applied through
+CoA and verified by exact-device queue readback. The subscription, expiry and
+byte balances survived both choices. Six 375/1280 viewport and blue/green/purple
+theme checks passed with English/LTR markup, no overflow, no browser errors and
+no axe WCAG 2 A/AA or 2.1 AA violations. Admin routes returned 404 on the portal.
+
+With all browsers closed, five verified renewals retained the same lease and
+RADIUS session. Its live sample showed 204 connection seconds. A subsequent
+one-way download exhausted the simultaneous 65536-byte download allowance;
+trusted final accounting committed 242 seconds, 88321 download bytes and 2636
+upload bytes, with zero pending finality. The remaining time stayed 3358 seconds.
+Real HTTPS re-entry was rejected while the portal and account remained available.
+
+The accounted download exceeded the local test limit by 22785 bytes. The client
+received 87840 payload bytes from a 1 MiB offered transfer and timed out after
+12.019 seconds. That interval is a client deadline, not a measured disconnect
+latency. Concurrent two-worker fuzz and focused race tests were running. These
+samples establish behavior under that declared lab load, not an accepted target
+overshoot budget, guaranteed latency or normal-load resource measurement.
+
+An earlier account was separately tested across an application outage: local
+delegation expired, and missing Stop accounting remained unresolved after restart.
+Admission stayed rejected despite positive known time credit; portal access
+remained available. That run predates the final routing guard and is not a replay
+of its outage behavior. Its instrumentation failures and lost timing samples are
+retained in the verification report. Every earlier balance, exhausted account and
+unresolved finality hold was preserved. Nested and outer routing rollback restored
+the exact original non-secret NAS rows/profile; the prior owned calendar runtime
+was restored without signalling the operator's VS Code process.
 
 The current operator C runtime remains Shadow. Existing User Manager, A/B and
 HotSpot pages are unchanged. A concrete reviewed pilot and its rollback need

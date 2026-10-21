@@ -193,3 +193,29 @@ func TestUnsafeDomainRouteStillAccountsButDoesNotPrepareRenewal(t *testing.T) {
 		t.Fatal("routing failure stopped accounting", snapshot, err)
 	}
 }
+
+func TestUnsafeDomainRouteDoesNotKeepExpiredOperationPending(t *testing.T) {
+	store, service, account, grant, start := liveFixture(t)
+	preparedAt := start.Add(40 * time.Second)
+	if err := store.ObserveRouter(t.Context(), observation(service, account, grant, start, preparedAt), service.Clients); err != nil {
+		t.Fatal(err)
+	}
+	operation, err := store.PrepareOperation(t.Context(), grant.LeaseID, "renew", preparedAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	service.Clients[0].LoginDomain = "md-pilot"
+	// Missing routing evidence forbids a network write, but must not prevent
+	// the bounded operation lifecycle from recording its failed deadline.
+	at := preparedAt.Add(16 * time.Second)
+	if err = store.ObserveRouter(t.Context(), observation(service, account, grant, start, at), service.Clients); err != nil {
+		t.Fatal(err)
+	}
+	if err = service.ProcessOperations(t.Context(), at); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := store.Operations(t.Context(), false)
+	if err != nil || len(rows) != 1 || rows[0].ID != operation.ID || rows[0].State != "failed" || rows[0].Attempts != 0 || rows[0].Packet != "" || rows[0].Error != "application was not verified before bounded deadline" {
+		t.Fatal("unsafe routing hid deadline failure or allowed a packet", rows, err)
+	}
+}

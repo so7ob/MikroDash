@@ -619,3 +619,78 @@ identity, performance bounds or the production portal domain handoff. Those
 remain separate implementation/acceptance work. No operator RADIUS or profile
 was changed by this issue. Final-head and post-merge CI are delivery checks and
 must still be verified separately from these local observations.
+
+
+## Guarded domain runtime: Issue #72
+
+Implementation `f83b1337` was byte-matched across all 2244 tracked files to its
+isolated verification archive. The visible checkout remained the development
+checkout; unrelated owner debugger/configuration files were preserved.
+
+- Native Go 1.27.3 `gofmt`, `go vet ./...`, `go test ./...`: exit 0, all 64 tested
+  packages. Test executables used the disk-backed temporary-directory wrapper.
+- Current `govulncheck`: zero reachable findings; the uncalled required-module
+  advisory remains visible. Frontend build, all generated-source checks,
+  TypeScript, 150 frontend and 32 tooling tests passed. The script's skipped
+  container Go half was run separately with the native compiler, not counted
+  as a passing container check.
+- Focused routing/admission/operation race tests passed for subscriber (5.524 s)
+  and server (3.016 s). The independent domain-identity fuzz run passed 134719
+  executions in 31.016 seconds with two workers.
+- Four separately compiling mutants were killed by behavioral assertions:
+  removing the RADIUS routing guard, portal guard, failed-read invalidation and
+  renewal packet guard. Visible source was never mutated; archive files were
+  restored after each run.
+- Authenticated UDP tests cover wrong/duplicate domain identities, normalized
+  Unicode usernames, exact accepted retries, replay refusal and ticket retention
+  on identity mismatch. Call-site tests cover cold/unsafe routing before ticket
+  creation or lease reservation, shared background metadata lifecycle, continued
+  accounting and guarded renewal sends.
+
+The final guarded implementation ran through actual Chromium, HTTPS HotSpot,
+RADIUS, accounting, shared API observations and CoA on owned CHR 7.24.5. A new
+Unicode account used a single credential submission and returned to a confirmed
+dashboard in 2158 ms. Both speeds were readback-verified without changing the
+subscription/expiry/byte balances. Six viewport/theme axe, overflow, English/LTR,
+browser-error and portal/admin-isolation checks passed. Five renewals retained
+the same session with every browser closed. The final 65536-byte download quota
+test committed 242 seconds, 88321 download and 2636 upload bytes, zero pending
+finality, 3358 seconds left and zero download left. Actual exhausted re-entry was
+rejected while account access remained available; its six browser checks passed.
+
+The offered 1 MiB download delivered 87840 client payload bytes before curl exit
+28 after 12.019 seconds. That is a client timeout sample, not disconnect latency.
+Accounted download excess was 22785 bytes, under concurrent two-worker fuzz and
+focused race tests. No target overshoot/resource/latency budget is inferred.
+
+Earlier independently preserved fixtures expose two instrumentation failures:
+the initial exhaustion helper queried nonexistent `stop_at` after transferring
+data, and the outage helper expected flow stage `denied` instead of the actual
+`rejected`. Original failures remain; read-only continuation verified trusted Stop
+and 55905-byte accounted excess in the first case, and retained missing-Stop
+holds with rejected admission in the second. Lost client/absence/downtime samples
+remain null. Assertions proved local absence within the 71-second bound and at
+least 95 seconds of outage; these are bounds, not recovered measurements. The
+outage ran on the earlier transport source, not the final guarded runtime.
+
+Actual NAS timeout routing also exposed fallback to a blank-domain legacy
+stand-in. A separate disjoint-domain trial selected the intended authority and
+made no legacy request when the pilot endpoint timed out, for both qualified
+syntaxes. It did not run a real User Manager package. The runtime now rejects
+blank-domain/ambiguous fallback before granting admission or renewal.
+
+After the last browser exited, nested and outer rollback verified the exact
+original ordered non-secret RADIUS rows/profile. The original owned calendar
+runtime was restored, all older balances/exhausted accounts/unresolved holds
+were checked unchanged, and the operator debugger was never signalled. Private
+raw logs, screenshots, receipts and failed runs remain under the issue/lab
+evidence directories. No target C RADIUS/profile/cutover was applied. Target UDP,
+real User Manager transition, final guarded outage and load acceptance remain
+pending. Final lifecycle/documentation changes require their own exact-head CI.
+
+The final lifecycle correction moves the routing permission check immediately
+before packet creation, preserving policy/deadline failure and fact verification
+when routing is unavailable. Its focused regressions passed (0.722 s). A fifth
+compiling mutant moved the check back before deadline processing; the new
+call-site regression killed it by detecting the incorrectly retained pending
+operation. This correction adds no permission to send a packet.

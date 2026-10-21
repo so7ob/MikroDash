@@ -176,9 +176,6 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 			}
 			continue
 		}
-		if !s.LoginRoutingAllows(n, o.Request.Username, at) {
-			continue
-		}
 		current, err := s.Store.Snapshot(ctx, owner, at)
 		if err != nil {
 			return err
@@ -212,6 +209,9 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 			continue
 		}
 		if o.State != "requested" && at.Sub(o.UpdatedAt) < 3*time.Second {
+			continue
+		}
+		if !s.LoginRoutingAllows(n, o.Request.Username, at) {
 			continue
 		}
 		p, err := operationPacket(o, n, at, row.Address)

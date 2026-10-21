@@ -555,3 +555,37 @@ format/vet/current vulnerability scan, frontend build/generators/TypeScript,
 150 frontend and 32 tooling tests passed. The lab package race test and four
 compiling behavioral safety mutants passed their respective acceptance checks.
 See Subscriber-Verification.md; final-head and post-merge CI remain separate.
+
+
+### Guarded login-domain handoff: Issue #72
+
+Implemented an optional server-owned domain transport preserving the stored
+Unicode account, subscription and usage identities. Domain-mode RADIUS verifies
+the normalized username/domain attributes before consuming a ticket. A fresh
+version-bound background routing view is now required at portal ticket creation,
+RADIUS reservation and new renewal/rate writes. Cold, failed or unsafe metadata
+cannot grant new access. Accounting, operation deadline failure and already-issued
+readback facts remain independent of that permission. One NAS view serves all
+its subscribers without a page watcher or per-account NAS poll.
+
+The actual timeout lab found that a blank-domain legacy endpoint receives
+fallback after a pilot timeout. Configuration review now refuses it. A separate
+disjoint-domain/default-domain trial proved selection and timeout isolation on
+CHR 7.24.5; actual User Manager compatibility remains unverified.
+
+On guarded implementation `f83b1337`, the real owned-CHR browser journey passed
+single login, a 2158 ms confirmed dashboard return, both verified speed choices,
+five watcher-free renewals on the same session, trusted final quota accounting
+and exhausted re-entry refusal with safe portal access. English/LTR, Unicode,
+six theme/viewport axe checks and admin-route isolation passed. A 65536-byte local
+download limit accounted 88321 bytes (22785 bytes excess). This is measured lab
+behavior under declared concurrent test load, not an accepted target budget.
+The exact original NAS configuration and owned calendar runtime were restored;
+every prior balance and unresolved finality hold was preserved.
+
+This advances AC-03/10/13/14/15 but closes no target acceptance row. C remains
+Shadow. Target UDP delivery, actual User Manager transition, guarded target
+outage/performance measurements and a separately authorized narrow cutover remain
+pending. Earlier lab instrumentation failures and lost timing samples are retained
+in Subscriber-Verification.md. The wider administrative/import/policy gaps above
+remain part of the active module goal.
