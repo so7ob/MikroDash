@@ -91,6 +91,27 @@ func TestStatusBatchPreservesUsageIdentityCredentialsAndCorrelatedAudit(t *testi
 	}
 }
 
+func TestStatusBatchReturnsEveryReviewedResultInOrder(t *testing.T) {
+	store, first, second, _ := statusBatchFixture(t)
+	if err := store.SetStatus(t.Context(), "synthetic-admin", second.ID, "suspended", "Synthetic already suspended account"); err != nil {
+		t.Fatal(err)
+	}
+	unchanged, err := store.AccountByID(t.Context(), second.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := store.SetStatusBatch(t.Context(), "synthetic-admin", "suspended", "Synthetic mixed outcome review", []AccountStatusExpectation{reviewedStatus(unchanged), reviewedStatus(first)})
+	if err != nil || len(result.Changed) != 1 || result.Skipped != 1 || len(result.Results) != 2 {
+		t.Fatal("mixed batch omitted a reviewed result", result, err)
+	}
+	if result.Results[0].Account != unchanged || result.Results[0].Outcome != "unchanged" || result.Results[1].Account.ID != first.ID || result.Results[1].Outcome != "changed" || result.Results[1].Account != result.Changed[0] || result.Results[1].Account.StatusRevision == first.StatusRevision {
+		t.Fatal("results do not identify committed and unchanged rows in review order", result)
+	}
+	if statusAuditCount(t, store) != 1 {
+		t.Fatal("unchanged outcome created a false audit mutation")
+	}
+}
+
 func TestStatusBatchRollsBackEarlierUpdatesOnConflictOrAuditFailure(t *testing.T) {
 	for _, cause := range []string{"missing", "stale", "audit"} {
 		t.Run(cause, func(t *testing.T) {
@@ -105,7 +126,7 @@ func TestStatusBatchRollsBackEarlierUpdatesOnConflictOrAuditFailure(t *testing.T
 					t.Fatal(err)
 				}
 			}
-			if result, err := store.SetStatusBatch(t.Context(), "synthetic-admin", "suspended", "Synthetic transaction fault", items); err == nil || len(result.Changed) != 0 || result.BatchID != "" {
+			if result, err := store.SetStatusBatch(t.Context(), "synthetic-admin", "suspended", "Synthetic transaction fault", items); err == nil || len(result.Changed) != 0 || len(result.Results) != 0 || result.BatchID != "" {
 				t.Fatal("partial batch reported success", result, err)
 			}
 			for _, account := range []Account{first, second} {

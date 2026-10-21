@@ -22,10 +22,16 @@ type AccountStatusExpectation struct {
 	ExpectedRevision *Quantity `json:"expectedRevision"`
 }
 
+type AccountStatusResult struct {
+	Account Account `json:"account"`
+	Outcome string  `json:"outcome"`
+}
+
 type AccountStatusBatch struct {
-	BatchID string    `json:"batchId"`
-	Changed []Account `json:"changed"`
-	Skipped int       `json:"skipped"`
+	BatchID string                `json:"batchId"`
+	Changed []Account             `json:"changed"`
+	Skipped int                   `json:"skipped"`
+	Results []AccountStatusResult `json:"results"`
 }
 
 // SetStatusBatch fences every reviewed status and commits every changed account
@@ -65,6 +71,7 @@ func (s *Store) SetStatusBatch(ctx context.Context, actor, status, reason string
 		}
 		if account.Status == status {
 			out.Skipped++
+			out.Results = append(out.Results, AccountStatusResult{Account: account, Outcome: "unchanged"})
 			continue
 		}
 		result, err := tx.ExecContext(ctx, `UPDATE subscriber_accounts SET status=? WHERE id=? AND status=?`, status, item.AccountID, item.ExpectedStatus)
@@ -95,6 +102,7 @@ func (s *Store) SetStatusBatch(ctx context.Context, actor, status, reason string
 		}
 		account.Status = status
 		out.Changed = append(out.Changed, account)
+		out.Results = append(out.Results, AccountStatusResult{Account: account, Outcome: "changed"})
 	}
 	if err = tx.Commit(); err != nil {
 		return AccountStatusBatch{}, err

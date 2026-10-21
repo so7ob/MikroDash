@@ -597,7 +597,9 @@ at most 50 accounts. The current table's individual Suspend/Reactivate action
 opens the same inline review. New status and reason are frozen with the account
 identities/statuses/revisions before confirmation. The server checks the full
 review in one transaction, commits correlated before/after audit and rejects the
-whole selection on missing/stale data or audit failure. Changed-then-restored
+whole selection on missing/stale data or audit failure. Committed responses and
+the UI identify every changed or unchanged item; a failed/uncertain browser request
+marks every reviewed item unconfirmed. Changed-then-restored
 status is fenced by its decimal audit revision. Schema 44 adds only the status
 audit lookup index; it rewrites no balance or credential.
 

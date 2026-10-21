@@ -55,7 +55,13 @@ are refused to avoid JavaScript precision loss. The batch contains 1–50 accoun
 the actor and a valid Unicode reason of at most 2048 UTF-8 bytes are mandatory.
 
 A committed response contains `batchId`, `changed` account rows with their new
-revisions and a `skipped` count. Already matching statuses are skipped without
+revisions, a `skipped` count and ordered `results` for every reviewed item. Each
+result has an `account` row and an `outcome` of `changed` or `unchanged`; an
+unchanged account retains its revision. The UI displays each original username
+with its committed outcome. It clears previous results and success feedback while
+a new request is pending. A conflict or uncertain response marks every reviewed
+item unconfirmed and requires a fresh read. It does not infer successful or failed
+storage from a lost response. Already matching statuses are skipped without
 fabricating another change/audit. The correlation ID is not an authentication
 credential or an idempotency token. A stale retry is refused rather than silently
 reusing an old review; after a lost response, read the current state before trying

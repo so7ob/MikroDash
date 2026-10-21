@@ -63,8 +63,13 @@ func TestSubscriberStatusBatchUsesAuthorityAndAtomicConflictPath(t *testing.T) {
 			t.Fatal("missing or numeric reviewed revision accepted", w.Code)
 		}
 	}
-	if w := request(body, origin, cookie, "subscriber-admin"); w.Code != 200 || !strings.Contains(w.Body.String(), `"batchId"`) || strings.Contains(w.Body.String(), "password") {
+	w := request(body, origin, cookie, "subscriber-admin")
+	if w.Code != 200 || strings.Contains(w.Body.String(), "password") {
 		t.Fatal("atomic HTTP batch failed or exposed a credential", w.Code, w.Body.String())
+	}
+	var result subscriber.AccountStatusBatch
+	if err = json.Unmarshal(w.Body.Bytes(), &result); err != nil || result.BatchID == "" || len(result.Results) != 2 || result.Results[0].Account.ID != id || result.Results[1].Account.ID != other.ID || result.Results[0].Outcome != "changed" || result.Results[1].Outcome != "changed" {
+		t.Fatal("HTTP batch omitted per-account committed outcomes", result, err)
 	}
 	if w := request(body, origin, cookie, "subscriber-admin"); w.Code != 409 || !strings.Contains(w.Body.String(), "review the entire selection again") {
 		t.Fatal("stale HTTP batch was applied", w.Code, w.Body.String())

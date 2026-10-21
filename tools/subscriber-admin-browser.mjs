@@ -134,6 +134,8 @@ try {
  await page.waitForFunction(()=>document.querySelector('#subscriberAdminNotice').textContent.includes('review the entire selection again'));
  assert.equal(await apply.isDisabled(),true,'stale review could be replayed');
  assert.equal(await reason.inputValue(),'Synthetic stale selection','conflict erased the reason');
+ assert.equal(await page.locator('#subscriberBatchResults li').count(),2);
+ for(const text of await page.locator('#subscriberBatchResults li').allTextContents())assert.ok(text.includes('Not confirmed. Refresh the list.'));
  let stored=await currentAccounts();assert.equal(stored.accounts.find(account=>account.id===createdAccount.id).status,'active','stale batch partially updated its first account');
  assert.equal(stored.accounts.find(account=>account.id===otherAccount.id).status,'active');
  assert.notEqual(stored.accounts.find(account=>account.id===otherAccount.id).statusRevision,otherAccount.statusRevision,'ABA fixture did not advance the stored review identity');
@@ -169,6 +171,9 @@ try {
  assert.ok(!(await page.locator('#subscriberAdminNotice').innerText()).includes('Status updated for'),'UI claimed commit success before receiving a response');
  releaseBatch();const applied=await appliedBatch;assert.equal(applied.status(),200);const appliedResult=await applied.json();assert.equal(appliedResult.changed.length,2);assert.ok(appliedResult.batchId);
  await page.getByText('Status updated for 2 subscribers. 0 already had that status.',{exact:true}).waitFor();
+ assert.deepEqual(appliedResult.results.map(item=>[item.account.id,item.outcome]),[[createdAccount.id,'changed'],[otherAccount.id,'changed']]);
+ assert.equal(await page.locator('#subscriberBatchResults li').count(),2);
+ for(const text of await page.locator('#subscriberBatchResults li').allTextContents())assert.ok(text.includes('Updated: suspended'));
  assert.equal(await search.evaluate(node=>node===document.activeElement),true,'committed batch lost keyboard focus');
  stored=await currentAccounts();assert.equal(stored.mode,'disabled');
  for(const id of [createdAccount.id,otherAccount.id])assert.equal(stored.accounts.find(account=>account.id===id).status,'suspended');
@@ -181,11 +186,23 @@ try {
  await search.fill('');await accountStatus.selectOption('all');
  await choose(createdAccount.id).check();await choose(otherAccount.id).check();
  await page.getByLabel('New account status',{exact:true}).selectOption('active');
+ await choose(process.env.SUBSCRIBER_ACCOUNT_ID).check();
  await reason.fill('Synthetic reviewed reactivation');await prepare.click();await confirm.check();
+ let releaseSecond,secondFetched;const secondGate=new Promise(resolve=>{releaseSecond=resolve;}),secondReady=new Promise(resolve=>{secondFetched=resolve;});
+ await page.route('**/api/subscribers',async route=>{const response=await route.fetch();secondFetched();await secondGate;await route.fulfill({response});},{times:1});
  const reactivated=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='POST');
- await apply.click();assert.equal((await reactivated).status(),200);
+ await apply.click();await secondReady;
+ assert.equal(await page.locator('#subscriberBatchResults').isVisible(),false,'previous batch results remained visible during the next request');
+ assert.equal(await page.locator('#subscriberAdminNotice').innerText(),'Applying reviewed status change…','prior success remained visible during the next request');
+ releaseSecond();const secondResponse=await reactivated;assert.equal(secondResponse.status(),200);
+ const secondResult=await secondResponse.json();assert.equal(secondResult.changed.length,2);assert.equal(secondResult.skipped,1);
+ assert.deepEqual(secondResult.results.map(item=>[item.account.id,item.outcome]),[[createdAccount.id,'changed'],[otherAccount.id,'changed'],[process.env.SUBSCRIBER_ACCOUNT_ID,'unchanged']]);
+ await page.getByText('Status updated for 2 subscribers. 1 already had that status.',{exact:true}).waitFor();
+ assert.equal(await page.locator('#subscriberBatchResults li').count(),3);
+ assert.ok((await page.locator('#subscriberBatchResults li').last().innerText()).includes('Already had this status: active'));
  await page.waitForFunction(()=>document.querySelector('#subscriberBatchReview').hidden);
  stored=await currentAccounts();for(const id of [createdAccount.id,otherAccount.id])assert.equal(stored.accounts.find(account=>account.id===id).status,'active');
+ for(const width of [375,1280]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'batch results overflow');const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);await page.screenshot({path:`${out}/subscriber-status-results-synthetic-${width}.png`,fullPage:true});}
 
  await page.locator(`[data-sub-inspect="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).click();
  await page.locator('#subscriberInspect').getByText('Accounting reconciliation required (1 pending). Last confirmed balances are shown. New Internet connections are blocked until the counters are settled.',{exact:true}).waitFor();

@@ -778,3 +778,21 @@ Maintenance was deferred while another compiler was live, then only that
 reproducible task cache was cleaned after all compilers ended. Operator data,
 global/named caches, active binaries and raw evidence were preserved. The final
 complete pass must run again after this environment correction.
+
+
+After the task-cache repair, exact source `70be6f05` passed the full native Go
+format/vet/package checks, current vulnerability scan, frontend build, generated
+source checks, TypeScript, all 151 frontend tests and 32 tooling tests. The script's
+Go-half omission is covered by the separately completed native commands; it is
+not counted as a script-executed check. No called vulnerability was reported.
+
+The subsequent per-item result completion has its own working-source evidence:
+focused ledger/HTTP tests passed (10.874 s / 0.440 s), TypeScript passed and the
+actual protected HTTP/SQLite Chromium journey passed (68.598 s). It verifies
+ordered changed/unchanged outcomes, unconfirmed rows after a rejected review,
+and clears old committed feedback while a second genuine response is held.
+Synthetic result screenshots at 375/1280 passed overflow and axe checks. A compiling
+mutant omitting unchanged outcomes failed the mixed-result regression. A first
+command used the visible positive control rather than the archive; its passing
+log is retained separately and is not counted as a mutation kill. Full final-head
+repository/CI checks remain separately required after this code change.
