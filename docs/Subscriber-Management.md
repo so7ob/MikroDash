@@ -34,7 +34,8 @@ to bypass startup checks. See the [lab guide](Subscriber-Lab-Guide.md).
 MikroDash owns subscriber credentials, immutable plan versions, subscriptions, period usage,
 reservations and the accounting journal in the existing `mikrodash.db`. Schema migrations 38 through 41
 add `subscriber_*` tables; migration 42 adds partial finality/account lookup indexes,
-and migration 43 adds NAS/peer-bound connection-flow metadata. They do not rewrite `users.json` or use User Manager as a hidden
+and migration 43 adds NAS/peer-bound connection-flow metadata. Migration 44 adds
+only the indexed status-audit lookup used by reviewed account changes. They do not rewrite `users.json` or use User Manager as a hidden
 runtime backend. User Manager is currently a read-only preview source.
 
 `internal/subscriber/policy.go` is a pure policy evaluator. `storage.go` and `accounting.go`
@@ -213,7 +214,8 @@ within the existing 256 UTF-8 byte name bound. The before/after values and reaso
 commit in `subscriber_audit` with the edit. No-op edits create no second change.
 Account IDs, usernames, credentials, status, subscriptions and balances are unchanged.
 The existing Subscribers table has an inline editor with save/cancel, busy and
-validation states. Broader account/credential editing and search remain incomplete.
+validation states. Broader account/credential editing and server-side pagination
+remain incomplete; the current table provides local literal search/status filters.
 
 Snapshots include a content-derived version, `observedAt`, `lastSyncedAt`, quality, separate
 lifetime counters, subscription, per-limit decisions, `pendingAccounting` and recent sessions. Pending accounting reports `reconciling`, preserves known values and explains the admission block. The portal delivers
@@ -228,7 +230,7 @@ Asia/Aden, three HotSpot servers and C using HTTPS, RADIUS accounting and its lo
 setting. Incoming RADIUS is enabled on 3799 and the application bridge still exists. No active
 FastTrack rule was found in that snapshot. This does not prove forwarding/IPv6 isolation.
 A later read-only veth inspection confirmed the configured router-container address; this does not verify that the container runs the subscriber build. Private
-addressing and raw account/topology reports are deliberately excluded from public documentation. User Manager currently exposes one profile, one limitation,
+addressing and raw account/topology reports are deliberately excluded from public documentation. At that inspection, User Manager exposed one profile, one limitation,
 one profile link, two users and two user-profile rows. The limitation is one hour with daily
 reset. Historical definitions mentioned in the request are not assumed to exist today.
 
@@ -256,8 +258,8 @@ This is a development preview, not the complete requested module. Outstanding it
   ceilings; burst/minimum/priority support and distinct long-lived device limits.
 - Shared rapid API observations and reconciliation for the 5-second freshness target; true
   measured latency/CPU/memory/flash/channel budgets under load.
-- Complete plan/schedule/speed editors, remaining account/credential edits, search/pagination,
-  safe bulk operations, audit/usage screens,
+- Complete plan/schedule/speed editors, remaining account/credential edits, paged/server-side
+  search, bulk operations beyond the reviewed status action, audit/usage screens,
   scenario simulation, complete device history and setup wizard.
 - User Manager mapping/apply and approved period opening balances. The CLI implements preview
   only and cannot silently import lifetime totals into period balances.

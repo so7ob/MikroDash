@@ -770,3 +770,11 @@ exempted. The scanner now recognizes that producer syntax; its positive control
 passes and renaming the actual toggle producer while retaining the lookup is
 detected by a separately compiling behavioral mutant. The three affected static
 checks pass (17.671 s). Full final-source checks and CI remain separate evidence.
+
+The exact `8e91eb36` browser run also passed (19.059 s). Its complete Go pass
+stopped at linker failures because the task-owned RAM compiler cache exhausted
+`/dev/shm`; those are retained as build failures, not passing package tests.
+Maintenance was deferred while another compiler was live, then only that
+reproducible task cache was cleaned after all compilers ended. Operator data,
+global/named caches, active binaries and raw evidence were preserved. The final
+complete pass must run again after this environment correction.
