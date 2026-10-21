@@ -80,6 +80,12 @@ and one common batch ID. The indexed status-only audit lookup detects a changed
 then restored status without an additional account database or mutable history.
 Schema 44 adds only the idempotent partial index `subscriber_status_revision`;
 it changes no stored identity, credential, subscription, reservation or usage.
+Subscriber audit IDs advance explicitly inside the transaction. At the signed
+64-bit maximum, audited writes fail and roll back instead of accepting SQLite's
+random smaller rowid fallback. The last representable revision remains readable;
+old review tokens cannot become current again. Do not delete audit history or
+restore an older balance database to work around an exhausted identity range.
+See [SQLite rowid allocation](https://www.sqlite.org/autoinc.html).
 
 Suspension blocks new admission and reaches the existing independently running,
 guarded enforcement worker. This admin action adds no RouterOS API write path

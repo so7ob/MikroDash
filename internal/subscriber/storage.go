@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -87,7 +88,16 @@ func audit(tx *sql.Tx, actor, action, target, reason string, now time.Time) erro
 	if strings.TrimSpace(actor) == "" || strings.TrimSpace(reason) == "" {
 		return errors.New("actor and reason required")
 	}
-	_, err := tx.Exec(`INSERT INTO subscriber_audit(actor,action,target,reason,created_at) VALUES(?,?,?,?,?)`, actor, action, target, reason, now.Unix())
+	// SQLite may choose a smaller random rowid after MaxInt64. Review tokens
+	// require monotonic committed identities, so exhaustion must roll back writes.
+	var previous int64
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(id),0) FROM subscriber_audit`).Scan(&previous); err != nil {
+		return err
+	}
+	if previous < 0 || previous == math.MaxInt64 {
+		return errors.New("subscriber audit revision cannot advance within the supported range")
+	}
+	_, err := tx.Exec(`INSERT INTO subscriber_audit(id,actor,action,target,reason,created_at) VALUES(?,?,?,?,?,?)`, previous+1, actor, action, target, reason, now.Unix())
 	return err
 }
 

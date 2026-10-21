@@ -301,3 +301,30 @@ func TestStatusRevisionJSONPreservesLargeAuditIdentity(t *testing.T) {
 		t.Fatal("committed status did not retain exact audit identity", err)
 	}
 }
+
+func TestStatusRevisionAtIntegerBoundaryCannotWrapOrReuseReview(t *testing.T) {
+	store, first, _, _ := statusBatchFixture(t)
+	const maximum = int64(9223372036854775807)
+	if _, err := store.sql.Exec(`INSERT INTO subscriber_audit(id,actor,action,target,reason,created_at) VALUES(?,?,'account.active',?,?,?)`, maximum-1, "synthetic-admin", first.ID, "Synthetic integer boundary", time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	current, err := store.AccountByID(t.Context(), first.ID)
+	if err != nil || current.StatusRevision != Quantity(maximum-1) {
+		t.Fatal(current, err)
+	}
+	result, err := store.SetStatusBatch(t.Context(), "synthetic-admin", "suspended", "Last representable revision", []AccountStatusExpectation{reviewedStatus(current)})
+	if err != nil || len(result.Changed) != 1 || result.Changed[0].StatusRevision != Quantity(maximum) {
+		t.Fatal("last representable revision did not commit exactly", result, err)
+	}
+	frozen := result.Changed[0]
+	if err = store.SetStatus(t.Context(), "synthetic-admin", first.ID, "active", "Legacy status at exhausted revision range"); err == nil {
+		t.Fatal("individual status silently wrapped the audit identity")
+	}
+	if out, err := store.SetStatusBatch(t.Context(), "synthetic-admin", "active", "Batch at exhausted revision range", []AccountStatusExpectation{reviewedStatus(frozen)}); err == nil || out.BatchID != "" || len(out.Results) != 0 {
+		t.Fatal("batch reported success after revision space was exhausted", out, err)
+	}
+	after, err := store.AccountByID(t.Context(), first.ID)
+	if err != nil || after != frozen || statusAuditCount(t, store) != 1 {
+		t.Fatal("audit exhaustion changed state or reused an existing revision", after, err)
+	}
+}

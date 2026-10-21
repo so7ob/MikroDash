@@ -805,3 +805,16 @@ failed run is retained separately. The harness now always drains the response
 before propagating an assertion, and the diagnostic replay reports the intended
 stale-result assertion (61.305 s). This is test instrumentation repair, not a
 weakened product assertion. The isolated source was restored afterward.
+
+
+Exact `7048bab5` also passed the complete native repository checks and tagged
+protected-browser journey (51.843 s). Focused per-item race checks passed for
+subscriber/server (63.078 s / 8.792 s). A subsequent integer-boundary review found
+that SQLite's default rowid allocation can pick a smaller identity after the
+signed 64-bit maximum; the original individual status route then reused the
+maximum review token. The real SQLite regression failed on the old allocator,
+then passed after explicitly allocating the next audit ID and refusing exhaustion
+inside the transaction. Focused ledger/server checks passed (9.037 s / 0.348 s).
+The test covers the last exact commit, old individual status writes, reviewed
+batches, rollback and retained revision/state. The final code change requires its
+own complete verification; the earlier full passes do not establish that result.
