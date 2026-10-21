@@ -26,7 +26,7 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-13 | Single C sign-in and safe exhausted portal | Actual automatic CHR landing, one credential submission, HTTPS browser POST, owned return and verified rates pass; exhausted and missing-Stop refusal both return automatically to the safe account. Six viewport/theme/axe checks per journey pass; L009/C and OS captive browsers pending | actual client HTTPS POST and verified session | partial | passed: scoped actual CHR + synthetic transports | pending: client behind C |
 | AC-14 | Ownership/device/network/ticket isolation | HTTPS/HTTP/SQLite/UDP tests cover peer, forwarded-client, device, ticket, admin-route and WebSocket isolation | expanded runtime/operations security | partial | prior pass | pending: C isolation |
 | AC-15 | Authenticators, commit-before-reply, faults | UDP forgery/unknown-source/storage fault tests, strict presence/duplicate/range validation and commit-before-reply receipts implemented | crash/rollback and operation replay tests | partial | partial | pending: target protocol |
-| AC-16 | Complete admin/portal/browser workflows | Four tabs including tested reconciliation and display-name editing; broader account/credential editors, search/bulk/history/setup still pending | backend edit/search/bulk/history/simulator/setup, UI | partial | partial | pending: final browser journey |
+| AC-16 | Complete admin/portal/browser workflows | Four tabs with tested reconciliation/name editing, literal account filters and reviewed atomic status batches; broader credential editors/history/setup still pending | protected account transactions, revision fencing, existing simulator, UI | partial | scoped HTTP/SQLite/browser passed | pending: complete workflows |
 | AC-17 | Idempotent import/opening/cutover/rollback | Read-only User Manager preview | transactional mapping/apply/approval | partial | missing | pending: approved live batch |
 | AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
 | AC-19 | Target build and existing app compatibility | Verified develop CI, prior ARM64 build and clean 27d17730 ARMv7 static build; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
@@ -589,3 +589,29 @@ outage/performance measurements and a separately authorized narrow cutover remai
 pending. Earlier lab instrumentation failures and lost timing samples are retained
 in Subscriber-Verification.md. The wider administrative/import/policy gaps above
 remain part of the active module goal.
+
+### Reviewed account status batches: Issue #74
+
+Added original-data account search/status filtering and explicit selections of
+at most 50 accounts. The current table's individual Suspend/Reactivate action
+opens the same inline review. New status and reason are frozen with the account
+identities/statuses/revisions before confirmation. The server checks the full
+review in one transaction, commits correlated before/after audit and rejects the
+whole selection on missing/stale data or audit failure. Changed-then-restored
+status is fenced by its decimal audit revision. Schema 44 adds only the status
+audit lookup index; it rewrites no balance or credential.
+
+Scoped real SQLite/HTTP, concurrent/race and synthetic Chromium checks cover
+rollback, permission/Origin, no-op/replay behavior, large exact revisions, Unicode,
+vouchers, keyboard, six theme/viewport axe checks and delayed commit feedback.
+A committed suspension reaches authenticated loopback background Disconnect
+without a browser, while unresolved finality is retained. This is synthetic NAS
+observation, not target C disruption. A prior success-banner race in successive
+reconciliation approvals was found and fixed at its UI call site, with a genuine
+delayed-response regression.
+
+The module still lacks the broader account/credential editors, history/setup UI,
+transactional import and the policy/performance/target acceptance work listed
+above. Search remains local to the complete protected list; large-fleet
+pagination/load acceptance is unmeasured. See
+[the account/API/migration contract](Subscriber-Account-Administration.md).

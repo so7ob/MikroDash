@@ -176,7 +176,7 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | Route | Contract |
 | --- | --- |
 | `GET /api/subscribers` | Accounts, immutable plans, runtime mode and cached per-NAS `routing[]` freshness |
-| `POST /api/subscribers` | `create`, `plan`, `assign`, `status`, or `name`; each requires a reason |
+| `POST /api/subscribers` | `create`, `plan`, `assign`, `status`, `status-batch`, or `name`; each requires a reason |
 | `GET /api/subscribers/snapshot?account=...` | Read-only policy evaluation and current ledger snapshot |
 | `GET /api/subscribers/reconciliation?account=...` | Account-scoped byte gaps, holds, final-reading reviews and accounting receipts |
 | `POST /api/subscribers/reconciliation` | Reasoned final reading, byte-gap allocation or legacy balance approval |
@@ -198,6 +198,12 @@ unknown or unsafe metadata returns `authentication-routing-unavailable` without
 granting a lease. Accounting and durable operation deadline/failure processing
 continue. Cached admin metadata does not itself authorize a particular account
 and never triggers per-user NAS reads.
+
+[Reviewed account batches](Subscriber-Account-Administration.md) require each
+selected account's current status and decimal `statusRevision`. A changed then
+restored status still invalidates an old review. All changes and correlated audit
+commit together; any conflict rolls back the whole selection. Search/status
+filters operate locally on the existing complete protected account response.
 
 The administrative `name` action accepts `accountId`, `expectedName`, `name` and
 `reason`. `expectedName` is mandatory, including an explicit empty string when

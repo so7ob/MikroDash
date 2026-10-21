@@ -740,6 +740,24 @@ form. Return context is an owned opaque reference; errors remain in the account
 without automatic retries or redirect loops. The existing form and action
 components carry busy and keyboard states.
 
+### Reviewed subscriber account selection
+
+The dense, calm, technical administration console retains its existing fonts,
+semantic pills, table density and English/LTR forms. Search and status filters
+state shown/total counts without changing original Unicode data. Individual row
+checkboxes create an explicit bounded selection; no implicit all-account action
+or hidden filtered selection is applied. The inline review places the frozen
+identities, before/after status and reason beside the confirmation and apply
+controls. It uses the existing form grid and button hierarchy, with no new
+palette, typography, decorative patterns, cards or motion.
+
+Busy, conflict, empty-filter, cancellation and committed states use plain text
+and existing controls. Keyboard focus returns to the selected checkbox after a
+row redraw, to the reason when returning from review and to search after a
+committed batch. The synthetic protected HTTP/SQLite browser journey checks
+dark/light/Nord at 375/1280, escaped Unicode content, frozen review and zero axe
+violations. Checklist: zero new decorative tells; existing token system retained.
+
 Synthetic Shadow browser checks pass for native TLS and the explicit proxy,
 normal/pending accounting, restricted session storage, explicit login intent,
 owned return recovery, keyboard sign-in/Connect/logout focus, 375/1280, three

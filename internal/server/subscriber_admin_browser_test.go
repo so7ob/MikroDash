@@ -3,9 +3,11 @@
 package server
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,6 +91,17 @@ func TestSubscriberAdminReconciliationBrowserAcceptance(t *testing.T) {
 		t.Fatalf("admin browser acceptance: %v\n%s", err, output)
 	}
 	t.Log(string(output))
+	var changes, batches int
+	// Inspect this test's isolated SQLite file read-only, independently of the
+	// writer; do not expose a production raw-SQL handle for browser assertions.
+	reader, err := sql.Open("sqlite", (&url.URL{Scheme: "file", Path: s.auditDB.Path(), RawQuery: "mode=ro"}).String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	if err = reader.QueryRow(`SELECT count(*),count(DISTINCT json_extract(reason,'$.batchId')) FROM subscriber_audit WHERE action='account.status.batch'`).Scan(&changes, &batches); err != nil || changes != 4 || batches != 2 {
+		t.Fatal("browser status batches did not match durable audit", changes, batches, err)
+	}
 	gaps, err := ledger.ByteGaps(t.Context(), id)
 	if err != nil || len(gaps) != 1 || gaps[0].ResolvedAt.IsZero() {
 		t.Fatal(gaps, err)

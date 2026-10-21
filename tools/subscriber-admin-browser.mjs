@@ -1,11 +1,12 @@
 // Real protected HTTP/SQLite acceptance on a synthetic local TLS fixture.
 import {createRequire} from 'node:module';
-import {mkdirSync} from 'node:fs';
+import {mkdirSync,readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const require=createRequire(process.env.SUBSCRIBER_BROWSER_MODULE+'/package.json');
 const {chromium}=require('playwright');
 const {default:AxeBuilder}=require('@axe-core/playwright');
 const out=process.env.SUBSCRIBER_EVIDENCE_DIR;
+const geometrySource=readFileSync(new URL('./form-geometry.js',import.meta.url),'utf8');
 mkdirSync(out,{recursive:true});
 const browser=await chromium.launch({headless:true,...(process.env.SUBSCRIBER_CHROMIUM?{executablePath:process.env.SUBSCRIBER_CHROMIUM}:{})});
 try {
@@ -99,6 +100,93 @@ try {
  const named=(await (await context.request.get(origin+'/api/subscribers')).json()).accounts.find(a=>a.id===createdAccount.id);
  assert.equal(named.name,editedName);assert.equal(named.username,createdAccount.username);
 
+ // Account selection is explicit; changing filters cancels any old review.
+ const apiHeaders={Origin:origin,'X-MikroDash-Request':'subscriber-admin'};
+ const currentAccounts=()=>context.request.get(origin+'/api/subscribers').then(response=>response.json());
+ const otherAccount=(await currentAccounts()).accounts.find(account=>account.username==='synthetic-account-two');
+ assert.ok(otherAccount);
+ const choose=id=>page.locator(`[data-sub-select="${id}"]`);
+ const reason=page.getByLabel('Batch change reason',{exact:true});
+ const prepare=page.getByRole('button',{name:'Review selected subscribers',exact:true});
+ const apply=page.getByRole('button',{name:'Apply reviewed status change',exact:true});
+ const confirm=page.getByLabel('I reviewed these subscribers and their new status.',{exact:true});
+ const search=page.getByLabel('Search subscribers',{exact:true});
+ const accountStatus=page.getByLabel('Account status',{exact:true});
+ await choose(createdAccount.id).check();
+ assert.equal(await choose(createdAccount.id).evaluate(node=>node===document.activeElement),true,'selection redraw lost keyboard focus');
+ await reason.fill('Synthetic cancelled review');await prepare.click();
+ assert.equal(await confirm.evaluate(node=>node===document.activeElement),true);
+ assert.equal(await apply.isDisabled(),true,'review sent a batch without confirmation');
+ await page.getByRole('button',{name:'Back to selection',exact:true}).click();
+ assert.equal(await reason.evaluate(node=>node===document.activeElement),true);
+ await prepare.click();await search.fill('مشترك-no-match');
+ assert.equal(await page.locator('#subscriberBatchReview').isVisible(),false,'filter kept a hidden reviewed selection');
+ assert.match(await page.locator('#subscriberSelectionCount').innerText(),/^0 selected/);
+ await page.getByText('No subscribers match the current filters.',{exact:true}).waitFor();
+ await search.fill('');
+ await choose(createdAccount.id).check();await choose(otherAccount.id).check();
+ await reason.fill('Synthetic stale selection');await prepare.click();
+ assert.equal((await context.request.post(origin+'/api/subscribers',{headers:apiHeaders,data:{action:'status',accountId:otherAccount.id,status:'suspended',reason:'Synthetic concurrent administrator'}})).status(),200);
+ assert.equal((await context.request.post(origin+'/api/subscribers',{headers:apiHeaders,data:{action:'status',accountId:otherAccount.id,status:'active',reason:'Synthetic status restored before stale browser submission'}})).status(),200);
+ await confirm.check();
+ const staleBatch=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='POST');
+ await apply.click();assert.equal((await staleBatch).status(),409);
+ await page.waitForFunction(()=>document.querySelector('#subscriberAdminNotice').textContent.includes('review the entire selection again'));
+ assert.equal(await apply.isDisabled(),true,'stale review could be replayed');
+ assert.equal(await reason.inputValue(),'Synthetic stale selection','conflict erased the reason');
+ let stored=await currentAccounts();assert.equal(stored.accounts.find(account=>account.id===createdAccount.id).status,'active','stale batch partially updated its first account');
+ assert.equal(stored.accounts.find(account=>account.id===otherAccount.id).status,'active');
+ assert.notEqual(stored.accounts.find(account=>account.id===otherAccount.id).statusRevision,otherAccount.statusRevision,'ABA fixture did not advance the stored review identity');
+ const reload=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='GET');
+ await page.getByRole('button',{name:'Refresh',exact:true}).click();await reload;
+ await page.waitForFunction(()=>document.querySelector('#subscriberBatchReview').hidden);
+ await choose(createdAccount.id).check();await choose(otherAccount.id).check();
+ const batchReason='Synthetic reviewed <script>window.syntheticBatchExecuted=true</script>';
+ await reason.fill(batchReason);await prepare.click();
+ assert.match(await page.locator('#subscriberBatchReviewedReason').innerText(),/Synthetic reviewed <script>/);
+ assert.equal(await page.locator('#subscriberBatchReview script').count(),0);
+ assert.equal(await choose(createdAccount.id).isDisabled(),true,'review selection was mutable');
+ for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
+  await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
+  for(const width of [375,1280]) {
+   await page.setViewportSize({width,height:1000});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'status review overflow');
+   const geometry=await page.evaluate(geometrySource);assert.ok(geometry.fields>0,'form geometry measured no fields');assert.equal(geometry.ok,true,JSON.stringify(geometry.issues));
+   if(appearance.theme==='dark'&&!appearance.palette&&width===375){await search.evaluate(node=>{node.style.height='50px';});const broken=await page.evaluate(geometrySource);assert.equal(broken.ok,false,'geometry gate accepted a deliberately broken new control');await search.evaluate(node=>{node.style.removeProperty('height');});const restored=await page.evaluate(geometrySource);assert.equal(restored.ok,true,JSON.stringify(restored.issues));}
+   const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);
+   await page.screenshot({path:`${out}/subscriber-status-review-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`,fullPage:true});
+   await page.locator('#subscriberBatchReview').screenshot({path:`${out}/subscriber-status-review-controls-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`});
+  }
+ }
+ await page.evaluate(()=>{document.documentElement.dataset.theme='dark';document.documentElement.dataset.bsTheme='dark';delete document.documentElement.dataset.palette;});
+ let releaseBatch,batchFetched;const batchGate=new Promise(resolve=>{releaseBatch=resolve;}),batchReady=new Promise(resolve=>{batchFetched=resolve;});
+ await page.route('**/api/subscribers',async route=>{const response=await route.fetch();batchFetched();await batchGate;await route.fulfill({response});},{times:1});
+ await confirm.check();const appliedBatch=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='POST');
+ await apply.click();await batchReady;
+ assert.equal(await page.getByRole('button',{name:'Applying…',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Refresh',exact:true}).isDisabled(),true);
+ assert.equal(await page.getByRole('button',{name:'Back to selection',exact:true}).isDisabled(),true);
+ assert.ok(!(await page.locator('#subscriberAdminNotice').innerText()).includes('Status updated for'),'UI claimed commit success before receiving a response');
+ releaseBatch();const applied=await appliedBatch;assert.equal(applied.status(),200);const appliedResult=await applied.json();assert.equal(appliedResult.changed.length,2);assert.ok(appliedResult.batchId);
+ await page.getByText('Status updated for 2 subscribers. 0 already had that status.',{exact:true}).waitFor();
+ assert.equal(await search.evaluate(node=>node===document.activeElement),true,'committed batch lost keyboard focus');
+ stored=await currentAccounts();assert.equal(stored.mode,'disabled');
+ for(const id of [createdAccount.id,otherAccount.id])assert.equal(stored.accounts.find(account=>account.id===id).status,'suspended');
+ assert.equal(stored.accounts.find(account=>account.id===createdAccount.id).name,editedName);
+ assert.equal(stored.accounts.find(account=>account.id===process.env.SUBSCRIBER_ACCOUNT_ID).status,'active','batch changed an unselected account');
+ assert.equal(await page.evaluate(()=>window.syntheticBatchExecuted),undefined);
+ await search.fill('اسم');assert.equal(await page.locator('#subscriberAccountRows tr').count(),1);assert.match(await page.locator('#subscriberAccountFilterCount').innerText(),/^1 of 3 subscribers shown/);
+ await accountStatus.selectOption('active');await page.getByText('No subscribers match the current filters.',{exact:true}).waitFor();
+ await accountStatus.selectOption('suspended');await page.getByRole('cell',{name:editedName,exact:true}).waitFor();
+ await search.fill('');await accountStatus.selectOption('all');
+ await choose(createdAccount.id).check();await choose(otherAccount.id).check();
+ await page.getByLabel('New account status',{exact:true}).selectOption('active');
+ await reason.fill('Synthetic reviewed reactivation');await prepare.click();await confirm.check();
+ const reactivated=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='POST');
+ await apply.click();assert.equal((await reactivated).status(),200);
+ await page.waitForFunction(()=>document.querySelector('#subscriberBatchReview').hidden);
+ stored=await currentAccounts();for(const id of [createdAccount.id,otherAccount.id])assert.equal(stored.accounts.find(account=>account.id===id).status,'active');
+
  await page.locator(`[data-sub-inspect="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).click();
  await page.locator('#subscriberInspect').getByText('Accounting reconciliation required (1 pending). Last confirmed balances are shown. New Internet connections are blocked until the counters are settled.',{exact:true}).waitFor();
  assert.ok(!(await page.locator('#subscriberInspect').innerText()).includes('Unknown'),'pending accounting hid trusted limit cards');
@@ -171,8 +259,13 @@ try {
  await final.getByLabel('Reason',{exact:true}).fill('Synthetic correction of incomplete final accounting');
  await final.getByLabel('Evidence reference',{exact:true}).fill('Synthetic independent final byte reading');
  page.once('dialog',d=>d.accept());
+ let releaseFinal,finalFetched;const finalGate=new Promise(resolve=>{releaseFinal=resolve;}),finalReady=new Promise(resolve=>{finalFetched=resolve;});
+ await page.route('**/api/subscribers/reconciliation',async route=>{const response=await route.fetch();finalFetched();await finalGate;await route.fulfill({response});},{times:1});
  const corrected=page.waitForResponse(r=>r.url().endsWith('/api/subscribers/reconciliation')&&r.request().method()==='POST');
- await final.getByRole('button',{name:'Approve final reading'}).click();assert.equal((await corrected).status(),200);
+ await final.getByRole('button',{name:'Approve final reading'}).click();await finalReady;
+ assert.equal(await page.locator('#subReviewNotice').innerText(),'Recording settlement…','prior success was reused while a new settlement was pending');
+ assert.equal(await final.getByRole('button',{name:'Approve final reading'}).isDisabled(),true);
+ releaseFinal();assert.equal((await corrected).status(),200);
  await page.getByText('Settlement approved and recorded.',{exact:true}).waitFor();
  const settled=await (await context.request.get(origin+'/api/subscribers/snapshot?account='+encodeURIComponent(process.env.SUBSCRIBER_ACCOUNT_ID))).json();
  assert.equal(settled.pendingAccounting,0);assert.equal(settled.lifetimeDownload,'101');assert.equal(settled.lifetimeSeconds,'20');

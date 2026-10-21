@@ -694,3 +694,64 @@ when routing is unavailable. Its focused regressions passed (0.722 s). A fifth
 compiling mutant moved the check back before deadline processing; the new
 call-site regression killed it by detecting the incorrectly retained pending
 operation. This correction adds no permission to send a packet.
+
+
+## Reviewed account batches: Issue #74
+
+Real SQLite tests cover all-or-nothing rollback after an earlier update, later
+audit failure, overlapping concurrent reviews, stale replay, no-op behavior,
+empty/duplicate/oversized requests and the valid 50-account boundary. Passwords,
+one-code vouchers, Unicode names, subscriptions, usage and unresolved reservations
+are retained. A changed then restored status is detected through its audit
+revision; revisions above 2^53 remain exact decimal JSON strings. Protected HTTP
+tests exercise modern-admin permission, Origin/marker validation, missing/numeric
+revision rejection, committed results and whole-selection 409 conflicts.
+
+Focused Go 1.27.3 race checks pass: subscriber 27.519 s, db 2.807 s and server
+3.542 s. They use disk-backed test temporary directories. A real authenticated
+loopback UDP test proves a committed batch suspension reaches the ordinary
+guarded background Disconnect before local delegation expiry with no browser.
+The observed NAS identity is synthetic; the ACK retains unresolved accounting.
+These suite durations are not measured network enforcement latency.
+
+The actual synthetic protected HTTP/SQLite Chromium journey passes original-data
+search/status filters, clear-on-filter selection, cancellation, immutable review,
+changed-then-restored conflict, delayed genuine commit response, disabled busy
+controls, unchanged unselected accounts, suspension/reactivation, keyboard focus
+and escaped data. Dark/light/Nord at 375/1280 pass axe and screenshots; review
+controls are captured separately from the scrollable page shell. The independent
+read-only test connection requires exactly four per-account changes in two
+correlated batches, proving the browser path wrote durable audit rather than
+only changing DOM state. The full earlier reconciliation/name-edit journey stays
+part of this acceptance.
+
+Retained failures include an initially missing browser environment, a DOM shim
+without `querySelectorAll`, and a query-plan assertion expecting SQLite's
+`COVERING INDEX` wording instead of its actual `USING INDEX` target seek. The
+corrected assertion still requires the named indexed target search. A real
+success-banner race during successive reconciliation approvals was also found:
+the old success remained visible before the next response. The production
+handler now clears that success to `Recording settlement…` before awaiting the
+write. A held genuine response proves pending feedback and the existing final
+committed-state assertions remain in place. No retry or weakened finality check
+was used to conceal that failure.
+
+Schema 43-to-44 migration and idempotence retain credentials/audit and use the
+real indexed query plan. Existing active-consumption migration acceptance is
+replayed as well. Full exact-source repository checks, behavioral mutants and
+protected delivery are recorded separately in the issue/PR. No operator runtime,
+database or router setting was changed for these tests; C stays Shadow.
+
+The final browser run passed in 17.649 seconds, including all six real form/table
+geometry checks and a deliberate 50px search-control mutation that the geometry
+gate rejected before restoration. That gate first rejected a bare confirmation
+checkbox; the production review now uses the shared field/toggle component.
+The earlier failing geometry log is retained. These are suite durations, not
+service latency measurements.
+
+The repository's read-only `cmd/compat` also passed against the existing real
+development `/data`: schema stayed v43, stored users retained their bare-array
+hash shape, router credentials decrypted, the in-memory encrypted Unicode
+round-trip passed, and existing audit visibility/detail checks passed. No password
+challenge was requested and no migration/runtime restart was performed by that
+check. This is separate from the synthetic v44 migration tests.

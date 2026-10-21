@@ -13,6 +13,7 @@ for (const mode of ['disabled','shadow','pilot','managed']) test('Subscriber Man
   globalThis.document = {
     getElementById: (id: string) => id === 'subscriberAdminNotice' ? notice : id === 'subscribersBadge' ? badge : id === 'subscriberRuntimeStatus' ? runtime : null,
     addEventListener: events.addEventListener.bind(events),
+    querySelectorAll: () => [],
   } as unknown as Document;
   globalThis.fetch = (async (url: string | URL | Request) => {
     calls.push(String(url));

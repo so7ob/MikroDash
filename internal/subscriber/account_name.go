@@ -25,7 +25,7 @@ func (s *Store) EditAccountName(ctx context.Context, actor, id, expected, name, 
 		return account, err
 	}
 	defer tx.Rollback()
-	if err = tx.QueryRow(`SELECT id,username,name,status FROM subscriber_accounts WHERE id=?`, id).Scan(&account.ID, &account.Username, &account.Name, &account.Status); err != nil {
+	if err = tx.QueryRow(`SELECT `+accountReviewColumns+` FROM subscriber_accounts WHERE id=?`, id).Scan(&account.ID, &account.Username, &account.Name, &account.Status, &account.StatusRevision); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			err = ErrDenied
 		}

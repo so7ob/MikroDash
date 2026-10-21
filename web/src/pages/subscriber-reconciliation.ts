@@ -51,6 +51,7 @@ export function initSubscriberReconciliation(api:API):(accounts:{id:string;usern
   if(body.action==='legacy')body.amount=value('amount');
   if(body.action==='missing-stop')body.reading={leaseId:body.id,seconds:value('seconds'),download:value('download'),upload:value('upload')};
   const button=form.querySelector('button');if(button)button.disabled=true;
+  say('Recording settlement…');
   try{await api(path,body);await load();say('Settlement approved and recorded.');el('subReviewLoad')?.focus();}catch(error){say(error instanceof Error?error.message:'Settlement failed');}finally{if(button)button.disabled=false;}
  });
  return accounts=>{const picker=el<HTMLSelectElement>('subReviewAccount');if(!picker)return;const previous=picker.value;picker.innerHTML=accounts.map(a=>`<option value="${esc(a.id)}">${esc(a.username)}</option>`).join('');if(accounts.some(a=>a.id===previous))picker.value=previous;};
