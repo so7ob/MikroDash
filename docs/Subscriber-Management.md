@@ -118,7 +118,7 @@ access-window closure and spendable time allocation. It can cross quota resets o
 when every touched period is reserved independently. Initial relative NAS-start
 uncertainty can require a pending reservation deadline up to 120 seconds after
 admission; it does not increase the issued local duration. See
-[calendar delegation and its conservative cutoff limitation](Subscriber-Calendar-Delegation.md). A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab and the normal MikroDash worker on isolated CHR 7.24.5 with all browsers closed; L009/C proof remains pending. Calendar-period bridging passes synthetic ledger/UDP checks; actual CHR reset-crossing and target C proof remain pending. It never grants a
+[calendar delegation and its conservative cutoff limitation](Subscriber-Calendar-Delegation.md). A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab and the normal MikroDash worker on isolated CHR 7.24.5 with all browsers closed; L009/C proof remains pending. Calendar-period bridging passes five-anchor ledger/UDP checks and an actual normal-worker hourly reset on isolated CHR 7.24.5 through five verified renewals. Target C proof remains pending. It never grants a
 new full hour after partial consumption.
 
 A 2-second background loop requests disconnect on expired delegations, suspension and

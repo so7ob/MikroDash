@@ -521,3 +521,63 @@ accounting monotone replay: 248 executions; receipt ranges/retry identity:
 fuzz runs, separate from earlier standalone random testing without coverage.
 Private commands, raw logs and overlay receipts remain in
 `.temp/subscriber-64-recovery`; they contain no target-router acceptance claim.
+
+## Issue 66 calendar delegation verification
+
+Implementation source: `82f52e99` on `feat/66-calendar-boundary-renewal`, PR #67.
+All development was in the visible checkout. The full verification archive was
+created from that exact commit and byte-matched 2232 tracked files; it omitted
+ignored operator runtime data, including a pre-existing oversized GeoIP source
+that the root credential scanner correctly refuses. No scanner was disabled and
+no operator data was removed. Mutations ran only in the archive and every tracked
+byte was restored. The final test/documentation follow-up does not change the
+production implementation used by the CHR run.
+
+| Check | Actual result / environment |
+| --- | --- |
+| Native full format/vet/test | Passed, Go 1.27.3 linux/amd64; 64 tested packages |
+| `govulncheck@latest ./...` | Go 1.27.2 failed GO-2026-6809; Go 1.27.3 passed with zero reachable vulnerabilities; an uncalled module advisory remains diagnostic |
+| `go run ./cmd/webbuild -dir web` | Passed |
+| `sh tools/verify.sh --no-docker` | Passed generators, tsc, 7 generated tables, 150 frontend tests and 32 tooling tests; its skipped Go half was separately executed above |
+| `go test -race ./internal/subscriber -count=1` | Passed 82.738 s on implementation with Go 1.27.2 |
+| Expanded five-anchor authenticated UDP scenario under `-race` | Passed 4.054 s on Go 1.27.3 |
+| `go test ./internal/subscriber -run '^$' -fuzz '^FuzzCalendarAdmissionPeriodConservation$' -fuzztime=30s -parallel=2` | Passed 77040 executions, independent interval-conservation oracle |
+| Six compiling isolated mutants | All killed by behavioral failures; no compile failure counted |
+
+Go compilation used a RAM build cache/temp directory. Test execution used an
+`-exec` wrapper setting both TMPDIR and GOTMPDIR to ordinary `/tmp`, as required
+by the earlier storage correction. These checks do not prove power-loss media
+durability. The official Go 1.27.3 archive checksum was verified and installed
+alongside the preserved old toolchain. The owner F5 process was never signalled.
+
+Mutants removed the legacy retry commit, early-start coverage, exact byte endpoint,
+combined renewal rate verification, suspension replay guard and maximum prior
+period exposure. Each produced a behavioral assertion failure in its focused
+regression. Raw commands, fail/pass logs and source/restoration proof remain in
+private `.temp/subscriber-66-recovery`; no credentials enter public fixtures.
+
+### Actual owned CHR result
+
+An independent explicitly synthetic account and immutable hourly plan ran through
+the actual namespace client's HTTPS portal, owned ticket, HTTPS HotSpot login and
+normal MikroDash background worker on CHR 7.24.5. The existing unresolved account
+was retained. The pilot allowlist contained only the new fixture, in a cloned
+private configuration. The first attempt correctly refused missing host-table
+presence, with zero issued leases. A documented v2 reschedule and actual HotSpot
+landing corrected the fixture without changing earlier usage.
+
+With no browsers or WebSocket watchers, the same live session crossed the actual
+hourly reset and five verified renewals in 202.294 seconds of observation. At the
+last live reading, 203 seconds split into 90 before and 113 after the reset. Logout
+and trusted final accounting committed 204 seconds, 66055 download bytes and 1924
+upload bytes, with zero pending accounting. A 65536-byte application payload took
+3.990 seconds after the reset; all download usage belonged to the new period.
+The lifetime/bucket totals conserved the final counters, and the earlier account's
+counters, subscription and unresolved finality were unchanged.
+
+This is actual CHR protocol/runtime evidence, not L009/C Internet acceptance.
+It does not measure bytes inside a sampling gap, captive-browser compatibility,
+under-load resource budgets or a guaranteed update/disconnect latency. The C-device
+owner separately confirmed existing-router-CA portal HTTPS without warnings, and
+the live chain/admin-route isolation was verified; C remains Shadow with Internet
+admission disabled. Current PR-head and post-merge CI are required separately.

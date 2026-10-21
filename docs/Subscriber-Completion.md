@@ -13,13 +13,13 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | --- | --- | --- | --- | --- | --- | --- |
 | AC-01 | 0/3600 before and after first connection | Accounting regression; fast observations pending | subscriber accounting/storage, portal | partial | prior pass | pending: C pilot |
 | AC-02 | Reconnect preserves 2400; 109+51 leaves 3440 | Durable ledger regression | accounting | implemented | prior pass | pending: C pilot |
-| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles, real normal-worker CHR cycles through 201 seconds and a fresh 19-operation post-browser run, and scripted post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
+| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles, real normal-worker CHR cycles through 201 seconds and a fresh 19-operation post-browser run, and scripted post-NAS/pre-ACK crash recovery pass. Total-session semantics remain explicitly required; calendar continuity now passes five-anchor ledger/UDP and actual CHR hourly-reset acceptance, while target acceptance remains open | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
 | AC-04 | Concurrent daily/monthly time/byte limits | Pure/ledger tests; actual CHR time/download/upload and hard download exhaustion pass, including refused re-entry; daily/monthly target probe remains | policy/accounting/runtime | partial | passed: ledger + CHR scoped exhaustion | pending: C traffic test |
 | AC-05 | Live rate switch/throttle, correct device | Real UDP rate switch and active throttle with exact-device queue readback pass; burst/minimum/priority/network ceilings pending | persistent CoA operations, queue readback, capabilities | partial | passed: UDP + queue readback | pending: rate probe |
 | AC-06 | Reordered/retried accounting, reused IDs | Durable partial receipts, exact retry identity, complete-Stop coverage and late partial/final recovery implemented; target retransmission capture remains | radius/accounting | partial | prior pass | pending: retransmission capture |
 | AC-07 | API/RADIUS unified debit, one-second skew | Shared capability-bound API observations use the cumulative ledger; overlapping older RADIUS sample regression passes | observation matching and accounting | partial | passed: shared ledger regression | pending: direction proof |
 | AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Audited admin settlement and explicit byte-gap allocations implemented; incomplete telemetry receipts/review implemented, including physical SQLite close/reopen and late partial counter corrections; missing-final accounting now gates new admission and renewal until trusted Stop or audited review, including zero-hold sessions | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
-| AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; approved byte-gap settlement implemented; continuous hard-edge renewal pending | policy, journal adjustments | partial | passed: calendar anchors and approved settlement | pending: boundary observations |
+| AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; approved byte-gap settlement implemented; continuous hard-edge renewal implemented with independent reservations; actual CHR hourly edge passed, target remains | policy, journal adjustments | partial | passed: calendar anchors and approved settlement | pending: boundary observations |
 | AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
 | AC-11 | No browsers required | Actual startup and watcher-free observer checks for both portal transports; background Disconnect UDP test; fresh real CHR session retained through 19 verified renewals after all browsers closed | explicit runtime lifecycle and observer | partial | passed: scoped lifecycle/UDP | pending: closed-browser run |
 | AC-12 | Local outage bounds and fail-closed admission | Actual CHR session with 26 seconds left disappears during a 91.679-second service outage; restored ledger retains pending finality, closes seat and denies new admission with known positive credit. Directional cap has measured nonzero excess; operational budget unapproved | verified renewal and local limits | partial | passed: scoped CHR outage/refusal | pending: C outage probe |
@@ -506,3 +506,30 @@ live leaf and isolated routes were verified. No existing HotSpot certificate,
 RADIUS authority or production connection was changed. This narrows the portal
 TLS/reachability gap in AC-13/14, but Internet admission is still disabled in Shadow
 and those target acceptance rows remain pending.
+
+### Issue #66: real reset and full verification
+
+Exact implementation `82f52e99` passes native Go 1.27.3 format, vet, all 64 tested
+packages, current vulnerability scanning, generated code/tables, TypeScript,
+frontend build, all 150 frontend tests and all 32 tooling tests. The prior
+Go 1.27.2 scan failed on the reachable standard-library GO-2026-6809 advisory;
+that failure is retained and resolved with the official checksum-verified patch,
+not a skipped check. The existing owner toolchain/debugger was not replaced.
+
+The exact tracked source was byte-matched against its verification archive;
+all six compiling mutants were killed by behavior and the archive was restored.
+The newly expanded authenticated UDP calendar scenario also passes -race for all
+five anchors (4.054 s). Actual CHR 7.24.5 with the normal background worker and an
+actual namespace HTTPS client retained the same session through an hourly reset
+and five verified renewals. Its203-second live sample split 90/113 across the edge;
+final trusted accounting committed 204 seconds with no pending finality. A 64 KiB
+post-reset payload was accounted only to that period. The original unresolved
+account, balances and subscription were preserved. No boundary-gap byte split
+or target resource/latency bound is claimed.
+
+The first direct-portal client attempt correctly failed missing HotSpot host
+presence before any lease. The corrected fixture visited HotSpot first and used
+an explicitly audited immutable reschedule rather than changing old usage. The
+final documentation and five-case UDP expansion still require current PR-head
+and post-merge CI. PR #67 remains the scoped delivery; #38 and all outstanding
+module/target requirements remain open.

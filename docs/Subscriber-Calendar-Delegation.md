@@ -97,14 +97,35 @@ Existing credentials, data encryption and historical accounting are preserved.
 Virtual-clock SQLite cases cover minute-25, Aden midnight, weekly, leap-month and
 short-month resets. Tests also cover every accepted start offset, unavailable byte
 endpoints, hard schedule/expiry cutoffs, audit rollback, concurrent admission on
-another network, and the legacy retry upgrade. A loopback authenticated RADIUS UDP
-case asserts the combined timeout/rate/byte attributes and rejects verification
+another network, and the legacy retry upgrade. Loopback authenticated RADIUS UDP
+cases for all five anchors assert the combined timeout/rate/byte attributes and rejects verification
 until the exact rate is observed. These are synthetic protocol/ledger checks.
 
 A 30-second interval-conservation fuzz run completed 77040 cases without failure.
 It independently intersects each accepted start interval with the calendar periods,
 checks time and byte-endpoint coverage, and bounds reservations by spendable shared
 capacity. This result does not establish flash durability, performance under load
-or actual NAS acceptance. The package race check passed in 82.738 seconds. Mutation and full repository
-checks, owned-CHR calendar acceptance and target C acceptance remain separate
-pending gates.
+or actual NAS acceptance. The package race check passed in 82.738 seconds, and the expanded five-case UDP
+race run passed in 4.054 seconds. Six compiling behavior mutants were killed.
+Full native Go 1.27.3 format/vet/tests, live vulnerability scanning, frontend build,
+generator checks, 150 frontend tests and 32 tooling tests passed. The earlier
+Go 1.27.2 vulnerability failure is retained; its standard-library advisory was
+resolved by the official patched toolchain, without suppressing the check.
+
+On exact implementation `82f52e99`, the normal MikroDash worker and an actual
+namespace HTTPS client on isolated CHR 7.24.5 retained one session through a real
+hourly reset and five readback-verified renewals. At the final live sample, 203
+seconds split into 90 old-period and 113 new-period seconds. Actual logout/final
+accounting committed 204 seconds with no pending finality. A 65536-byte payload
+delivered after the reset produced 66055 download and 1924 upload counter bytes;
+the download bucket belonged only to the new period. TCP return traffic and
+network overhead are not application payload. This did not measure byte
+distribution inside a boundary gap.
+
+The first client attempt reached the portal directly and correctly failed device
+presence verification before any lease was issued. The corrected lab journey
+visited the actual HotSpot landing first; an explicit immutable v2 reschedule
+retained the refused unissued fixture and earlier unresolved account unchanged.
+No operator RADIUS or Internet admission setting was changed. Exact PR-head and
+post-merge delivery evidence is maintained on PR #67; target C calendar acceptance
+remains pending. See [verification](Subscriber-Verification.md#issue-66-calendar-delegation-verification).
