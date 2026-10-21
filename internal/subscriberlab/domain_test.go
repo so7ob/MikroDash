@@ -5,12 +5,15 @@ import (
 	"errors"
 	"io"
 	"maps"
+	"net"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
+	"layeh.com/radius"
 	"mikrodash/internal/routeros"
+	"mikrodash/internal/subscriber"
 )
 
 type domainFixture struct {
@@ -188,5 +191,16 @@ func TestDomainRoutingCounterEvidenceRejectsTransportFailuresAndResets(t *testin
 		if _, err := domainCounterDelta(before, bad); err == nil {
 			t.Fatal("invalid counter evidence accepted", mutation)
 		}
+	}
+}
+
+func TestDomainRejectingObserverIgnoresAccountingWithoutALedger(t *testing.T) {
+	capture := &domainCapture{}
+	service := &subscriber.RadiusService{Mode: "shadow", Clients: []subscriber.NAS{{RouterID: "domain-lab", Address: "127.0.0.1", Network: "C", CalledStationID: "hs-lab"}}}
+	for _, code := range []radius.Code{radius.CodeAccountingRequest, radius.CodeCoARequest, radius.CodeDisconnectRequest} {
+		capture.serve(service, nil, &radius.Request{Packet: radius.New(code, nil), RemoteAddr: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 1234}})
+	}
+	if len(capture.snapshot()) != 0 {
+		t.Fatal("non-authentication traffic entered domain identity evidence")
 	}
 }

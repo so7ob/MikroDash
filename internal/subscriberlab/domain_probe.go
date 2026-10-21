@@ -35,6 +35,18 @@ func (d *domainCapture) snapshot() []domainIdentity {
 	return append([]domainIdentity{}, d.rows...)
 }
 
+// This rejecting observer has no accounting ledger. Ignore every other packet
+// before invoking the production service, including a valid misplaced NAS marker.
+func (d *domainCapture) serve(service *subscriber.RadiusService, w radius.ResponseWriter, r *radius.Request) {
+	if r.Packet.Code != radius.CodeAccessRequest {
+		return
+	}
+	d.mu.Lock()
+	d.rows = append(d.rows, domainIdentity{rfc2865.UserName_GetString(r.Packet), microsoft.MSCHAPDomain_GetString(r.Packet), mikrotik.MikrotikRealm_GetString(r.Packet)})
+	d.mu.Unlock()
+	service.ServeRADIUS(w, r)
+}
+
 // RadiusDomainProbe measures same-profile domain selection on the owned CHR.
 // The primary runtime stays running; every synthetic login is rejected. A
 // completed measurement is not a claim of target or User Manager qualification.
@@ -58,12 +70,7 @@ func (c *Client) RadiusDomainProbe(ctx context.Context, privateDir string, out i
 		return err
 	}
 	server := &radius.PacketServer{SecretSource: service, ErrorLog: log.New(io.Discard, "", 0), Handler: radius.HandlerFunc(func(w radius.ResponseWriter, r *radius.Request) {
-		if r.Packet.Code == radius.CodeAccessRequest {
-			capture.mu.Lock()
-			capture.rows = append(capture.rows, domainIdentity{rfc2865.UserName_GetString(r.Packet), microsoft.MSCHAPDomain_GetString(r.Packet), mikrotik.MikrotikRealm_GetString(r.Packet)})
-			capture.mu.Unlock()
-		}
-		service.ServeRADIUS(w, r)
+		capture.serve(service, w, r)
 	})}
 	go server.Serve(conn)
 	defer func() {
