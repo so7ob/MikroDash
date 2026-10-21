@@ -618,3 +618,21 @@ Active counters/timeout semantics are capability-gated and remain subject to the
 Dynamic queue verification requires a unique exact host target, never a shared subnet queue.
 CoA uses the pinned RADIUS implementation and an independent narrow service grant; it does
 not edit dynamic queues through the RouterOS API.
+
+
+The owned disposable `subscriberchr` domain probe additionally uses
+`/radius/monitor =numbers=<owned-id> =once=` for `requests`, `accepts`, `rejects`,
+`resends`, `timeouts` and `bad-replies`; `/radius/add`, `/radius/move` and
+`/radius/remove` for its single synthetic endpoint; and `/ip/hotspot/profile/set`
+for the owned profile's `split-user-domain` and positive-control
+`radius-default-domain`. Non-secret configuration proplists are declared in
+`internal/subscriberlab/domain_config.go`. The original ordered rows/profile are
+read back after rollback; secrets are neither requested nor recorded.
+
+The [RADIUS manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/)
+documents ordered selection, domain/realm and monitor counters; the
+[HotSpot profile manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/)
+documents default-domain and user/domain splitting. The actual CHR 7.24.5 matrix,
+including first/last order and both username syntaxes, is in Subscriber-CHR-Lab.md.
+These commands are behind disposable process/topology/firmware guards. They add
+no operator-router mutation path and do not prove production domain handoff.

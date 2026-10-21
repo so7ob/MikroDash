@@ -533,3 +533,19 @@ an explicitly audited immutable reschedule rather than changing old usage. The
 final documentation and five-case UDP expansion still require current PR-head
 and post-merge CI. PR #67 remains the scoped delivery; #38 and all outstanding
 module/target requirements remain open.
+
+
+### Same-profile pilot routing: Issue #70
+
+Implemented guarded disposable-CHR domain selection and injected-failure probes.
+Actual 7.24.5 measurements cover 12 HTTPS attempts plus a positive control. Only
+an endpoint placed first with `split-user-domain=yes` received qualified pilot
+names exclusively, normalized to the existing account username. Plain names
+remained with the primary. Every attempt was rejected; exact original non-secret
+configuration and profile fields were restored in normal and deliberate-failure
+runs. Call-site tests cover ambiguous writes, evidence failure and drift refusal.
+
+This advances the routing dependency of AC-13/14. Production domain handoff,
+legacy name conflict detection, accounting/CoA identity and operator C acceptance
+remain pending. No target configuration changed and no AC row is closed by a
+reject-only lab measurement. See Subscriber-CHR-Lab.md for the measured matrix.

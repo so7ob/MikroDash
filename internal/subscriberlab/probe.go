@@ -257,7 +257,7 @@ func (c *Client) login(ctx context.Context, privateDir, password string, https b
 }
 
 func (c *Client) loginAs(ctx context.Context, privateDir, username, password string, https bool) error {
-	if username != "chr-lab" && username != "legacy-lab" {
+	if username != "chr-lab" && username != "legacy-lab" && username != `md-pilot\legacy-lab` && username != "legacy-lab@md-pilot" {
 		return errors.New("synthetic lab username required")
 	}
 	if _, err := c.Identity(); err != nil {
