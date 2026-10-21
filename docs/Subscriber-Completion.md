@@ -452,3 +452,26 @@ are refused before device lookup. All 149 frontend tests and the four-case
 synthetic TLS/proxy browser journey pass, including keyboard and 375/1280/three
 themes with zero findings under the existing axe tags. These remain Shadow
 checks; the NAS handoff and complete CHR/target entry are still required.
+
+### Issue #64 delivery and #66 red regression
+
+PR [#65](https://github.com/so7ob/MikroDash/pull/65) delivered the scoped owned
+connection entry at `develop` `06ae01a64707dda9c32d749f1884fe85f27ffb6a`.
+[Current PR-head CI](https://github.com/so7ob/MikroDash/actions/runs/39518017811)
+and [post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39518622305)
+both passed. Issue #64 is closed; full-module #38 remains open. Automatic CHR
+landing, one credential form, verified speeds, 19 browser-free renewals and
+automatic exhausted/missing-Stop account recovery passed. Actual cap excess and
+the preserved unresolved outage ledger are documented in the
+[connection acceptance](Subscriber-Connection-Entry.md). No L009/C deployment
+or production write followed.
+
+Independent [#66](https://github.com/so7ob/MikroDash/issues/66) starts from that
+verified base on `feat/66-calendar-boundary-renewal`, in the visible checkout and
+on origin. Regression-first revision `078b37dc` adds ten intentionally red
+virtual-clock ledger cases: admission and renewal each stop at the hourly
+minute-25, daily, weekly, leap-month and short-month edges despite eligible
+future entitlement. Failures are behavioral assertions, not build errors.
+Bridging and future-period reservations are not implemented by that checkpoint;
+its tests are not green and it is not a completed delivery. The larger policy,
+administration/import/setup and target acceptance gaps remain active.
