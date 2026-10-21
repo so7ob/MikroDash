@@ -13,13 +13,13 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | --- | --- | --- | --- | --- | --- | --- |
 | AC-01 | 0/3600 before and after first connection | Accounting regression; fast observations pending | subscriber accounting/storage, portal | partial | prior pass | pending: C pilot |
 | AC-02 | Reconnect preserves 2400; 109+51 leaves 3440 | Durable ledger regression | accounting | implemented | prior pass | pending: C pilot |
-| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles, real normal-worker CHR cycles through 201 seconds and a fresh 19-operation post-browser run, and scripted post-NAS/pre-ACK crash recovery pass. Relative-mode safety and hard-period continuity remain code gaps | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
+| AC-03 | Five continuous renewals, crash after application | Durable total-session CoA renewal implemented; five UDP/virtual-clock cycles, real normal-worker CHR cycles through 201 seconds and a fresh 19-operation post-browser run, and scripted post-NAS/pre-ACK crash recovery pass. Total-session semantics remain explicitly required; calendar continuity now passes five-anchor ledger/UDP and actual CHR hourly-reset acceptance, while target acceptance remains open | operations, reservations, verified timeout semantics | partial | passed: scoped UDP/crash tests | pending: scoped timeout probe |
 | AC-04 | Concurrent daily/monthly time/byte limits | Pure/ledger tests; actual CHR time/download/upload and hard download exhaustion pass, including refused re-entry; daily/monthly target probe remains | policy/accounting/runtime | partial | passed: ledger + CHR scoped exhaustion | pending: C traffic test |
 | AC-05 | Live rate switch/throttle, correct device | Real UDP rate switch and active throttle with exact-device queue readback pass; burst/minimum/priority/network ceilings pending | persistent CoA operations, queue readback, capabilities | partial | passed: UDP + queue readback | pending: rate probe |
 | AC-06 | Reordered/retried accounting, reused IDs | Durable partial receipts, exact retry identity, complete-Stop coverage and late partial/final recovery implemented; target retransmission capture remains | radius/accounting | partial | prior pass | pending: retransmission capture |
 | AC-07 | API/RADIUS unified debit, one-second skew | Shared capability-bound API observations use the cumulative ledger; overlapping older RADIUS sample regression passes | observation matching and accounting | partial | passed: shared ledger regression | pending: direction proof |
 | AC-08 | Missing Stop/restarts reconciled safely | Complete API absence closes the seat after issued bounds; unresolved exposure remains a quota hold until covering Stop. Audited admin settlement and explicit byte-gap allocations implemented; incomplete telemetry receipts/review implemented, including physical SQLite close/reopen and late partial counter corrections; missing-final accounting now gates new admission and renewal until trusted Stop or audited review, including zero-hold sessions | absence evidence and administrative settlement | partial | passed: absence/Stop holds | pending: restart probe |
-| AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; approved byte-gap settlement implemented; continuous hard-edge renewal pending | policy, journal adjustments | partial | passed: calendar anchors and approved settlement | pending: boundary observations |
+| AC-09 | Calendar anchors and byte-gap settlement | Days 29/30/31 clamp without drift, leap tests pass; approved byte-gap settlement implemented; continuous hard-edge renewal implemented with independent reservations; actual CHR hourly edge passed, target remains | policy, journal adjustments | partial | passed: calendar anchors and approved settlement | pending: boundary observations |
 | AC-10 | Shared quota and same-NAS networks | Atomic admission tested; same-source networks map by authenticated Called-Station-Id/Class; UDP forgery regression passes | radius network mapping, renewal locking | partial | partial | pending: multi-device C/D lab |
 | AC-11 | No browsers required | Actual startup and watcher-free observer checks for both portal transports; background Disconnect UDP test; fresh real CHR session retained through 19 verified renewals after all browsers closed | explicit runtime lifecycle and observer | partial | passed: scoped lifecycle/UDP | pending: closed-browser run |
 | AC-12 | Local outage bounds and fail-closed admission | Actual CHR session with 26 seconds left disappears during a 91.679-second service outage; restored ledger retains pending finality, closes seat and denies new admission with known positive credit. Directional cap has measured nonzero excess; operational budget unapproved | verified renewal and local limits | partial | passed: scoped CHR outage/refusal | pending: C outage probe |
@@ -452,3 +452,84 @@ are refused before device lookup. All 149 frontend tests and the four-case
 synthetic TLS/proxy browser journey pass, including keyboard and 375/1280/three
 themes with zero findings under the existing axe tags. These remain Shadow
 checks; the NAS handoff and complete CHR/target entry are still required.
+
+### Issue #64 delivery and #66 red regression
+
+PR [#65](https://github.com/so7ob/MikroDash/pull/65) delivered the scoped owned
+connection entry at `develop` `06ae01a64707dda9c32d749f1884fe85f27ffb6a`.
+[Current PR-head CI](https://github.com/so7ob/MikroDash/actions/runs/39518017811)
+and [post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39518622305)
+both passed. Issue #64 is closed; full-module #38 remains open. Automatic CHR
+landing, one credential form, verified speeds, 19 browser-free renewals and
+automatic exhausted/missing-Stop account recovery passed. Actual cap excess and
+the preserved unresolved outage ledger are documented in the
+[connection acceptance](Subscriber-Connection-Entry.md). No L009/C deployment
+or production write followed.
+
+Independent [#66](https://github.com/so7ob/MikroDash/issues/66) starts from that
+verified base on `feat/66-calendar-boundary-renewal`, in the visible checkout and
+on origin. Regression-first revision `078b37dc` adds ten intentionally red
+virtual-clock ledger cases: admission and renewal each stop at the hourly
+minute-25, daily, weekly, leap-month and short-month edges despite eligible
+future entitlement. Failures are behavioral assertions, not build errors.
+Bridging and future-period reservations are not implemented by that checkpoint;
+its tests are not green and it is not a completed delivery. The larger policy,
+administration/import/setup and target acceptance gaps remain active.
+
+### Issue #66: calendar delegation implementation checkpoint
+
+Admission and renewal now reserve every potentially touched hard-limit period
+atomically while retaining current display evaluation. Initial relative timeout
+start uncertainty is reserved across its accepted -5/+60-second interval; absolute
+expiry/windows can conservatively refuse a new login near closure. Existing
+unknown-start legacy grants remain reconciling. Known legacy exposure is retained
+with an audited upgrade, including successful idempotent admission retries.
+The new regression first failed because that retry returned before transaction
+commit; the correction preserves future holds and exactly-once audit.
+
+Durable combined renewal includes required future throttle rate, timeout and
+cumulative byte caps. A real loopback authenticated UDP case rejects rate-capability
+revocation and requires exact rate readback beyond ACK/timeout/byte confirmation.
+Prepared operation replay also rechecks account suspension before a network send;
+the previous behavior sent a renewal after suspension and is retained as red evidence.
+
+Five-anchor ledger rollback and concurrent cross-network admission/renewal tests
+pass. The package race run passes (82.738 seconds); the 30-second independent
+calendar-conservation fuzz run passed 77040 cases. Full repository checks,
+mutation evidence, actual CHR calendar crossing and protected develop delivery
+remain pending. These results do not complete AC-03/09/10 or the wider module.
+See [the bounded calendar contract](Subscriber-Calendar-Delegation.md).
+
+Separately, the owner approved narrow C portal reachability and existing-router-CA
+signing. Actual C-device HTTPS opens without warnings after owner F5 restart; the
+live leaf and isolated routes were verified. No existing HotSpot certificate,
+RADIUS authority or production connection was changed. This narrows the portal
+TLS/reachability gap in AC-13/14, but Internet admission is still disabled in Shadow
+and those target acceptance rows remain pending.
+
+### Issue #66: real reset and full verification
+
+Exact implementation `82f52e99` passes native Go 1.27.3 format, vet, all 64 tested
+packages, current vulnerability scanning, generated code/tables, TypeScript,
+frontend build, all 150 frontend tests and all 32 tooling tests. The prior
+Go 1.27.2 scan failed on the reachable standard-library GO-2026-6809 advisory;
+that failure is retained and resolved with the official checksum-verified patch,
+not a skipped check. The existing owner toolchain/debugger was not replaced.
+
+The exact tracked source was byte-matched against its verification archive;
+all six compiling mutants were killed by behavior and the archive was restored.
+The newly expanded authenticated UDP calendar scenario also passes -race for all
+five anchors (4.054 s). Actual CHR 7.24.5 with the normal background worker and an
+actual namespace HTTPS client retained the same session through an hourly reset
+and five verified renewals. Its203-second live sample split 90/113 across the edge;
+final trusted accounting committed 204 seconds with no pending finality. A 64 KiB
+post-reset payload was accounted only to that period. The original unresolved
+account, balances and subscription were preserved. No boundary-gap byte split
+or target resource/latency bound is claimed.
+
+The first direct-portal client attempt correctly failed missing HotSpot host
+presence before any lease. The corrected fixture visited HotSpot first and used
+an explicitly audited immutable reschedule rather than changing old usage. The
+final documentation and five-case UDP expansion still require current PR-head
+and post-merge CI. PR #67 remains the scoped delivery; #38 and all outstanding
+module/target requirements remain open.

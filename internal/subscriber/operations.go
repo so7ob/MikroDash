@@ -31,6 +31,7 @@ const renewalTimeBasis = "nas-uptime-v1"
 type OperationRequest struct {
 	TimeBasis       string    `json:"timeBasis"`
 	GrantedSeconds  Quantity  `json:"grantedSeconds"`
+	RequireRate     bool      `json:"requireRate"`
 	SpeedID         string    `json:"speedId"`
 	Admission       Admission `json:"admission"`
 	Username        string    `json:"username"`
@@ -138,6 +139,9 @@ func (s *Store) PrepareOperation(ctx context.Context, lease, kind string, at tim
 	if err != nil {
 		return o, err
 	}
+	if err = retainLegacyExposure(tx, account, at); err != nil {
+		return o, err
+	}
 	u, err := usage(tx, sub.ID)
 	if err != nil {
 		return o, err
@@ -173,7 +177,10 @@ func (s *Store) PrepareOperation(ctx context.Context, lease, kind string, at tim
 			u[key] = v
 		}
 	}
-	q.Admission = Admission{LeaseID: lease, Decision: Evaluate(sub.Plan, sub.SpeedID, at, sub.ExpiresAt, u)}
+	q.Admission = Admission{LeaseID: lease, Decision: evaluate(sub.Plan, sub.SpeedID, at, sub.ExpiresAt, u, false)}
+	if kind == "rate" {
+		q.Admission.Decision = evaluateSpan(sub.Plan, sub.SpeedID, at, time.Unix(deadline, 0), sub.ExpiresAt, u)
+	}
 	if !q.Admission.Decision.Allowed {
 		return o, ErrDenied
 	}
@@ -189,97 +196,9 @@ func (s *Store) PrepareOperation(ctx context.Context, lease, kind string, at tim
 	q.StartedAt = time.Unix(started, 0)
 	target := deadline
 	if kind == "renew" {
-		var active int
-		if err = tx.QueryRow(`SELECT count(*) FROM subscriber_leases WHERE subscription_id=? AND state!='stopped'`, sub.ID).Scan(&active); err != nil {
-			return o, err
-		}
-		slots := Quantity(max(1, sub.Plan.MaxSessions-active+1))
-		a := &q.Admission
-		for _, v := range a.Decision.Limits {
-			if v.Limit.State != "limited" || (v.Limit.Action != "disconnect" && v.Limit.Action != "deny") {
-				continue
-			}
-			budget := v.Remaining / slots
-			if budget <= 0 {
-				return o, ErrDenied
-			}
-			switch v.Limit.Kind {
-			case "seconds":
-				a.Decision.Timeout = min(a.Decision.Timeout, int64(budget))
-			case "download":
-				a.Download = smallest(a.Download, budget)
-			case "upload":
-				a.Upload = smallest(a.Upload, budget)
-			case "total":
-				a.Total = smallest(a.Total, budget)
-			}
-		}
-		// A stale accounting sample must not grant its unobserved elapsed time again.
-		// The caller commits a fresh trusted API reading before asking for renewal.
-		var observed int64
-		if err = tx.QueryRow(`SELECT observed_at FROM subscriber_leases WHERE id=?`, lease).Scan(&observed); err != nil {
-			return o, err
-		}
-		if at.Unix()-observed > 5 || observed > at.Unix()+1 {
-			return o, errors.New("fresh session counters required for renewal")
-		}
-		// The API completion time can be later than the uptime sample. Encode
-		// no more cumulative time than its high-water mark plus reserved credit.
-		target = min(at.Unix()+a.Decision.Timeout, started+int64(seconds)+a.Decision.Timeout)
-		q.GrantedSeconds = Quantity(target-started) - seconds
-		a.Decision.Timeout = target - at.Unix()
-		q.TimeBasis = renewalTimeBasis
-		if a.Decision.Timeout <= 0 || q.GrantedSeconds <= 0 {
-			return o, ErrDenied
-		}
-		a.Download = smallest(a.Download, Quantity(a.Decision.Timeout)*a.Decision.Down/8)
-		a.Upload = smallest(a.Upload, Quantity(a.Decision.Timeout)*a.Decision.Up/8)
-		if a.Decision.Timeout <= 0 || a.Download <= 0 || a.Upload <= 0 {
-			return o, ErrDenied
-		}
-		q.DownloadCeiling, err = add(down, a.Download)
+		target, err = s.prepareRenewal(tx, sub, lease, at, started, seconds, down, up, own, u, &q)
 		if err != nil {
 			return o, err
-		}
-		q.UploadCeiling, err = add(up, a.Upload)
-		if err != nil {
-			return o, err
-		}
-		if a.Total > 0 {
-			used, e := add(down, up)
-			if e != nil {
-				return o, e
-			}
-			q.TotalCeiling, err = add(used, a.Total)
-			if err != nil {
-				return o, err
-			}
-		}
-		for _, v := range a.Decision.Limits {
-			l := v.Limit
-			if l.State != "limited" || (l.Action != "deny" && l.Action != "disconnect") {
-				continue
-			}
-			budget := v.Remaining / slots
-			switch l.Kind {
-			case "seconds":
-				budget = min(budget, q.GrantedSeconds)
-			case "download":
-				budget = min(budget, a.Download)
-			case "upload":
-				budget = min(budget, a.Upload)
-			case "total":
-				total, e := add(a.Download, a.Upload)
-				if e != nil {
-					return o, e
-				}
-				budget = min(budget, total)
-			}
-			// Keep the old local exposure reserved until readback proves a smaller cap.
-			budget = max(budget, own[Key(l.ID, v.PeriodStart)])
-			if _, err = tx.Exec(`INSERT INTO subscriber_reservations VALUES(?,?,?,?) ON CONFLICT(lease_id,limit_id,period_start) DO UPDATE SET amount=excluded.amount`, lease, l.ID, v.PeriodStart.Unix(), budget); err != nil {
-				return o, err
-			}
 		}
 	}
 	raw, err := json.Marshal(q)

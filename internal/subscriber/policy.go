@@ -231,6 +231,12 @@ func Key(id string, start time.Time) string { return fmt.Sprintf("%s:%d", id, st
 // Evaluate intersects every policy. An empty usage map means trusted zero from
 // a successful ledger query; a failed query must never call this function.
 func Evaluate(p Plan, speed string, at, expires time.Time, usage map[string]Usage) Decision {
+	return evaluate(p, speed, at, expires, usage, true)
+}
+
+// Quota fences are removed only by the delegation planner, which reserves every
+// crossed period. Ordinary account/simulator evaluation keeps its current scope.
+func evaluate(p Plan, speed string, at, expires time.Time, usage map[string]Usage, quotaFence bool) Decision {
 	d := Decision{Allowed: true, Reasons: []string{}, Limits: []LimitView{}, Down: p.Down, Up: p.Up, Timeout: 60}
 	if err := p.Validate(); err != nil {
 		d.Allowed = false
@@ -301,7 +307,7 @@ func Evaluate(p Plan, speed string, at, expires time.Time, usage map[string]Usag
 				d.Reasons = append(d.Reasons, "unknown:"+l.ID)
 				continue
 			}
-			if l.Action == "deny" || l.Action == "disconnect" {
+			if quotaFence && (l.Action == "deny" || l.Action == "disconnect") {
 				d.Timeout = min(d.Timeout, int64(end.Sub(at)/time.Second))
 				if l.Kind == "seconds" {
 					d.Timeout = min(d.Timeout, int64(v.Remaining))

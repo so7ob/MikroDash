@@ -74,11 +74,13 @@ func sessionMatches(e trackedSession, row ObservedSession, server string, at tim
 	}
 	start := at.Add(-time.Duration(row.Seconds) * time.Second)
 	expected := e.StartedAt
+	lag := int64(5)
 	if expected.IsZero() {
 		expected = e.CreatedAt
+		lag = admissionStartLag
 	}
 	skew := start.Sub(expected)
-	return skew >= -5*time.Second && skew <= 5*time.Second
+	return skew >= -time.Duration(admissionStartLead)*time.Second && skew <= time.Duration(lag)*time.Second
 }
 func findNAS(clients []NAS, router, network string) (NAS, bool) {
 	for _, c := range clients {
@@ -163,8 +165,8 @@ func (s *Store) reconcileAbsent(ctx context.Context, e trackedSession, at time.T
 		return err
 	}
 	defer tx.Rollback()
-	var state string
-	if err = tx.QueryRow(`SELECT state FROM subscriber_leases WHERE id=?`, e.LeaseID).Scan(&state); err != nil {
+	var state, rawGrant string
+	if err = tx.QueryRow(`SELECT state,decision FROM subscriber_leases WHERE id=?`, e.LeaseID).Scan(&state, &rawGrant); err != nil {
 		return err
 	}
 	if state == "stopped" {
@@ -174,6 +176,13 @@ func (s *Store) reconcileAbsent(ctx context.Context, e trackedSession, at time.T
 	// Pending CoA intent can have reached the NAS before a crash, so its maximum
 	// planned deadline participates even if no ACK was saved locally.
 	until := e.Deadline.Unix()
+	if e.StartedAt.IsZero() {
+		var grant Admission
+		if err = json.Unmarshal([]byte(rawGrant), &grant); err != nil {
+			return err
+		}
+		until = max(until, e.CreatedAt.Unix()+admissionStartLag+grant.Decision.Timeout)
+	}
 	var planned sql.NullInt64
 	if err = tx.QueryRow(`SELECT max(target_deadline) FROM subscriber_operations WHERE lease_id=? AND kind='renew' AND attempts>0`, e.LeaseID).Scan(&planned); err != nil {
 		return err
