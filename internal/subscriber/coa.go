@@ -211,6 +211,9 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 		if o.State != "requested" && at.Sub(o.UpdatedAt) < 3*time.Second {
 			continue
 		}
+		if !s.LoginRoutingAllows(n, o.Request.Username, at) {
+			continue
+		}
 		p, err := operationPacket(o, n, at, row.Address)
 		if err != nil {
 			if err = s.Store.transitionOperation(ctx, o, "pending-reconnect", err.Error(), "", at); err != nil {
@@ -286,6 +289,9 @@ func (s *RadiusService) Tick(ctx context.Context, at time.Time) error {
 		for _, e := range leases {
 			n, ok := findNAS(s.Clients, router, e.Network)
 			if !ok {
+				continue
+			}
+			if !s.LoginRoutingAllows(n, e.Username, at) {
 				continue
 			}
 			row, observed, present, err := s.Store.observation(ctx, e.LeaseID)

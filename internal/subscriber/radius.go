@@ -22,29 +22,33 @@ import (
 )
 
 type NAS struct {
-	Capabilities    Capabilities `json:"capabilities"`
-	RouterID        string       `json:"routerId"`
-	Network         string       `json:"network"`
-	Address         string       `json:"address"`
-	CalledStationID string       `json:"calledStationId"`
-	Secret          string       `json:"-"`
-	SecretSealed    string       `json:"secretSealed"`
-	DisconnectPort  int          `json:"disconnectPort"`
-	LoginURL        string       `json:"loginUrl"`
+	Capabilities    Capabilities        `json:"capabilities"`
+	RouterID        string              `json:"routerId"`
+	Network         string              `json:"network"`
+	Address         string              `json:"address"`
+	CalledStationID string              `json:"calledStationId"`
+	Secret          string              `json:"-"`
+	SecretSealed    string              `json:"secretSealed"`
+	DisconnectPort  int                 `json:"disconnectPort"`
+	LoginURL        string              `json:"loginUrl"`
+	LoginDomain     string              `json:"loginDomain,omitempty"`
+	LoginRouting    *LoginRoutingTarget `json:"loginRouting,omitempty"`
 }
 
 type RadiusService struct {
-	Observe       func(context.Context, string) (RouterObservation, error)
-	AllowCoA      bool
-	Store         *Store
-	VerifySession func(context.Context, Enforcement) bool
-	Mode          string
-	Clients       []NAS
-	PilotAccounts map[string]bool
-	mu            sync.Mutex
-	servers       []*radius.PacketServer
-	authSlots     chan struct{}
-	attempts      map[string]attempt
+	Observe          func(context.Context, string) (RouterObservation, error)
+	ReadLoginRouting func(context.Context, string, bool) (LoginRoutingObservation, error)
+	AllowCoA         bool
+	Store            *Store
+	VerifySession    func(context.Context, Enforcement) bool
+	Mode             string
+	Clients          []NAS
+	PilotAccounts    map[string]bool
+	mu               sync.Mutex
+	servers          []*radius.PacketServer
+	authSlots        chan struct{}
+	attempts         map[string]attempt
+	loginRoutes      map[string]loginRoutingState
 }
 
 var ErrAuthenticationBusy = errors.New("subscriber authentication is busy")
@@ -187,7 +191,7 @@ func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) 
 		reject()
 		return
 	}
-	if rfc2865.CalledStationID_GetString(p) != c.CalledStationID {
+	if rfc2865.CalledStationID_GetString(p) != c.CalledStationID || !c.matchesLoginDomain(p) {
 		reject()
 		return
 	}
@@ -215,6 +219,13 @@ func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) 
 	if err != nil || a.Username != user || (s.Mode == "pilot" && !s.PilotAccounts[a.ID]) {
 		if ticket {
 			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: []string{"authentication-not-authorized"}})
+		}
+		reject()
+		return
+	}
+	if !s.LoginRoutingAllows(c, user, time.Now()) {
+		if ticket {
+			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: []string{"authentication-routing-unavailable"}})
 		}
 		reject()
 		return
@@ -295,7 +306,7 @@ func (s *RadiusService) Start(auth, accounting string) error {
 			return errors.New("NAS networks must share one router identity and secret")
 		}
 		peers[c.Address] = c
-		if net.ParseIP(c.Address) == nil || len(c.Secret) < 16 || c.RouterID == "" || c.Network == "" || c.CalledStationID == "" {
+		if !validLoginDomain(c.LoginDomain) || net.ParseIP(c.Address) == nil || len(c.Secret) < 16 || c.RouterID == "" || c.Network == "" || c.CalledStationID == "" {
 			return errors.New("invalid NAS configuration")
 		}
 	}

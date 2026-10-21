@@ -636,3 +636,24 @@ documents default-domain and user/domain splitting. The actual CHR 7.24.5 matrix
 including first/last order and both username syntaxes, is in Subscriber-CHR-Lab.md.
 These commands are behind disposable process/topology/firmware guards. They add
 no operator-router mutation path and do not prove production domain handoff.
+
+Optional domain-mode runtime authorization uses one background shared-session
+view per NAS, independently of display watchers. It reads the following exact
+non-secret fields through the existing connection and limiter:
+
+| Menu | Properties |
+| --- | --- |
+| `/system/resource/print` | `version` |
+| `/ip/hotspot/print` | `name,profile,disabled` |
+| `/ip/hotspot/profile/print` | `name,login-by,use-radius,radius-accounting,radius-default-domain,split-user-domain` |
+| `/radius/print` | `address,authentication-port,accounting-port,domain,realm,service,disabled,protocol,require-message-auth` |
+| `/ip/hotspot/user/print` | `name,server,disabled` |
+| `/user-manager/user/print` | `name,disabled`, only for an explicitly configured legacy-domain transition |
+
+`internal/server/subscriber_login_routing.go` bounds each command to two seconds;
+the worker has a five-second context and a ten-second refresh cadence. Cached
+evidence older than fifteen seconds, failed reads or a mismatched firmware version
+cannot authorize a new domain admission or CoA write. Direct mode adds no routing
+read. Existing accounting continues independently. These are configuration
+intervals rather than measured worst-case latency guarantees. See
+[the routing guard and actual CHR acceptance](Subscriber-Login-Domain.md).

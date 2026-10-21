@@ -175,7 +175,7 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 
 | Route | Contract |
 | --- | --- |
-| `GET /api/subscribers` | Accounts, immutable plans and runtime mode |
+| `GET /api/subscribers` | Accounts, immutable plans, runtime mode and cached per-NAS `routing[]` freshness |
 | `POST /api/subscribers` | `create`, `plan`, `assign`, `status`, or `name`; each requires a reason |
 | `GET /api/subscribers/snapshot?account=...` | Read-only policy evaluation and current ledger snapshot |
 | `GET /api/subscribers/reconciliation?account=...` | Account-scoped byte gaps, holds, final-reading reviews and accounting receipts |
@@ -184,11 +184,20 @@ same-origin `Origin` and `X-MikroDash-Request: subscriber-admin`.
 | Portal `GET /api/session` | CSRF token, enrolled network keys and mode |
 | Portal `GET /api/account` | Session-owned versioned snapshot; account query parameters confer no access |
 | Portal `POST /api/speed` | Entitled `profileId`, 10-second cooldown; returns the persisted requested/pending-reconnect state |
-| Portal `POST /api/connect` | Enrolled `network`; returns one-use credentials, `flowId` and fixed owned HTTPS destination |
+| Portal `POST /api/connect` | Enrolled `network`; returns one-use credentials, `flowId` and fixed owned HTTPS destination; optional server-owned login domain requires fresh safe routing metadata before ticket creation |
 | Portal `GET /api/connection?flow=...` | Connection state for the authenticated account and trusted requesting peer |
 | Portal `POST /api/disconnect` | Owned `leaseId` and `confirm: true` |
 | Portal `POST /api/logout` | Revokes only the portal session |
 | Portal `GET /ws` | `subscriber:snapshot`; optional owned `?flow=...` adds `subscriber:connection`; generated payload contracts |
+
+An optional [login domain](Subscriber-Login-Domain.md) routes the HotSpot form
+without changing the stored username or subscription. Domain-mode authentication
+verifies the normalized identity and NAS attributes before ticket consumption.
+New admission and CoA writes require fresh, version-bound shared routing evidence;
+unknown or unsafe metadata returns `authentication-routing-unavailable` without
+granting a lease. Accounting and durable operation deadline/failure processing
+continue. Cached admin metadata does not itself authorize a particular account
+and never triggers per-user NAS reads.
 
 The administrative `name` action accepts `accountId`, `expectedName`, `name` and
 `reason`. `expectedName` is mandatory, including an explicit empty string when
