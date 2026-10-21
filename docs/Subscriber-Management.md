@@ -223,7 +223,9 @@ router CA were applied for the local VS Code test. After the owner restarted the
 debugger, the C device opened the isolated portal without a certificate warning;
 the live leaf, trusted chain and administrative-route isolation were verified.
 Existing HotSpot certificates and service bindings were preserved. This is portal
-connectivity/TLS acceptance only: the runtime remains Shadow. No operator Internet
+connectivity/TLS acceptance only: a later passive check and operator confirmation
+also proved preauthentication reachability with the original C client address
+preserved through development NAT. The runtime remains Shadow. No operator Internet
 admission, production disconnect, deployment or live RADIUS cutover followed. Isolated CHR fixture writes
 and their qualified results are described in the [lab guide](Subscriber-CHR-Lab.md). The existing logo asset is MikroDash-branded; a separate So7ob logo asset was
 not found and none was generated.

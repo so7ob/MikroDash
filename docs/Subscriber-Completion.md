@@ -549,3 +549,9 @@ This advances the routing dependency of AC-13/14. Production domain handoff,
 legacy name conflict detection, accounting/CoA identity and operator C acceptance
 remain pending. No target configuration changed and no AC row is closed by a
 reject-only lab measurement. See Subscriber-CHR-Lab.md for the measured matrix.
+
+Scoped verification on implementation `8ec2f0f1`: all 64 Go test packages,
+format/vet/current vulnerability scan, frontend build/generators/TypeScript,
+150 frontend and 32 tooling tests passed. The lab package race test and four
+compiling behavioral safety mutants passed their respective acceptance checks.
+See Subscriber-Verification.md; final-head and post-merge CI remain separate.
