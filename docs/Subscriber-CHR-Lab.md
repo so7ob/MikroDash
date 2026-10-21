@@ -308,10 +308,10 @@ and removes only its created secondary entry. No operator RADIUS changed.
 
 The official [HotSpot manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/)
 documents `radius-default-domain` together with `/radius domain` for per-profile
-server selection. Realm/username handling and same-profile legacy/pilot routing
-remain unproven and unimplemented here. Do not switch a live C profile or insert
-a rejecting pilot ahead of User Manager based on these tests alone. A scoped
-transition still needs one explicit authority and measured routing/rollback.
+server selection. The same-profile selection measurement below qualifies only the
+owned lab routing behavior. A live C transition still needs an implemented domain
+handoff, conflict checks against actual legacy usernames, one authority per login,
+accounting/CoA acceptance and specifically approved routing/rollback.
 
 
 ## Real application restart and outage findings
@@ -541,3 +541,55 @@ evidence remains in `.temp/subscriber-chr-entry-64`, including the unresolved
 outage ledger. A covering final reading or evidence-backed review is still
 required to restore that synthetic account's network eligibility. Never restore
 an old database or invent a final counter to make this case green.
+
+
+## Same-profile domain selection measurement
+
+Issue #70 adds `probe-radius-domain` and `probe-radius-domain-fault`. Keep the
+normal primary runtime running, require an idle owned HTTPS HotSpot, and run:
+
+```sh
+go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action probe-radius-domain
+# Expected exit 1 for this deliberately injected failure; inspect rollback too.
+go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action probe-radius-domain-fault
+```
+
+The probe adds one synthetic `md-pilot` domain endpoint. It measures both list
+orders and both `split-user-domain` settings with three HTTPS client usernames.
+The endpoint uses the normal authenticated Shadow RADIUS handler and signs
+Access-Reject; it never grants a session. NAS counter deltas verify requests,
+rejections and absence of retransmissions, timeouts, bad replies or admissions.
+A positive control temporarily selects the endpoint with the documented profile
+`radius-default-domain`, proving that zero-request results are meaningful.
+
+Actual isolated CHR 7.24.5 results on 2026-10-21:
+
+| Domain endpoint position | Split user/domain | Submitted username | Selected endpoint |
+| --- | --- | --- | --- |
+| Last | No or Yes | Plain or domain-qualified | Existing primary |
+| First | No | Plain or domain-qualified | Existing primary |
+| First | Yes | `legacy-lab` | Existing primary |
+| First | Yes | `md-pilot\legacy-lab` | Domain endpoint only |
+| First | Yes | `legacy-lab@md-pilot` | Domain endpoint only |
+
+Both qualified forms reached the secondary as username `legacy-lab`, with domain
+and realm `md-pilot`. Plain logins never reached it. All 12 matrix attempts and
+the positive control were rejected, with zero active sessions and no transport
+counter errors. This is an endpoint selection measurement, not an Internet
+admission, accounting, CoA, User Manager or L009/C acceptance test.
+
+Cleanup is registered before the first potentially ambiguous write. Normal
+completion restored the original profile fields and exact ordered non-secret
+RADIUS configuration. The fault command deliberately exited 1 after the profile
+change, then reported `domain-rollback` with `verified: true`. Unit call-site
+cases also cover lost add/set replies, evidence-write failure, moved-first entry
+cleanup and refusal to overwrite changed or ambiguous configuration. A process
+kill can prevent deferred cleanup: retain the private baseline and inspect the
+owned appliance before another probe; never copy a lab rollback to a live router.
+
+This result does not enable the production portal's domain handoff. Before a C
+pilot, verify existing names containing `@` or `\`, because enabling splitting
+can change their interpretation. Preserve account names and Unicode data. Check
+the default domain, all matching RADIUS services/order, local-user precedence,
+UDP reachability and accounting authority. Then test actual session identity,
+renewal, speed readback, exhaustion and rollback under a scoped approval.

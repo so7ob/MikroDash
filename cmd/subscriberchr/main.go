@@ -17,7 +17,7 @@ import (
 
 func main() {
 	state := flag.String("state", "", "private owned-VM runtime.json")
-	action := flag.String("action", "inspect", "inspect, configure, configure-https, prepare-runtime, repair-runtime-admin, install-landing, rollback-landing, runtime-status, logout-runtime, probe, probe-https, probe-download, probe-upload, probe-byte-renew, probe-disconnect, probe-runtime-traffic, probe-runtime-exhaust, probe-radius-selection or probe-radius-selection-fault")
+	action := flag.String("action", "inspect", "inspect, configure, configure-https, prepare-runtime, repair-runtime-admin, install-landing, rollback-landing, runtime-status, logout-runtime, probe, probe-https, probe-download, probe-upload, probe-byte-renew, probe-disconnect, probe-runtime-traffic, probe-runtime-exhaust, probe-radius-selection, probe-radius-selection-fault, probe-radius-domain or probe-radius-domain-fault")
 	web := flag.String("web", "web/dist", "built frontend directory for the owned landing installer")
 	flag.Parse()
 	if err := run(*state, *action, *web); err != nil {
@@ -31,7 +31,7 @@ func run(state, action, web string) error {
 		return fmt.Errorf("absolute private lab state path required")
 	}
 	switch action {
-	case "install-landing", "rollback-landing", "inspect", "configure", "configure-https", "prepare-runtime", "repair-runtime-admin", "runtime-status", "logout-runtime", "probe", "probe-https", "probe-download", "probe-upload", "probe-byte-renew", "probe-disconnect", "probe-runtime-traffic", "probe-runtime-exhaust", "probe-radius-selection", "probe-radius-selection-fault":
+	case "install-landing", "rollback-landing", "inspect", "configure", "configure-https", "prepare-runtime", "repair-runtime-admin", "runtime-status", "logout-runtime", "probe", "probe-https", "probe-download", "probe-upload", "probe-byte-renew", "probe-disconnect", "probe-runtime-traffic", "probe-runtime-exhaust", "probe-radius-selection", "probe-radius-selection-fault", "probe-radius-domain", "probe-radius-domain-fault":
 	default:
 		return fmt.Errorf("unknown lab action")
 	}
@@ -58,6 +58,11 @@ func run(state, action, web string) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
 		return c.LogoutRuntime(ctx, filepath.Dir(state))
+	}
+	if action == "probe-radius-domain" || action == "probe-radius-domain-fault" {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+		return c.RadiusDomainProbe(ctx, filepath.Dir(state), os.Stdout, action == "probe-radius-domain-fault")
 	}
 	if action == "probe-radius-selection" || action == "probe-radius-selection-fault" {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)

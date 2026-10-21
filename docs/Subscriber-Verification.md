@@ -581,3 +581,41 @@ under-load resource budgets or a guaranteed update/disconnect latency. The C-dev
 owner separately confirmed existing-router-CA portal HTTPS without warnings, and
 the live chain/admin-route isolation was verified; C remains Shadow with Internet
 admission disabled. Current PR-head and post-merge CI are required separately.
+
+
+## Domain selection and rollback: Issue #70
+
+Tested implementation: `8ec2f0f1`, Go 1.27.3. All 2235 tracked files were
+byte-matched to the isolated source archive; the visible checkout remained the
+only development checkout and retained the owner's untracked debugger files.
+
+- Native `gofmt`, `go vet ./...` and `go test ./...`: exit 0, 64 tested packages.
+  Test executables used the existing disk-backed temporary-directory wrapper;
+  only compiler/cache artifacts used RAM.
+- `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`: exit 0, zero reachable
+  findings; one uncalled required-module advisory remains visible.
+- `go run ./cmd/webbuild -dir web` and `sh tools/verify.sh --no-docker`: exit 0;
+  all Go generators, seven JavaScript generators, TypeScript, 150 frontend tests
+  and 32 tooling tests passed. The script's skipped Go half was run separately
+  above; the skip itself is not counted as a completed check.
+- `go test -race ./internal/subscriberlab -count=1`: exit 0, 3.585 seconds.
+- Four separately compiling mutants were behaviorally killed: skipped cleanup,
+  ignored profile drift, ignored evidence-write failure and accepted bad NAS
+  counter deltas. Archived mutation sources were restored; visible source was
+  never mutated.
+- The final committed `subscriberchr` binary exercised `probe-radius-domain`
+  against the guarded owned CHR 7.24.5: exit 0, twelve real HTTPS/NAS matrix
+  attempts plus one positive control, all rejected, zero active sessions.
+  Exactly the first-position/split-enabled qualified forms reached the secondary
+  with the normalized account username; plain names remained with the primary.
+- `probe-radius-domain-fault`: intentional exit 1 after profile change, followed
+  by fresh exact original configuration readback and `verified: true` rollback.
+  Normal completion also verified rollback. Raw private JSONL/error logs and
+  the expected failure were retained.
+
+The CHR result qualifies endpoint selection only. It does not prove an actual
+User Manager deployment, target C Internet admission, domain accounting/CoA
+identity, performance bounds or the production portal domain handoff. Those
+remain separate implementation/acceptance work. No operator RADIUS or profile
+was changed by this issue. Final-head and post-merge CI are delivery checks and
+must still be verified separately from these local observations.
