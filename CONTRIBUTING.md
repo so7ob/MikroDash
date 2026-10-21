@@ -67,7 +67,16 @@ For country/city labels in a local build, also supply the local GeoIP data with
 `-geo`; see [Activity geography setup](docs/Activity-Analytics.md#geoip-for-local-runs).
 The Docker image includes that data.
 
-You need **Go 1.27+**. **Node 24** is needed only to type-check and test the frontend: the frontend itself is built by a Go program, and nothing Node-related runs at runtime.
+You need **Go 1.27.3 or newer**. The module minimum includes the `crypto/x509`
+security fix in [Go 1.27.3](https://go.dev/doc/devel/release#go1.27.3).
+Go's default `GOTOOLCHAIN=auto` can select or download the required toolchain.
+With `GOTOOLCHAIN=local`, install and select a sufficiently recent Go first;
+an older compiler refuses this module before building. See the
+[official toolchain selection rules](https://go.dev/doc/toolchain).
+A running application or VS Code debug session must be rebuilt and restarted to
+use a new compiler; changing the module requirement does not replace that process.
+
+**Node 24** is needed only to type-check and test the frontend: the frontend itself is built by a Go program, and nothing Node-related runs at runtime.
 
 ```sh
 go run ./cmd/webbuild -dir web                    # build the TypeScript frontend into web/dist

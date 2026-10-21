@@ -24,8 +24,12 @@ Go files here are small and purposeful: read them whole.
 
 ## Commands
 
-Go runs in a container, so no local Go toolchain is needed. **Go 1.27 is required**: Go
-supports only its two newest releases, and `golang.org/x/crypto` follows them.
+Go runs in a container, so no local Go toolchain is needed. **Go 1.27.3 or newer is
+required** by `go.mod`, including the `crypto/x509` security fix in that patch.
+Go supports only its two newest releases, and `golang.org/x/crypto` follows them.
+The existing Go 1.27 container/CI selection can use newer patches; an older local
+compiler must switch toolchains or refuse the build. See CONTRIBUTING.md for
+`GOTOOLCHAIN` behavior. Do not restart an owner's running debugger to apply it.
 
 ```bash
 # Everything the repo can check: gofmt, vet, `go test ./...`, the generated-code
