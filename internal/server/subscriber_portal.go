@@ -207,12 +207,17 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		subscriberError(w, err)
 		return
 	}
+	loginUsername, err := nas.HotspotUsername(account.Username)
+	if err != nil {
+		subscriberError(w, err)
+		return
+	}
 	ticket, err := rt.radius.Store.IssueTicket(r.Context(), subscriber.TicketRequest{AccountID: v.AccountID, RouterID: nas.RouterID, Network: nas.Network, Device: device, ClientAddress: subscriberClientIPOf(r)}, time.Now())
 	if err != nil {
 		subscriberError(w, err)
 		return
 	}
-	writeJSON(w, map[string]string{"loginUrl": nas.LoginURL, "username": account.Username, "password": ticket, "flowId": subscriber.Digest(ticket), "destination": rt.cfg.PortalOrigin + "/?connection=" + subscriber.Digest(ticket)})
+	writeJSON(w, map[string]string{"loginUrl": nas.LoginURL, "username": loginUsername, "password": ticket, "flowId": subscriber.Digest(ticket), "destination": rt.cfg.PortalOrigin + "/?connection=" + subscriber.Digest(ticket)})
 }
 func (s *Server) subscriberPortalDisconnect(w http.ResponseWriter, r *http.Request) {
 	v, ok := s.subscriberIdentity(w, r)

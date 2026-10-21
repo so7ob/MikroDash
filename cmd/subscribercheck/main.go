@@ -8,14 +8,31 @@ import (
 	"mikrodash/internal/routeros"
 	"mikrodash/internal/store"
 	"mikrodash/internal/subscriber"
+	"net"
 	"os"
+	"strconv"
 )
 
 func main() {
 	data := flag.String("data", "/data", "existing MikroDash data directory")
 	id := flag.String("router", "", "router ID or stored label")
 	preview := flag.Bool("user-manager", false, "preview source definitions without importing")
+	domain := flag.String("login-domain", "", "review optional HotSpot domain routing without applying it")
+	hotspot := flag.String("hotspot", "", "HotSpot server name for domain routing review")
+	username := flag.String("subscriber", "", "original subscriber username for local precedence review")
+	endpoint := flag.String("radius-endpoint", "", "explicit router-visible RADIUS IPv4/IPv6 address:authentication-port")
+	accountingPort := flag.Int("radius-accounting-port", 0, "explicit router-visible RADIUS accounting port")
 	flag.Parse()
+	var target subscriber.LoginRoutingTarget
+	if *domain != "" {
+		host, port, splitErr := net.SplitHostPort(*endpoint)
+		authPort, portErr := strconv.Atoi(port)
+		if *preview || *hotspot == "" || *username == "" || splitErr != nil || portErr != nil || net.ParseIP(host) == nil || authPort < 1 || authPort > 65535 || *accountingPort < 1 || *accountingPort > 65535 {
+			fmt.Fprintln(os.Stderr, "domain review requires explicit HotSpot, subscriber and router-visible RADIUS address/ports; it cannot be combined with import preview")
+			os.Exit(1)
+		}
+		target = subscriber.LoginRoutingTarget{Address: host, AuthPort: authPort, AccountingPort: *accountingPort}
+	}
 	st, err := store.Open(*data)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cannot read store")
@@ -36,9 +53,25 @@ func main() {
 			os.Exit(1)
 		}
 		defer c.Close()
-		var report any = subscriber.Inspect(c)
+		readiness := subscriber.Inspect(c)
+		var report any = readiness
 		if *preview {
 			report = subscriber.PreviewUserManager(c)
+		} else if *domain != "" {
+			legacy := subscriber.PreviewUserManager(c)
+			rows, complete := legacy.Rows["/user-manager/user/print"]
+			names := []string{}
+			for _, row := range rows {
+				if row["name"] == "" {
+					complete = false
+				}
+				names = append(names, row["name"])
+			}
+			review := subscriber.ReviewLoginRouting(readiness, subscriber.NAS{LoginDomain: *domain, CalledStationID: *hotspot}, target, *username, names, complete)
+			report = struct {
+				Readiness subscriber.Readiness          `json:"readiness"`
+				Routing   subscriber.LoginRoutingReview `json:"routing"`
+			}{readiness, review}
 		}
 		if err = json.NewEncoder(os.Stdout).Encode(report); err != nil {
 			os.Exit(1)

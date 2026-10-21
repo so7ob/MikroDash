@@ -58,6 +58,9 @@ func (c Config) Validate() error {
 	peers := map[string]string{}
 	networks := map[string]bool{}
 	for _, n := range c.Clients {
+		if !validLoginDomain(n.LoginDomain) {
+			return errors.New("invalid NAS login domain")
+		}
 		if previous, ok := peers[n.Address]; ok && previous != n.RouterID {
 			return errors.New("one router identity per NAS source address is required")
 		}
