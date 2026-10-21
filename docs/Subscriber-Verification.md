@@ -694,3 +694,151 @@ when routing is unavailable. Its focused regressions passed (0.722 s). A fifth
 compiling mutant moved the check back before deadline processing; the new
 call-site regression killed it by detecting the incorrectly retained pending
 operation. This correction adds no permission to send a packet.
+
+
+## Reviewed account batches: Issue #74
+
+Real SQLite tests cover all-or-nothing rollback after an earlier update, later
+audit failure, overlapping concurrent reviews, stale replay, no-op behavior,
+empty/duplicate/oversized requests and the valid 50-account boundary. Passwords,
+one-code vouchers, Unicode names, subscriptions, usage and unresolved reservations
+are retained. A changed then restored status is detected through its audit
+revision; revisions above 2^53 remain exact decimal JSON strings. Protected HTTP
+tests exercise modern-admin permission, Origin/marker validation, missing/numeric
+revision rejection, committed results and whole-selection 409 conflicts.
+
+Focused Go 1.27.3 race checks pass: subscriber 27.519 s, db 2.807 s and server
+3.542 s. They use disk-backed test temporary directories. A real authenticated
+loopback UDP test proves a committed batch suspension reaches the ordinary
+guarded background Disconnect before local delegation expiry with no browser.
+The observed NAS identity is synthetic; the ACK retains unresolved accounting.
+These suite durations are not measured network enforcement latency.
+
+The actual synthetic protected HTTP/SQLite Chromium journey passes original-data
+search/status filters, clear-on-filter selection, cancellation, immutable review,
+changed-then-restored conflict, delayed genuine commit response, disabled busy
+controls, unchanged unselected accounts, suspension/reactivation, keyboard focus
+and escaped data. Dark/light/Nord at 375/1280 pass axe and screenshots; review
+controls are captured separately from the scrollable page shell. The independent
+read-only test connection requires exactly four per-account changes in two
+correlated batches, proving the browser path wrote durable audit rather than
+only changing DOM state. The full earlier reconciliation/name-edit journey stays
+part of this acceptance.
+
+Retained failures include an initially missing browser environment, a DOM shim
+without `querySelectorAll`, and a query-plan assertion expecting SQLite's
+`COVERING INDEX` wording instead of its actual `USING INDEX` target seek. The
+corrected assertion still requires the named indexed target search. A real
+success-banner race during successive reconciliation approvals was also found:
+the old success remained visible before the next response. The production
+handler now clears that success to `Recording settlement…` before awaiting the
+write. A held genuine response proves pending feedback and the existing final
+committed-state assertions remain in place. No retry or weakened finality check
+was used to conceal that failure.
+
+Schema 43-to-44 migration and idempotence retain credentials/audit and use the
+real indexed query plan. Existing active-consumption migration acceptance is
+replayed as well. Full exact-source repository checks, behavioral mutants and
+protected delivery are recorded separately in the issue/PR. No operator runtime,
+database or router setting was changed for these tests; C stays Shadow.
+
+The final browser run passed in 17.649 seconds, including all six real form/table
+geometry checks and a deliberate 50px search-control mutation that the geometry
+gate rejected before restoration. That gate first rejected a bare confirmation
+checkbox; the production review now uses the shared field/toggle component.
+The earlier failing geometry log is retained. These are suite durations, not
+service latency measurements.
+
+The repository's read-only `cmd/compat` also passed against the existing real
+development `/data`: schema stayed v43, stored users retained their bare-array
+hash shape, router credentials decrypted, the in-memory encrypted Unicode
+round-trip passed, and existing audit visibility/detail checks passed. No password
+challenge was requested and no migration/runtime restart was performed by that
+check. This is separate from the synthetic v44 migration tests.
+
+Five compiling safety mutants on implementation `6867d50e` were behaviorally
+killed: ignored restored-status revision, committed partial failed transaction,
+ignored audit failure, omitted index migration and reused prior settlement
+success. The last mutant ran the real browser journey and failed its held-response
+assertion. Archived sources were restored; visible source was never mutated.
+
+The first complete repository pass stopped on three static integration findings:
+the documented frontend file count needed 114, the ARIA-only review heading
+needed its explicit existing-ledger entry, and the producer scanner did not know
+literal IDs passed to the real shared toggle helper. No check or orphan ID was
+exempted. The scanner now recognizes that producer syntax; its positive control
+passes and renaming the actual toggle producer while retaining the lookup is
+detected by a separately compiling behavioral mutant. The three affected static
+checks pass (17.671 s). Full final-source checks and CI remain separate evidence.
+
+The exact `8e91eb36` browser run also passed (19.059 s). Its complete Go pass
+stopped at linker failures because the task-owned RAM compiler cache exhausted
+`/dev/shm`; those are retained as build failures, not passing package tests.
+Maintenance was deferred while another compiler was live, then only that
+reproducible task cache was cleaned after all compilers ended. Operator data,
+global/named caches, active binaries and raw evidence were preserved. The final
+complete pass must run again after this environment correction.
+
+
+After the task-cache repair, exact source `70be6f05` passed the full native Go
+format/vet/package checks, current vulnerability scan, frontend build, generated
+source checks, TypeScript, all 151 frontend tests and 32 tooling tests. The script's
+Go-half omission is covered by the separately completed native commands; it is
+not counted as a script-executed check. No called vulnerability was reported.
+
+The subsequent per-item result completion has its own working-source evidence:
+focused ledger/HTTP tests passed (10.874 s / 0.440 s), TypeScript passed and the
+actual protected HTTP/SQLite Chromium journey passed (68.598 s). It verifies
+ordered changed/unchanged outcomes, unconfirmed rows after a rejected review,
+and clears old committed feedback while a second genuine response is held.
+Synthetic result screenshots at 375/1280 passed overflow and axe checks. A compiling
+mutant omitting unchanged outcomes failed the mixed-result regression. A first
+command used the visible positive control rather than the archive; its passing
+log is retained separately and is not counted as a mutation kill. Full final-head
+repository/CI checks remain separately required after this code change.
+
+
+The per-item pending-feedback mutant type-checked and then failed the real browser
+assertion that old results must be hidden while the next genuine response is
+pending. Its first failure was obscured by an undrained response promise; that
+failed run is retained separately. The harness now always drains the response
+before propagating an assertion, and the diagnostic replay reports the intended
+stale-result assertion (61.305 s). This is test instrumentation repair, not a
+weakened product assertion. The isolated source was restored afterward.
+
+
+Exact `7048bab5` also passed the complete native repository checks and tagged
+protected-browser journey (51.843 s). Focused per-item race checks passed for
+subscriber/server (63.078 s / 8.792 s). A subsequent integer-boundary review found
+that SQLite's default rowid allocation can pick a smaller identity after the
+signed 64-bit maximum; the original individual status route then reused the
+maximum review token. The real SQLite regression failed on the old allocator,
+then passed after explicitly allocating the next audit ID and refusing exhaustion
+inside the transaction. Focused ledger/server checks passed (9.037 s / 0.348 s).
+The test covers the last exact commit, old individual status writes, reviewed
+batches, rollback and retained revision/state. The final code change requires its
+own complete verification; the earlier full passes do not establish that result.
+
+
+At corrected product source `bc8a9a6d`, native format/vet, all 64 Go packages,
+focused revision/concurrency/API race (4.911 s / 4.796 s), current vulnerability
+scan, frontend/binary builds, generated code, 151 frontend and 32 tooling tests
+passed. The tagged browser run then timed out waiting for the existing final
+reconciliation success notice after its HTTP 200 response (83.077 s). This is a
+failed browser result, not a completed full pass or proven environment failure.
+
+A diagnostic-only harness update preserves API completion, notice changes, DOM
+and a synthetic screenshot on failure. It changes no assertion, product code or
+30-second wait. The diagnostic replay passed the real protected SQLite browser
+journey in 83.986 s. The first timeout was not reproduced and no causal product
+fix is claimed for it; retain it as an intermittent observation for follow-up.
+Issue #74's account-batch cases passed in both runs. Final PR-head and post-merge
+CI remain required. No extra product feature was added for this observation.
+
+Before further build work, the development host had roughly 715 MiB ordinary
+storage and 4.5 GiB RAM-filesystem headroom, no compiler/test processes left and
+one unrelated owned CHR QEMU runtime. The task uses its RAM compiler cache and
+serialized jobs; no operator cache/data/volume was removed. Native Go/runtime
+source remains byte-identical to the fully checked product source above when
+only the diagnostic harness and delivery notes change. Static and harness checks
+must cover those changed inputs, and CI still runs the complete final PR tree.

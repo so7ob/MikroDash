@@ -228,18 +228,19 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Action        string          `json:"action"`
-		Username      string          `json:"username"`
-		Name          string          `json:"name"`
-		ExpectedName  *string         `json:"expectedName"`
-		Password      string          `json:"password"`
-		VoucherLength int             `json:"voucherLength"`
-		AccountID     string          `json:"accountId"`
-		PlanID        string          `json:"planId"`
-		Version       int             `json:"version"`
-		Reason        string          `json:"reason"`
-		Status        string          `json:"status"`
-		Plan          subscriber.Plan `json:"plan"`
+		Action        string                                `json:"action"`
+		Username      string                                `json:"username"`
+		Name          string                                `json:"name"`
+		ExpectedName  *string                               `json:"expectedName"`
+		Password      string                                `json:"password"`
+		VoucherLength int                                   `json:"voucherLength"`
+		AccountID     string                                `json:"accountId"`
+		PlanID        string                                `json:"planId"`
+		Version       int                                   `json:"version"`
+		Reason        string                                `json:"reason"`
+		Status        string                                `json:"status"`
+		Plan          subscriber.Plan                       `json:"plan"`
+		Items         []subscriber.AccountStatusExpectation `json:"items"`
 	}
 	if !subscriberBody(w, r, &in) {
 		return
@@ -249,6 +250,12 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var result any = map[string]bool{"ok": true}
 	switch in.Action {
+	case "status-batch":
+		result, err = store.SetStatusBatch(r.Context(), actor, in.Status, in.Reason, in.Items)
+		if errors.Is(err, subscriber.ErrConflict) {
+			writeJSONErr(w, 409, "Subscriber statuses changed. Refresh the list and review the entire selection again.")
+			return
+		}
 	case "name":
 		if in.ExpectedName == nil {
 			writeJSONErr(w, 400, "The current display name is required. Reload the account and try again.")

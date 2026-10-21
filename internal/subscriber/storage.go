@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
@@ -66,7 +67,7 @@ CREATE TABLE IF NOT EXISTS subscriber_audit (
  id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
  reason TEXT NOT NULL, created_at INTEGER NOT NULL
 );
-` + SessionSchema + ReconciliationSchema + ReceiptSchema + FinalityIndexes + ConnectionSchema
+` + SessionSchema + ReconciliationSchema + ReceiptSchema + FinalityIndexes + ConnectionSchema + AccountStatusIndexes
 
 type Store struct{ sql *sql.DB }
 
@@ -87,15 +88,25 @@ func audit(tx *sql.Tx, actor, action, target, reason string, now time.Time) erro
 	if strings.TrimSpace(actor) == "" || strings.TrimSpace(reason) == "" {
 		return errors.New("actor and reason required")
 	}
-	_, err := tx.Exec(`INSERT INTO subscriber_audit(actor,action,target,reason,created_at) VALUES(?,?,?,?,?)`, actor, action, target, reason, now.Unix())
+	// SQLite may choose a smaller random rowid after MaxInt64. Review tokens
+	// require monotonic committed identities, so exhaustion must roll back writes.
+	var previous int64
+	if err := tx.QueryRow(`SELECT COALESCE(MAX(id),0) FROM subscriber_audit`).Scan(&previous); err != nil {
+		return err
+	}
+	if previous < 0 || previous == math.MaxInt64 {
+		return errors.New("subscriber audit revision cannot advance within the supported range")
+	}
+	_, err := tx.Exec(`INSERT INTO subscriber_audit(id,actor,action,target,reason,created_at) VALUES(?,?,?,?,?,?)`, previous+1, actor, action, target, reason, now.Unix())
 	return err
 }
 
 type Account struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Name     string `json:"name"`
-	Status   string `json:"status"`
+	ID             string   `json:"id"`
+	Username       string   `json:"username"`
+	Name           string   `json:"name"`
+	Status         string   `json:"status"`
+	StatusRevision Quantity `json:"statusRevision"`
 }
 
 func (s *Store) CreateAccount(ctx context.Context, actor, username, name, password, reason string, voucherLength int) (Account, string, error) {
@@ -140,9 +151,9 @@ func (s *Store) Authenticate(ctx context.Context, username, password string) (Ac
 	var salt, hash string
 	var err error
 	if username == "" {
-		err = s.sql.QueryRowContext(ctx, `SELECT id,username,name,status,salt,password_hash FROM subscriber_accounts WHERE voucher_hash=?`, Digest(password)).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &salt, &hash)
+		err = s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+`,salt,password_hash FROM subscriber_accounts WHERE voucher_hash=?`, Digest(password)).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &salt, &hash)
 	} else {
-		err = s.sql.QueryRowContext(ctx, `SELECT id,username,name,status,salt,password_hash FROM subscriber_accounts WHERE username=?`, username).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &salt, &hash)
+		err = s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+`,salt,password_hash FROM subscriber_accounts WHERE username=?`, username).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &salt, &hash)
 	}
 	if err != nil {
 		store.HashPassword(password, "subscriber-missing-account")
@@ -155,7 +166,7 @@ func (s *Store) Authenticate(ctx context.Context, username, password string) (Ac
 	return a, nil
 }
 func (s *Store) Accounts(ctx context.Context) ([]Account, error) {
-	rows, err := s.sql.QueryContext(ctx, `SELECT id,username,name,status FROM subscriber_accounts ORDER BY username`)
+	rows, err := s.sql.QueryContext(ctx, `SELECT `+accountReviewColumns+` FROM subscriber_accounts ORDER BY username`)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +174,7 @@ func (s *Store) Accounts(ctx context.Context) ([]Account, error) {
 	out := []Account{}
 	for rows.Next() {
 		var a Account
-		if err = rows.Scan(&a.ID, &a.Username, &a.Name, &a.Status); err != nil {
+		if err = rows.Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
@@ -575,7 +586,7 @@ func wrap(err error) error {
 
 func (s *Store) AccountByID(ctx context.Context, id string) (Account, error) {
 	var a Account
-	err := s.sql.QueryRowContext(ctx, `SELECT id,username,name,status FROM subscriber_accounts WHERE id=?`, id).Scan(&a.ID, &a.Username, &a.Name, &a.Status)
+	err := s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+` FROM subscriber_accounts WHERE id=?`, id).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision)
 	return a, err
 }
 
