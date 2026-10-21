@@ -1,6 +1,6 @@
 // Real protected HTTP/SQLite acceptance on a synthetic local TLS fixture.
 import {createRequire} from 'node:module';
-import {mkdirSync,readFileSync} from 'node:fs';
+import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const require=createRequire(process.env.SUBSCRIBER_BROWSER_MODULE+'/package.json');
 const {chromium}=require('playwright');
@@ -9,12 +9,19 @@ const out=process.env.SUBSCRIBER_EVIDENCE_DIR;
 const geometrySource=readFileSync(new URL('./form-geometry.js',import.meta.url),'utf8');
 mkdirSync(out,{recursive:true});
 const browser=await chromium.launch({headless:true,...(process.env.SUBSCRIBER_CHROMIUM?{executablePath:process.env.SUBSCRIBER_CHROMIUM}:{})});
+let diagnosticPage;const diagnosticRequests=[];const diagnosticByRequest=new Map();
 try {
  const context=await browser.newContext({ignoreHTTPSErrors:true}); // Synthetic httptest identity only.
  const origin=process.env.SUBSCRIBER_TEST_URL;
  await context.addCookies([{name:'mikrodash_sid',value:'synthetic-token',url:origin,httpOnly:true,secure:true,sameSite:'Lax'}]);
- const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ const page=await context.newPage();diagnosticPage=page;
+ page.on('request',request=>{if(!new URL(request.url()).pathname.startsWith('/api/'))return;const entry={method:request.method(),path:new URL(request.url()).pathname+new URL(request.url()).search,startedAt:Date.now()};diagnosticRequests.push(entry);diagnosticByRequest.set(request,entry);});
+ page.on('response',response=>{const entry=diagnosticByRequest.get(response.request());if(entry)entry.status=response.status();});
+ page.on('requestfinished',request=>{const entry=diagnosticByRequest.get(request);if(entry)entry.finishedAt=Date.now();});
+ page.on('requestfailed',request=>{const entry=diagnosticByRequest.get(request);if(entry)entry.failure=request.failure()?.errorText;});
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(origin);
+ await page.evaluate(()=>{window.syntheticReconciliationNotices=[];const notice=document.querySelector('#subReviewNotice');if(notice)new MutationObserver(()=>window.syntheticReconciliationNotices.push({at:Date.now(),text:notice.textContent})).observe(notice,{childList:true,subtree:true,characterData:true});});
  await page.getByText('Unicode fixture: اختبار',{exact:true}).waitFor();
  await page.locator('#subscriberRuntimeStatus').getByText('Disabled',{exact:true}).waitFor();
  await page.getByLabel('Username',{exact:true}).fill('synthetic-offline-browser');
@@ -295,4 +302,13 @@ try {
  assert.deepEqual(errors,[]);
  await context.close();
  console.log('Subscriber admin browser acceptance passed: protected SQLite approval, conservation refusal, retained evidence, account-race isolation, keyboard tabs, Unicode, 375/1280 and axe.');
+} catch(error) {
+ try {
+  if(diagnosticPage&&!diagnosticPage.isClosed()){
+   const state=await diagnosticPage.evaluate(()=>({notice:document.querySelector('#subReviewNotice')?.textContent,account:document.querySelector('#subReviewAccount')?.value,rows:document.querySelector('#subReviewRows')?.innerText,notices:window.syntheticReconciliationNotices,body:document.body.innerText}));
+   writeFileSync(`${out}/failure-diagnostics.json`,JSON.stringify({synthetic:true,error:String(error),requests:diagnosticRequests,state},null,2)+'\n');
+   await diagnosticPage.screenshot({path:`${out}/failure-synthetic.png`,fullPage:true});
+  }
+ } catch(diagnosticError){console.error('Failure diagnostics could not be completed:',String(diagnosticError));}
+ throw error;
 } finally {await browser.close();}

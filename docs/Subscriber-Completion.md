@@ -31,6 +31,27 @@ a specifically authorized C pilot is executed. Hardware details in older reports
 | AC-18 | Measured freshness/CoA/disconnect/resources | Duplicate transaction benchmark only | shared observer and lab load harness | partial | missing | pending: target load approval |
 | AC-19 | Target build and existing app compatibility | Verified develop CI, prior ARM64 build and clean 27d17730 ARMv7 static build; target reports arm, execution pending | build/regression gates and isolated data | partial | prior pass | pending: target build |
 
+## Owner delivery priority: 2026-10-22
+
+Close Issue #74 against its existing account-review acceptance criteria and
+repository delivery gates. Do not add unrelated improvements after a passing
+check. The next delivery is one real L009/C subscriber: one credential entry,
+continuous bounded authorization, simultaneous time and traffic quotas, two
+verified live rate choices, durable debit and exhaustion disconnect/refusal.
+
+Prepare a concrete C blocker ledger using software, connectivity, unproven
+capability, live authorization and client action categories. Complete independent
+work and prepare exact commands, preflight, stop conditions and rollback before
+requesting live authorization. Existing approval covers only its original narrow
+C connectivity and certificate scope. Advanced editors and full import remain
+in the original completion contract after this trial; they are not trial gates
+unless a specific dependency is proven. The trial does not complete the platform.
+
+Use related checks during development, then the stable delivery gates. Preserve
+actual environment/product failures and manage build headroom/concurrency before
+heavy work. Do not weaken repository rules or repeatedly run an unchanged suite
+without a stated reason. C acceptance remains pending until actually proven.
+
 ## Capability matrix
 
 | Capability | Official reference | Implementation baseline | Lab | Target |

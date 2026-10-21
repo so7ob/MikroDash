@@ -818,3 +818,27 @@ inside the transaction. Focused ledger/server checks passed (9.037 s / 0.348 s).
 The test covers the last exact commit, old individual status writes, reviewed
 batches, rollback and retained revision/state. The final code change requires its
 own complete verification; the earlier full passes do not establish that result.
+
+
+At corrected product source `bc8a9a6d`, native format/vet, all 64 Go packages,
+focused revision/concurrency/API race (4.911 s / 4.796 s), current vulnerability
+scan, frontend/binary builds, generated code, 151 frontend and 32 tooling tests
+passed. The tagged browser run then timed out waiting for the existing final
+reconciliation success notice after its HTTP 200 response (83.077 s). This is a
+failed browser result, not a completed full pass or proven environment failure.
+
+A diagnostic-only harness update preserves API completion, notice changes, DOM
+and a synthetic screenshot on failure. It changes no assertion, product code or
+30-second wait. The diagnostic replay passed the real protected SQLite browser
+journey in 83.986 s. The first timeout was not reproduced and no causal product
+fix is claimed for it; retain it as an intermittent observation for follow-up.
+Issue #74's account-batch cases passed in both runs. Final PR-head and post-merge
+CI remain required. No extra product feature was added for this observation.
+
+Before further build work, the development host had roughly 715 MiB ordinary
+storage and 4.5 GiB RAM-filesystem headroom, no compiler/test processes left and
+one unrelated owned CHR QEMU runtime. The task uses its RAM compiler cache and
+serialized jobs; no operator cache/data/volume was removed. Native Go/runtime
+source remains byte-identical to the fully checked product source above when
+only the diagnostic harness and delivery notes change. Static and harness checks
+must cover those changed inputs, and CI still runs the complete final PR tree.
