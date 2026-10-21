@@ -113,8 +113,12 @@ sample. See [reconciliation](Subscriber-Reconciliation.md).
 
 Admission reserves sub-budgets atomically across all outstanding sessions. It emits local
 Session-Timeout, directional MikroTik byte limits and total byte limits where configured.
-The current implementation limits every delegation to **60 seconds**, the nearest hard period
-or access-window edge, or its smaller time allocation. A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab and the normal MikroDash worker on isolated CHR 7.24.5 with all browsers closed; L009/C proof remains pending. Renewal across a hard calendar-period edge remains outstanding. It never grants a
+The current implementation limits each local delegation to **60 seconds**, hard expiry,
+access-window closure and spendable time allocation. It can cross quota resets only
+when every touched period is reserved independently. Initial relative NAS-start
+uncertainty can require a pending reservation deadline up to 120 seconds after
+admission; it does not increase the issued local duration. See
+[calendar delegation and its conservative cutoff limitation](Subscriber-Calendar-Delegation.md). A shared background observer and durable CoA operations can renew this bounded delegation on a NAS with explicitly recorded timeout, byte-limit and counter semantics. Five continuous renewals pass in the UDP lab and the normal MikroDash worker on isolated CHR 7.24.5 with all browsers closed; L009/C proof remains pending. Calendar-period bridging passes synthetic ledger/UDP checks; actual CHR reset-crossing and target C proof remain pending. It never grants a
 new full hour after partial consumption.
 
 A 2-second background loop requests disconnect on expired delegations, suspension and
@@ -213,8 +217,14 @@ addressing and raw account/topology reports are deliberately excluded from publi
 one profile link, two users and two user-profile rows. The limitation is one hour with daily
 reset. Historical definitions mentioned in the request are not assumed to exist today.
 
-No operator-router write, production disconnect, deployment, live RADIUS cutover
-or operator certificate replacement was performed. Isolated CHR fixture writes
+The initial inspection made no operator-router writes. Later explicitly approved
+C-only connectivity rules and a seven-day portal leaf signed by the existing
+router CA were applied for the local VS Code test. After the owner restarted the
+debugger, the C device opened the isolated portal without a certificate warning;
+the live leaf, trusted chain and administrative-route isolation were verified.
+Existing HotSpot certificates and service bindings were preserved. This is portal
+connectivity/TLS acceptance only: the runtime remains Shadow. No operator Internet
+admission, production disconnect, deployment or live RADIUS cutover followed. Isolated CHR fixture writes
 and their qualified results are described in the [lab guide](Subscriber-CHR-Lab.md). The existing logo asset is MikroDash-branded; a separate So7ob logo asset was
 not found and none was generated.
 

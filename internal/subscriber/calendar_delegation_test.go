@@ -31,7 +31,7 @@ func resetCases(t *testing.T) []struct {
 	}
 }
 
-func crossingFixture(t *testing.T, period Period, edge time.Time) (*Store, *RadiusService, Account, Admission, time.Time) {
+func crossingFixture(t *testing.T, period Period, edge time.Time, configure ...func(*Plan)) (*Store, *RadiusService, Account, Admission, time.Time) {
 	t.Helper()
 	s, svc, account, _ := protocolFixture(t)
 	plans, err := s.Plans(t.Context())
@@ -43,6 +43,9 @@ func crossingFixture(t *testing.T, period Period, edge time.Time) (*Store, *Radi
 	p.MaxSessions = 1
 	p.Policies[0].Limits[0].Period = period
 	p.Policies[0].Limits = append(p.Policies[0].Limits, Limit{ID: "download", Kind: "download", State: "limited", Amount: 64 << 20, Period: period, Action: "disconnect"})
+	for _, change := range configure {
+		change(&p)
+	}
 	start := edge.Add(-20 * time.Second)
 	if err = s.SavePlan(t.Context(), "synthetic-admin", "calendar delegation fixture", p); err != nil {
 		t.Fatal(err)
@@ -73,7 +76,7 @@ func TestAdmissionCrossesQuotaResetWithIndependentReservations(t *testing.T) {
 				limit  string
 				period time.Time
 				amount Quantity
-			}{{"time", old, 20}, {"time", c.edge, 40}, {"download", old, grant.Download}, {"download", c.edge, grant.Download}} {
+			}{{"time", old, 25}, {"time", c.edge, 60}, {"download", old, grant.Download}, {"download", c.edge, grant.Download}} {
 				var amount Quantity
 				if err = s.sql.QueryRow(`SELECT amount FROM subscriber_reservations WHERE lease_id=? AND limit_id=? AND period_start=?`, grant.LeaseID, expected.limit, expected.period.Unix()).Scan(&amount); err != nil || amount != expected.amount {
 					t.Fatal("missing or incorrect independent period reservation", expected, amount, err)

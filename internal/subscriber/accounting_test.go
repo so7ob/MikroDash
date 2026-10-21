@@ -198,8 +198,26 @@ func TestBoundaryTimeAndBytesRemainAuditable(t *testing.T) {
 	s, a := setup(t, plan())
 	now := at("2026-10-31T23:59:50+03:00")
 	v := reserve(t, s, a, "device", now)
-	if v.Decision.Timeout != 10 {
+	if v.Decision.Timeout != 60 {
 		t.Fatal(v)
+	}
+	for _, expected := range []struct {
+		start string
+		value Quantity
+	}{{"2026-10-31T00:00:00+03:00", 15}, {"2026-11-01T00:00:00+03:00", 60}} {
+		view := snapshot(t, s, a, at(expected.start))
+		found := false
+		for _, limit := range view.Decision.Limits {
+			if limit.Limit.ID == "time" {
+				found = true
+				if limit.Reserved != expected.value {
+					t.Fatal("initial grant lacks conservative period coverage", expected, limit)
+				}
+			}
+		}
+		if !found {
+			t.Fatal("time limit missing from public snapshot")
+		}
 	}
 	if err := s.Account(ctx, event(v, "device", "stop", 20, 100, 0, now.Add(20*time.Second))); err != nil {
 		t.Fatal(err)

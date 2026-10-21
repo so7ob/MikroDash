@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -53,6 +54,59 @@ func liveFixture(t *testing.T, configure ...func(*Plan)) (*Store, *RadiusService
 }
 func observation(svc *RadiusService, a Account, grant Admission, start, now time.Time) RouterObservation {
 	return RouterObservation{RouterID: "lab", Version: "synthetic-7", At: now, Complete: true, Sessions: []ObservedSession{{ID: "*synthetic", Username: a.Username, Device: "device", Server: "hs-lab", Address: "198.51.100.2", Seconds: Quantity(now.Sub(start) / time.Second), Download: Quantity(now.Sub(start)/time.Second) * 1000, CountersKnown: true, TimeLeft: grant.Decision.Timeout - int64(now.Sub(start)/time.Second), TimeoutKnown: true, DownloadLimit: grant.Download, UploadLimit: grant.Upload, TotalLimit: grant.Total, LimitsKnown: true, Up: grant.Decision.Up, Down: grant.Decision.Down, RateKnown: true}}}
+}
+
+func TestPreparedRenewalRechecksAccountBeforeSendingToNAS(t *testing.T) {
+	for _, suspended := range []bool{false, true} {
+		t.Run(fmt.Sprintf("suspended=%v", suspended), func(t *testing.T) {
+			s, svc, account, grant, start := liveFixture(t)
+			now := start.Add(40 * time.Second)
+			if err := s.ObserveRouter(t.Context(), observation(svc, account, grant, start, now), svc.Clients); err != nil {
+				t.Fatal(err)
+			}
+			operation, err := s.PrepareOperation(t.Context(), grant.LeaseID, "renew", now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if suspended {
+				if err = s.SetStatus(t.Context(), "synthetic-admin", account.ID, "suspended", "Suspend after renewal preparation"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			conn, err := net.ListenPacket("udp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatal(err)
+			}
+			var requests atomic.Int64
+			nas := &radius.PacketServer{SecretSource: radius.StaticSecretSource([]byte(testSecret)), Handler: radius.HandlerFunc(func(w radius.ResponseWriter, r *radius.Request) {
+				requests.Add(1)
+				_ = w.Write(r.Response(radius.CodeCoAACK))
+			})}
+			go nas.Serve(conn)
+			t.Cleanup(func() {
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+				if err := nas.Shutdown(ctx); err != nil {
+					t.Error(err)
+				}
+			})
+			svc.Clients[0].DisconnectPort = conn.LocalAddr().(*net.UDPAddr).Port
+			if err = svc.ProcessOperations(t.Context(), now); err != nil {
+				t.Fatal(err)
+			}
+			rows, err := s.Operations(t.Context(), false)
+			if err != nil || len(rows) != 1 || rows[0].ID != operation.ID {
+				t.Fatal(rows, err)
+			}
+			if suspended {
+				if requests.Load() != 0 || rows[0].State != "failed" {
+					t.Fatalf("suspended account received prepared renewal: packets=%d state=%s", requests.Load(), rows[0].State)
+				}
+			} else if requests.Load() != 1 || rows[0].State != "acknowledged" {
+				t.Fatalf("positive UDP control did not apply: packets=%d state=%s", requests.Load(), rows[0].State)
+			}
+		})
+	}
 }
 func TestFiveContinuousRenewalsUseOneLedgerAndVerifiedReadback(t *testing.T) {
 	s, svc, a, grant, start := liveFixture(t)
@@ -226,6 +280,15 @@ func TestRenewalDoesNotReleaseAnotherDevicesReservation(t *testing.T) {
 	if second.LeaseID == grant.LeaseID {
 		t.Fatal("same lease")
 	}
+	otherReservations := func() string {
+		t.Helper()
+		var value string
+		if err := s.sql.QueryRow(`SELECT group_concat(entry,'|') FROM (SELECT limit_id||':'||period_start||':'||amount AS entry FROM subscriber_reservations WHERE lease_id=? ORDER BY limit_id,period_start)`, second.LeaseID).Scan(&value); err != nil || value == "" {
+			t.Fatal("other device reservations missing", value, err)
+		}
+		return value
+	}
+	beforeOther := otherReservations()
 	v := observation(svc, a, grant, start, start.Add(40*time.Second))
 	if err = s.ObserveRouter(t.Context(), v, svc.Clients); err != nil {
 		t.Fatal(err)
@@ -235,11 +298,15 @@ func TestRenewalDoesNotReleaseAnotherDevicesReservation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var total Quantity
-	if err = s.sql.QueryRow(`SELECT sum(amount) FROM subscriber_reservations WHERE limit_id='time'`).Scan(&total); err != nil {
+	period := o.Request.Admission.Decision.Limits[0].PeriodStart
+	if err = s.sql.QueryRow(`SELECT sum(amount) FROM subscriber_reservations WHERE limit_id='time' AND period_start=?`, period.Unix()).Scan(&total); err != nil {
 		t.Fatal(err)
 	}
 	if total != 120 || o.Request.Admission.Decision.Timeout != 60 {
 		t.Fatal("reservation granted twice or other lease ignored", total, o)
+	}
+	if beforeOther != otherReservations() {
+		t.Fatal("renewal changed another device's current or historical reservations")
 	}
 	// Unknown/stale usage never authorizes another full delegation.
 	if _, err = s.PrepareOperation(t.Context(), grant.LeaseID, "renew", v.At); err != nil {

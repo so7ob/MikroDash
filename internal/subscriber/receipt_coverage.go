@@ -57,7 +57,10 @@ func pendingAccounting(tx *sql.Tx, account string) (int, error) {
  UNION ALL
  SELECT l.id FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND l.state='stopped' AND `+missingFinalCondition+`
  AND NOT EXISTS(SELECT 1 FROM subscriber_accounting_receipts r WHERE r.lease_id=l.id AND r.state='pending')
-)`, account, account).Scan(&count)
+ UNION ALL
+ SELECT l.id FROM subscriber_leases l JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND l.state='reserved' AND coalesce(json_extract(l.decision,'$.timingBasis'),'')!=?
+ AND NOT EXISTS(SELECT 1 FROM subscriber_accounting_receipts r WHERE r.lease_id=l.id AND r.state='pending')
+)`, account, account, account, admissionTimingBasis).Scan(&count)
 	return count, err
 }
 

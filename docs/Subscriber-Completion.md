@@ -475,3 +475,34 @@ future entitlement. Failures are behavioral assertions, not build errors.
 Bridging and future-period reservations are not implemented by that checkpoint;
 its tests are not green and it is not a completed delivery. The larger policy,
 administration/import/setup and target acceptance gaps remain active.
+
+### Issue #66: calendar delegation implementation checkpoint
+
+Admission and renewal now reserve every potentially touched hard-limit period
+atomically while retaining current display evaluation. Initial relative timeout
+start uncertainty is reserved across its accepted -5/+60-second interval; absolute
+expiry/windows can conservatively refuse a new login near closure. Existing
+unknown-start legacy grants remain reconciling. Known legacy exposure is retained
+with an audited upgrade, including successful idempotent admission retries.
+The new regression first failed because that retry returned before transaction
+commit; the correction preserves future holds and exactly-once audit.
+
+Durable combined renewal includes required future throttle rate, timeout and
+cumulative byte caps. A real loopback authenticated UDP case rejects rate-capability
+revocation and requires exact rate readback beyond ACK/timeout/byte confirmation.
+Prepared operation replay also rechecks account suspension before a network send;
+the previous behavior sent a renewal after suspension and is retained as red evidence.
+
+Five-anchor ledger rollback and concurrent cross-network admission/renewal tests
+pass. The package race run passes (82.738 seconds); the 30-second independent
+calendar-conservation fuzz run passed 77040 cases. Full repository checks,
+mutation evidence, actual CHR calendar crossing and protected develop delivery
+remain pending. These results do not complete AC-03/09/10 or the wider module.
+See [the bounded calendar contract](Subscriber-Calendar-Delegation.md).
+
+Separately, the owner approved narrow C portal reachability and existing-router-CA
+signing. Actual C-device HTTPS opens without warnings after owner F5 restart; the
+live leaf and isolated routes were verified. No existing HotSpot certificate,
+RADIUS authority or production connection was changed. This narrows the portal
+TLS/reachability gap in AC-13/14, but Internet admission is still disabled in Shadow
+and those target acceptance rows remain pending.

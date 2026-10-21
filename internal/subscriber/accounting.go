@@ -30,15 +30,17 @@ type Lease struct {
 	Upload          Quantity  `json:"upload"`
 }
 type Admission struct {
-	LeaseID  string   `json:"leaseId"`
-	Decision Decision `json:"decision"`
-	Download Quantity `json:"download"`
-	Upload   Quantity `json:"upload"`
-	Total    Quantity `json:"total"`
+	TimingBasis string   `json:"timingBasis"`
+	LeaseID     string   `json:"leaseId"`
+	Decision    Decision `json:"decision"`
+	Download    Quantity `json:"download"`
+	Upload      Quantity `json:"upload"`
+	Total       Quantity `json:"total"`
 }
 
 // Reserve serializes admission with accounting using SQLite's immediate
-// transaction. A local lease never crosses a hard period or schedule boundary.
+// transaction. Crossing quota resets reserves each period independently;
+// subscription expiry and access-window closure remain mandatory cutoffs.
 // Quotas are shared across all routers, with a sub-budget for each device slot.
 func (s *Store) Reserve(ctx context.Context, account, router, network, device, request string, at time.Time) (Admission, error) {
 	var a Admission
@@ -64,6 +66,9 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 	if legacy {
 		return a, denyAdmission("authorization-reconciliation-required")
 	}
+	if err = retainLegacyExposure(tx, account, at); err != nil {
+		return a, err
+	}
 	var previous, owner, oldRouter, oldNetwork, oldDevice, oldState, accountStatus string
 	var deadline int64
 	err = tx.QueryRow(`SELECT l.decision,s.account_id,l.deadline,l.router_id,l.network,l.device,l.state,a.status FROM subscriber_leases l JOIN subscriber_subscriptions s ON s.id=l.subscription_id JOIN subscriber_accounts a ON a.id=s.account_id WHERE l.request_key=?`, request).Scan(&previous, &owner, &deadline, &oldRouter, &oldNetwork, &oldDevice, &oldState, &accountStatus)
@@ -80,8 +85,12 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		if accountStatus != "active" {
 			return a, denyAdmission("account-suspended")
 		}
-		err = json.Unmarshal([]byte(previous), &a)
-		return a, err
+		if err = json.Unmarshal([]byte(previous), &a); err != nil {
+			return a, err
+		}
+		// A retry can have upgraded legacy exposure above. Return the same
+		// issued grant only after those reservations and their audit commit.
+		return a, tx.Commit()
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
 		return a, err
@@ -129,68 +138,24 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		sub.ActivatedAt = at
 		sub.ExpiresAt = at.Add(time.Duration(sub.Plan.ValidSeconds) * time.Second)
 	}
-	a.Decision = Evaluate(sub.Plan, sub.SpeedID, at, sub.ExpiresAt, u)
-	if !a.Decision.Allowed {
-		return a, denyAdmission(a.Decision.Reasons...)
-	}
 	slots := Quantity(sub.Plan.MaxSessions - active)
-	for _, v := range a.Decision.Limits {
-		l := v.Limit
-		if l.State != "limited" || (l.Action != "deny" && l.Action != "disconnect") {
-			continue
-		}
-		budget := v.Remaining / slots
-		if budget <= 0 {
-			return a, denyAdmission("insufficient-shared-budget:" + l.ID)
-		}
-		switch l.Kind {
-		case "seconds":
-			a.Decision.Timeout = min(a.Decision.Timeout, int64(budget))
-		case "download":
-			a.Download = smallest(a.Download, budget)
-		case "upload":
-			a.Upload = smallest(a.Upload, budget)
-		case "total":
-			a.Total = smallest(a.Total, budget)
-		}
-	}
-	// Always delegate bounded traffic as well as bounded time. This caps local
-	// exposure on application failure even for an unlimited commercial plan.
-	a.Download = smallest(a.Download, Quantity(a.Decision.Timeout)*a.Decision.Down/8)
-	a.Upload = smallest(a.Upload, Quantity(a.Decision.Timeout)*a.Decision.Up/8)
-	if a.Download <= 0 || a.Upload <= 0 || a.Decision.Timeout <= 0 {
-		return a, denyAdmission("delegation-unavailable")
+	var reservations []periodReservation
+	var end time.Time
+	a, reservations, end, err = planAdmission(sub.Plan, sub.SpeedID, at, sub.ExpiresAt, u, slots)
+	if err != nil {
+		return a, err
 	}
 	a.LeaseID = ID()
 	raw, err := json.Marshal(a)
 	if err != nil {
 		return a, err
 	}
-	_, err = tx.Exec(`INSERT INTO subscriber_leases(id,subscription_id,router_id,network,device,request_key,created_at,deadline,decision) VALUES(?,?,?,?,?,?,?,?,?)`, a.LeaseID, sub.ID, router, network, device, request, at.Unix(), at.Unix()+a.Decision.Timeout, string(raw))
+	_, err = tx.Exec(`INSERT INTO subscriber_leases(id,subscription_id,router_id,network,device,request_key,created_at,deadline,decision) VALUES(?,?,?,?,?,?,?,?,?)`, a.LeaseID, sub.ID, router, network, device, request, at.Unix(), end.Unix(), string(raw))
 	if err != nil {
 		return a, err
 	}
-	for _, v := range a.Decision.Limits {
-		l := v.Limit
-		if l.State != "limited" || (l.Action != "deny" && l.Action != "disconnect") {
-			continue
-		}
-		budget := v.Remaining / slots
-		switch l.Kind {
-		case "seconds":
-			budget = min(budget, Quantity(a.Decision.Timeout))
-		case "download":
-			budget = min(budget, a.Download)
-		case "upload":
-			budget = min(budget, a.Upload)
-		case "total":
-			total, e := add(a.Download, a.Upload)
-			if e != nil {
-				return a, e
-			}
-			budget = min(budget, total)
-		}
-		if _, err = tx.Exec(`INSERT INTO subscriber_reservations VALUES(?,?,?,?)`, a.LeaseID, l.ID, v.PeriodStart.Unix(), budget); err != nil {
+	for _, r := range reservations {
+		if _, err = tx.Exec(`INSERT INTO subscriber_reservations VALUES(?,?,?,?)`, a.LeaseID, r.LimitID, r.Start.Unix(), r.Amount); err != nil {
 			return a, err
 		}
 	}
@@ -290,8 +255,19 @@ func (s *Store) accountTx(tx *sql.Tx, e Accounting) error {
 	}
 	if started == 0 {
 		started = e.At.Unix() - int64(e.Seconds)
-		if started < created-5 || started > created+60 {
+		if started < created-admissionStartLead || started > created+admissionStartLag {
 			return errors.New("accounting start does not match authorization")
+		}
+		var grantRaw string
+		var grant Admission
+		if err = tx.QueryRow(`SELECT decision FROM subscriber_leases WHERE id=?`, e.LeaseID).Scan(&grantRaw); err != nil {
+			return err
+		}
+		if err = json.Unmarshal([]byte(grantRaw), &grant); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE subscriber_leases SET deadline=? WHERE id=?`, started+grant.Decision.Timeout, e.LeaseID); err != nil {
+			return err
 		}
 	}
 	sec := max(oldSec, e.Seconds)

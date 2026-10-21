@@ -41,6 +41,9 @@ func operationPacket(o Operation, n NAS, at time.Time, observedAddress string) (
 		if q.TotalCeiling > 0 && !n.Capabilities.CoATotal {
 			return nil, errors.New("CoA total byte limit is unverified")
 		}
+		if q.RequireRate && !n.Capabilities.CoARate {
+			return nil, errors.New("renewal needs a verified live rate change")
+		}
 	} else {
 		return nil, errors.New("invalid session operation")
 	}
@@ -77,6 +80,9 @@ func operationPacket(o Operation, n NAS, at time.Time, observedAddress string) (
 		setters = append(setters, rfc2865.SessionTimeout_Set(p, rfc2865.SessionTimeout(timeout)),
 			mikrotik.MikrotikXmitLimit_Set(p, mikrotik.MikrotikXmitLimit(uint64(down)&0xffffffff)),
 			mikrotik.MikrotikRecvLimit_Set(p, mikrotik.MikrotikRecvLimit(uint64(up)&0xffffffff)))
+		if q.RequireRate {
+			setters = append(setters, mikrotik.MikrotikRateLimit_SetString(p, fmt.Sprintf("%d/%d", q.Admission.Decision.Up, q.Admission.Decision.Down)))
+		}
 		if n.Capabilities.CoAGigawords {
 			setters = append(setters, mikrotik.MikrotikXmitLimitGigawords_Set(p, mikrotik.MikrotikXmitLimitGigawords(uint64(down)>>32)), mikrotik.MikrotikRecvLimitGigawords_Set(p, mikrotik.MikrotikRecvLimitGigawords(uint64(up)>>32)))
 		}
@@ -104,7 +110,8 @@ func operationVerified(o Operation, row ObservedSession, at time.Time) bool {
 	}
 	actual, err := add(row.Seconds, Quantity(row.TimeLeft))
 	expected := Quantity(o.TargetDeadline.Unix() - o.Request.StartedAt.Unix())
-	return err == nil && expected > 0 && row.TimeoutKnown && actual >= expected-2 && actual <= expected && row.LimitsKnown && row.DownloadLimit == o.Request.DownloadCeiling && row.UploadLimit == o.Request.UploadCeiling && (o.Request.TotalCeiling == 0 || row.TotalLimit == o.Request.TotalCeiling)
+	rateVerified := !o.Request.RequireRate || (row.RateKnown && row.Down == o.Request.Admission.Decision.Down && row.Up == o.Request.Admission.Decision.Up)
+	return err == nil && rateVerified && expected > 0 && row.TimeoutKnown && actual >= expected-2 && actual <= expected && row.LimitsKnown && row.DownloadLimit == o.Request.DownloadCeiling && row.UploadLimit == o.Request.UploadCeiling && (o.Request.TotalCeiling == 0 || row.TotalLimit == o.Request.TotalCeiling)
 }
 
 // ProcessOperations first checks readback, including after a crash or lost ACK.
@@ -161,16 +168,23 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 			}
 			return err
 		}
+		if o.State != "requested" && operationVerified(o, row, observed) {
+			// This records an already-issued fact, not permission for another write.
+			// A newer choice cannot mark itself applied through an older operation.
+			if err = s.Store.transitionOperation(ctx, o, "verified", "verified by session/queue readback", "", at); err != nil {
+				return err
+			}
+			continue
+		}
 		current, err := s.Store.Snapshot(ctx, owner, at)
 		if err != nil {
 			return err
 		}
-		u := map[string]Usage{}
-		for _, v := range current.Decision.Limits {
-			u[Key(v.Limit.ID, v.PeriodStart)] = Usage{Used: v.Used, Reserved: v.Provisional, Provisional: v.Provisional, Quality: v.Quality}
+		decision, err := s.Store.operationPolicy(ctx, owner, at, o.TargetDeadline)
+		if err != nil {
+			return err
 		}
-		decision := Evaluate(current.Subscription.Plan, current.Subscription.SpeedID, at, current.Subscription.ExpiresAt, u)
-		if current.PendingAccounting > 0 || !decision.Allowed || (o.Kind == "rate" && (current.Subscription.SpeedID != o.Request.SpeedID || o.Request.Admission.Decision.Down > decision.Down || o.Request.Admission.Decision.Up > decision.Up)) {
+		if current.PendingAccounting > 0 || !decision.Allowed || o.Request.Admission.Decision.Down > decision.Down || o.Request.Admission.Decision.Up > decision.Up || (o.Kind == "rate" && current.Subscription.SpeedID != o.Request.SpeedID) {
 			if err = s.Store.transitionOperation(ctx, o, "failed", "policy or selected speed changed before application", "", at); err != nil {
 				return err
 			}
@@ -184,12 +198,6 @@ func (s *RadiusService) ProcessOperations(ctx context.Context, at time.Time) err
 				return err
 			}
 			if err = s.Store.transitionOperation(ctx, o, "verified", "verified existing exact-device queue ceiling", "", at); err != nil {
-				return err
-			}
-			continue
-		}
-		if o.State != "requested" && operationVerified(o, row, observed) {
-			if err = s.Store.transitionOperation(ctx, o, "verified", "verified by session/queue readback", "", at); err != nil {
 				return err
 			}
 			continue
