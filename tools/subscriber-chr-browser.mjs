@@ -44,31 +44,60 @@ const save=(name,value)=>fs.writeFileSync(path.join(evidence,name),JSON.stringif
 const browser=await chromium.launch({headless:true,...(process.env.SUBSCRIBER_CHROMIUM?{executablePath:process.env.SUBSCRIBER_CHROMIUM}:{}),args:['--no-sandbox','--no-proxy-server','--host-resolver-rules=MAP portal.example.test 198.51.100.10, MAP login.example.test 198.51.100.1',`--ignore-certificate-errors-spki-list=${pins.join(',')}`]});
 const context=await browser.newContext({viewport:{width:1280,height:900}}), page=await context.newPage(), errors=[];
 page.on('pageerror',e=>errors.push(e.message));
+await context.addInitScript(()=>Object.defineProperty(window,'sessionStorage',{get(){throw new DOMException('Storage disabled for the synthetic captive-browser case','SecurityError');}}));
+const submissions={portal:0,connect:0,hotspot:0};page.on('request',r=>{if(r.method()!=='POST')return;const u=new URL(r.url());if(u.hostname==='portal.example.test'&&u.pathname==='/api/login')submissions.portal++;if(u.hostname==='portal.example.test'&&u.pathname==='/api/connect')submissions.connect++;if(u.hostname==='login.example.test'&&u.pathname==='/login')submissions.hotspot++;});
 const origin='https://portal.example.test:9444';let phase='sign-in';
+const accountBody=Promise.withResolvers(),connectBody=Promise.withResolvers();
+await page.exposeBinding('__subscriberLabEvidence',({frame},kind,body)=>{
+ assert.equal(new URL(frame.url()).origin,origin);
+ if(kind==='account')accountBody.resolve(body);
+ else if(kind==='connect')connectBody.resolve(body);
+ else throw Error('Unexpected browser evidence');
+});
+// Read a clone in the requesting browser before its real response is returned
+// to the shipped page. CDP may lose bodies at a fast cross-origin navigation.
+// Requests, responses and the subsequent NAS form remain real and unchanged.
+await context.addInitScript(()=>{
+ const nativeFetch=window.fetch;
+ window.fetch=async(...args)=>{
+  const response=await nativeFetch(...args),url=new URL(response.url);
+  if(response.ok&&url.origin==='https://portal.example.test:9444'&&['/api/account','/api/connect'].includes(url.pathname))await window.__subscriberLabEvidence(url.pathname==='/api/account'?'account':'connect',await response.clone().json());
+  return response;
+ };
+});
 const snapshot=()=>page.evaluate(async()=>{const r=await fetch('/api/account');if(!r.ok)throw Error('Owned account unavailable');return r.json();});
 try {
- await page.goto('https://login.example.test/login'); // Actual HotSpot document; automatic handoff is a separate gap.
- await page.goto(origin);await page.locator('#subscriberUsername').fill(credentials.username);await page.locator('#subscriberPassword').fill(credentials.password);await page.locator('#subscriberLoginForm button').click();await page.locator('#portalAccount').waitFor({state:'visible'});
- const before=await snapshot();save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
+ await page.goto('https://login.example.test/login');
+ await page.locator('#subscriberUsername').waitFor({state:'visible'});assert.equal(new URL(page.url()).origin,origin,'NAS landing did not hand off to the portal');
+ assert.equal(await page.locator('#portalLoginSubmit').textContent(),'Sign in and connect');
+ const response=page.waitForResponse(r=>r.url().startsWith('https://login.example.test/login')&&r.request().method()==='POST',{timeout:15000});
+ const submitted=Promise.all([accountBody.promise,connectBody.promise,response]);
+ void submitted.catch(()=>{}); // The assertion below owns any early timeout.
+ await page.locator('#subscriberUsername').fill(credentials.username);await page.locator('#subscriberPassword').fill(credentials.password);
+ phase='single sign-in and actual browser HotSpot POST';await page.locator('#portalLoginSubmit').click({noWaitAfter:true});
+ const [before,ticket,hotspot]=await submitted;save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
+ const flowId=ticket.flowId;assert.match(flowId,/^[a-f0-9]{64}$/);assert.equal(ticket.destination,origin+'/?connection='+flowId);
+ assert.equal(hotspot.status(),200);const repliedAt=Date.now();
+ await page.locator('#portalAccount').waitFor({state:'visible',timeout:10000});assert.equal(new URL(page.url()).origin,origin,'HotSpot did not return to the owned account');
  assert.equal(await page.evaluate(async()=>(await fetch('/api/routers')).status),404);
- phase='actual browser HotSpot POST';const response=page.waitForResponse(r=>r.url().startsWith('https://login.example.test/login')&&r.request().method()==='POST',{timeout:15000});
- await page.locator('#internetConnect').click();assert.equal((await response).status(),200);const repliedAt=Date.now();
  if(action!=='journey') {
   assert.equal(before.decision.allowed,false);
   const remaining=before.decision.limits.find(x=>x.limit.kind==='download').remaining;
   if(action==='exhausted')assert.equal(remaining,'0');
   else {assert.ok(BigInt(remaining)>0n,'missing-finality case needs positive known credit');assert.equal(before.quality,'reconciling');}
-  await page.waitForURL('https://login.example.test/login',{timeout:10000});const text=await page.locator('body').innerText();assert.match(text,/invalid|denied|reject|not allowed|not permitted|failed/i);save('router-refusal.json',{text});
-  await page.goto(origin);await page.locator('#portalAccount').waitFor({state:'visible'});const after=await snapshot();assert.equal(after.decision.allowed,false);assert.equal(after.sessions.filter(s=>s.state==='active').length,0);for(const key of ['pendingAccounting','lifetimeSeconds','lifetimeDownload','lifetimeUpload'])assert.equal(after[key],before[key]);
-  save('result.json',{synthetic:true,result:'network-passed',scope:`actual ${action} re-entry denied; portal available; admin route 404`,runtimeBinarySHA256:app.binarySHA256,automaticRecovery:false});
+  await page.waitForFunction(()=>document.querySelector('#internetState')?.textContent==='Internet connection denied',null,{timeout:10000});
+  const reason=await page.locator('#internetDetail').textContent();assert.match(reason,action==='exhausted'?/Allowance exhausted/i:/reconciliation/i);save('router-refusal.json',{reason});
+  const after=await snapshot();assert.equal(after.decision.allowed,false);assert.equal(after.sessions.filter(s=>s.state==='active').length,0);for(const key of ['pendingAccounting','lifetimeSeconds','lifetimeDownload','lifetimeUpload'])assert.equal(after[key],before[key]);
+  save('result.json',{synthetic:true,result:'network-passed',scope:`actual ${action} re-entry denied; portal available; admin route 404`,runtimeBinarySHA256:app.binarySHA256,automaticRecovery:true});
  } else {
-  assert.equal(before.decision.allowed,true);await page.waitForURL(origin+'/',{timeout:10000});await page.waitForFunction(()=>document.querySelector('#sessionCount')?.textContent==='1',null,{timeout:10000});
-  const dashboardReturnMs=Date.now()-repliedAt;assert.ok(dashboardReturnMs<=5000,'dashboard return exceeded five seconds');
+  assert.equal(before.decision.allowed,true);await page.waitForFunction(()=>document.querySelector('#internetState')?.textContent==='Internet connected',null,{timeout:10000});
+  const dashboardReturnMs=Date.now()-repliedAt;
+  const flow=await page.evaluate(async id=>{const r=await fetch('/api/connection?flow='+id);if(!r.ok)throw Error('Owned connection unavailable');return r.json();},flowId);assert.equal(flow.stage,'connected');save('owned-flow.json',flow);assert.ok(dashboardReturnMs<=5000,'dashboard return exceeded five seconds');
   const connected=await snapshot(), live=connected.sessions.filter(s=>s.state==='active');assert.equal(live.length,1);assert.equal(live[0].connectionState,'connected');assert.ok(BigInt(connected.lifetimeSeconds)>=BigInt(before.lifetimeSeconds));save('connected.json',connected);
   const profiles=['fast','economy'];assert.ok(profiles.every(id=>connected.subscription.plan.speeds.some(p=>p.id===id)));
   if(connected.subscription.speedId==='fast')profiles.reverse();
   for(const [index,id] of profiles.entries()) {
-   phase=`speed ${id}`;const reply=page.waitForResponse(r=>r.url().endsWith('/api/speed')&&r.request().method()==='POST');await page.locator(`[data-speed="${id}"]`).click();assert.equal((await reply).status(),200);
+   assert.equal(await page.locator('#internetState').textContent(),'Internet connected','owned connection event did not remain fresh');phase=`speed ${id}`;const reply=page.waitForResponse(r=>r.url().endsWith('/api/speed')&&r.request().method()==='POST');await page.locator(`[data-speed="${id}"]`).click();assert.equal((await reply).status(),200);
    if(index===0) {
     const cooldown=await page.evaluate(async other=>{const s=await(await fetch('/api/session')).json();const r=await fetch('/api/speed',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},body:JSON.stringify({profileId:other})});return {status:r.status,body:await r.json()};},profiles[1]);
     assert.equal(cooldown.status,400);assert.match(cooldown.body.error,/wait before changing speed again/i);save('cooldown.json',cooldown);
@@ -79,8 +108,10 @@ try {
    assert.equal(applied.subscription.id,connected.subscription.id);assert.equal(applied.subscription.expiresAt,connected.subscription.expiresAt);assert.ok(BigInt(applied.lifetimeSeconds)>=BigInt(connected.lifetimeSeconds));assert.equal(applied.lifetimeDownload,connected.lifetimeDownload);assert.equal(applied.lifetimeUpload,connected.lifetimeUpload);save(`speed-${id}.json`,applied);
    if(index===0)await page.waitForTimeout(10500);
   }
-  save('result.json',{synthetic:true,result:'network-passed',dashboardReturnMs,lease:live[0].id,sessionId:live[0].sessionId,runtimeBinarySHA256:app.binarySHA256,automaticLanding:false,authority:'normal MikroDash runtime; real owned CHR'});
+  save('result.json',{synthetic:true,result:'network-passed',dashboardReturnMs,lease:live[0].id,sessionId:live[0].sessionId,runtimeBinarySHA256:app.binarySHA256,automaticLanding:true,storageDisabled:true,flowId,authority:'normal MikroDash runtime; real owned CHR'});
  }
+ assert.deepEqual(submissions,{portal:1,connect:1,hotspot:1},'sign-in or network request repeated');
+ save('submissions.json',submissions);
  phase='visual and accessibility';for(const width of [375,1280]) {
   await page.setViewportSize({width,height:900});assert.equal(await page.locator('html').getAttribute('lang'),'en');assert.equal(await page.locator('html').getAttribute('dir'),'ltr');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
   for(const theme of ['blue','green','purple']) {

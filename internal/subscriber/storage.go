@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS subscriber_audit (
  id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
  reason TEXT NOT NULL, created_at INTEGER NOT NULL
 );
-` + SessionSchema + ReconciliationSchema + ReceiptSchema + FinalityIndexes
+` + SessionSchema + ReconciliationSchema + ReceiptSchema + FinalityIndexes + ConnectionSchema
 
 type Store struct{ sql *sql.DB }
 

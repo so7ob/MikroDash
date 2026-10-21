@@ -51,7 +51,7 @@ func TestFinalityIndexMigrationPreservesExistingMissingStopAndLedger(t *testing.
 	if _, err = d.sql.Exec(`DELETE FROM schema_version WHERE version>41`); err != nil {
 		t.Fatal(err)
 	}
-	if count, err := d.Migrate(); err != nil || count != 1 {
+	if count, err := d.Migrate(); err != nil || count != schemaVersion-41 {
 		t.Fatal("index-only migration failed", count, err)
 	}
 	after, err := s.Snapshot(t.Context(), a.ID, at)

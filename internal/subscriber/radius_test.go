@@ -147,7 +147,7 @@ func TestUnauthenticatedAccessAndForgedAccountingReceiveNoReply(t *testing.T) {
 }
 func TestOneUseTicketDeviceBindingAndRetransmission(t *testing.T) {
 	s, _, a, addr := protocolFixture(t)
-	token, err := s.IssueTicket(context.Background(), a.ID, "C", "02:00:00:00:00:01", time.Now())
+	token, err := s.IssueTicket(context.Background(), TicketRequest{AccountID: a.ID, RouterID: "lab", Network: "C", Device: "02:00:00:00:00:01", ClientAddress: "192.0.2.1"}, time.Now())
 	if err != nil {
 		t.Fatal(err)
 	}

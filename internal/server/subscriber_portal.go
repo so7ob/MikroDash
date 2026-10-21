@@ -1,19 +1,13 @@
 package server
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/coder/websocket"
-	"mikrodash/internal/hub"
 	"mikrodash/internal/subscriber"
 )
-
-var EvSubscriberSnapshot = hub.Declare[subscriber.Snapshot]("subscriber:snapshot")
 
 func (s *Server) subscriberPortal(webDir string) http.Handler {
 	mux := http.NewServeMux()
@@ -24,12 +18,18 @@ func (s *Server) subscriberPortal(webDir string) http.Handler {
 	mux.HandleFunc("GET /logo.png", subscriberAsset(s.staticDir, "logo.png"))
 	mux.HandleFunc("GET /vendor/tabler.min.css", subscriberAsset(s.staticDir, "vendor/tabler.min.css"))
 	for _, prefix := range []string{"css/", "fonts/", "vendor/fonts/"} {
-		mux.Handle("GET /"+prefix, http.StripPrefix("/"+prefix, http.FileServer(http.Dir(filepath.Join(s.staticDir, prefix)))))
+		directory := filepath.Join(s.staticDir, prefix)
+		var files http.Handler = http.FileServer(http.Dir(directory))
+		if prefix != "css/" {
+			files = subscriberPublicFonts(directory)
+		}
+		mux.Handle("GET /"+prefix, http.StripPrefix("/"+prefix, files))
 	}
 	mux.HandleFunc("GET /api/session", s.subscriberPortalSession)
 	mux.HandleFunc("POST /api/login", s.subscriberPortalLogin)
 	mux.HandleFunc("POST /api/logout", s.subscriberPortalLogout)
 	mux.HandleFunc("GET /api/account", s.subscriberPortalAccount)
+	mux.HandleFunc("GET /api/connection", s.subscriberPortalConnection)
 	mux.HandleFunc("POST /api/speed", s.subscriberPortalSpeed)
 	mux.HandleFunc("POST /api/connect", s.subscriberPortalConnect)
 	mux.HandleFunc("POST /api/disconnect", s.subscriberPortalDisconnect)
@@ -169,10 +169,16 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	var nas subscriber.NAS
+	matches := 0
 	for _, n := range rt.cfg.Clients {
 		if n.Network == in.Network {
 			nas = n
+			matches++
 		}
+	}
+	if matches > 1 {
+		writeJSONErr(w, 409, "This network needs administrator review. Contact support.")
+		return
 	}
 	if nas.Network == "" {
 		writeJSONErr(w, 403, "Network is not enrolled")
@@ -201,12 +207,12 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		subscriberError(w, err)
 		return
 	}
-	ticket, err := rt.radius.Store.IssueTicket(r.Context(), v.AccountID, nas.Network, device, time.Now())
+	ticket, err := rt.radius.Store.IssueTicket(r.Context(), subscriber.TicketRequest{AccountID: v.AccountID, RouterID: nas.RouterID, Network: nas.Network, Device: device, ClientAddress: subscriberClientIPOf(r)}, time.Now())
 	if err != nil {
 		subscriberError(w, err)
 		return
 	}
-	writeJSON(w, map[string]string{"loginUrl": nas.LoginURL, "username": account.Username, "password": ticket, "destination": rt.cfg.PortalOrigin + "/"})
+	writeJSON(w, map[string]string{"loginUrl": nas.LoginURL, "username": account.Username, "password": ticket, "flowId": subscriber.Digest(ticket), "destination": rt.cfg.PortalOrigin + "/?connection=" + subscriber.Digest(ticket)})
 }
 func (s *Server) subscriberPortalDisconnect(w http.ResponseWriter, r *http.Request) {
 	v, ok := s.subscriberIdentity(w, r)
@@ -241,65 +247,4 @@ func (s *Server) subscriberPortalDisconnect(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	writeJSONErr(w, 404, "Session not found")
-}
-func (s *Server) subscriberPortalWS(w http.ResponseWriter, r *http.Request) {
-	identity, ok := s.subscriberIdentity(w, r)
-	if !ok {
-		return
-	}
-	if !exactOrigin(r, s.subscribers.cfg.PortalOrigin) {
-		writeJSONErr(w, 403, "Request origin rejected")
-		return
-	}
-	ws, err := websocket.Accept(w, r, &websocket.AcceptOptions{OriginPatterns: []string{strings.TrimPrefix(s.subscribers.cfg.PortalOrigin, "https://")}})
-	if err != nil {
-		return
-	}
-	defer ws.CloseNow()
-	// Read frames only to process control messages. No subscriber may join rooms.
-	ws.SetReadLimit(1024)
-	requestCtx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-	if s.subscribers.ctx != nil {
-		stop := context.AfterFunc(s.subscribers.ctx, cancel)
-		defer stop()
-	}
-	ctx := ws.CloseRead(requestCtx)
-	cookie, _ := r.Cookie("__Host-mikrodash_subscriber")
-	c := hub.NewClient(subscriber.ID(), 2)
-	s.subscribers.hub.Add(c)
-	defer s.subscribers.hub.Remove(c)
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-	send := func() bool {
-		if _, ok := s.subscribers.sessions.Get(cookie.Value); !ok {
-			return false
-		}
-		snapshot, err := s.subscribers.radius.Store.Snapshot(ctx, identity.AccountID, time.Now())
-		if err != nil {
-			return true
-		}
-		EvSubscriberSnapshot.Send(s.subscribers.hub, c, snapshot)
-		select {
-		case frame := <-c.Send:
-			writeCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
-			defer cancel()
-			return ws.Write(writeCtx, websocket.MessageText, frame) == nil
-		default:
-			return true
-		}
-	}
-	if !send() {
-		return
-	}
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if !send() {
-				return
-			}
-		}
-	}
 }

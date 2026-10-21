@@ -3,16 +3,18 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Subscriber Portal</title>
 <link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/subscriber.css"><script defer src="/subscriber.js"></script></head>
 <body class="subscriber-body"><main class="subscriber-shell">
-<header class="card"><div class="card-header"><img src="/logo.png" alt="MikroDash" class="subscriber-logo"><h1 class="card-title">Subscriber Portal</h1><span id="connectionState" role="status" class="pill pill-muted">Not connected to portal</span>
+<header class="card"><div class="card-header"><img src="/logo.png" alt="MikroDash" class="subscriber-logo"><h1 class="card-title">Subscriber Portal</h1><span id="connectionState" role="status" class="pill pill-muted">Portal signed out</span>
 <div class="hdr-actions"><label for="portalTheme">Theme</label><select id="portalTheme" class="sform-input"><option value="blue">Blue</option><option value="green">Green</option><option value="purple">Purple</option></select></div></div></header>
 <p id="portalNotice" role="status" aria-live="polite"></p>
 <section id="portalLogin" class="card"><div class="card-header"><h2 class="card-title">Sign in</h2></div><div class="card-body"><form id="subscriberLoginForm"><div class="ff-grid">
 <div class="ff"><label class="sform-label" for="subscriberUsername">Username</label><input class="sform-input" id="subscriberUsername" autocomplete="username" maxlength="128"><div class="ff-help">Leave blank when using a voucher code.</div></div>
-<div class="ff"><label class="sform-label" for="subscriberPassword">Password or voucher code</label><input class="sform-input" id="subscriberPassword" type="password" autocomplete="current-password" required maxlength="128"><div class="ff-help">Your account remains available after your internet allowance expires.</div></div></div><button class="sbtn sbtn-primary" type="submit">Sign in</button></form></div></section>
+<div class="ff"><label class="sform-label" for="subscriberPassword">Password or voucher code</label><input class="sform-input" id="subscriberPassword" type="password" autocomplete="current-password" required maxlength="128"><div class="ff-help">Your account remains available after your internet allowance expires.</div></div></div><p id="portalLoginHelp" class="ff-help"></p><button id="portalLoginSubmit" class="sbtn sbtn-primary" type="submit">Sign in</button></form></div></section>
 <div id="portalAccount" hidden>
 <section class="card"><div class="card-header"><h2 class="card-title" id="subscriptionTitle">Your subscription</h2><div class="hdr-actions"><button id="portalLogout" class="sbtn sbtn-outline">Sign out of portal</button></div></div><div class="card-body">
 <p id="subscriptionSummary"></p><p id="syncState" role="status"></p><p id="liveClock"></p>
 <div class="ff-grid"><div class="ff"><label class="sform-label" for="subscriberNetwork">Network</label><select id="subscriberNetwork" class="sform-input"></select><div class="ff-help">Internet authentication is separate from portal sign-in.</div></div></div>
+<div class="subscriber-actions"><span id="internetState" role="status" aria-live="polite" class="pill pill-muted">Internet connection not checked</span></div>
+<p id="internetDetail" class="ff-help"></p><p id="connectionObserved" class="ff-help"></p>
 <button id="internetConnect" class="sbtn sbtn-primary">Connect to internet</button><p class="ff-help">Signing out of this portal does not disconnect your devices.</p></div></section>
 <div id="subscriberLimits" class="subscriber-grid"></div>
 <section class="card"><div class="card-header"><h2 class="card-title">Speed selection</h2></div><div class="card-body"><p id="speedState"></p><div id="speedButtons" class="subscriber-actions"></div><p class="ff-help">Rate ceilings apply per device. Changing speed preserves your subscription, expiry and usage. Reconnection requires your confirmation.</p></div></section>

@@ -316,6 +316,10 @@ transition still needs one explicit authority and measured routing/rollback.
 
 ## Real application restart and outage findings
 
+This section retains the initial pre-#59 failed acceptance finding. The missing
+finality guard was subsequently corrected; the fresh #64 acceptance below proves
+current refusal after an actual outage without erasing that earlier failure.
+
 A three-second deliberate app pause followed by restart recovered the same
 actual lease/accounting session without browser, reauthentication, credit reset
 or router-session replacement. The pause/restart/observation sample took
@@ -480,3 +484,60 @@ verified speed profiles and all six responsive/theme axe checks. The same
 session then reached 238 connected seconds and five verified worker renewals
 with every browser closed. Owned HTTPS logout followed. Original outage ledgers,
 images and evidence were retained; no operator router or data was changed.
+
+### Reviewed landing installation
+
+After building the frontend and preparing the isolated runtime, install only the
+owned fixture's reviewed handoff directory while no synthetic session is active:
+
+```sh
+go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action install-landing -web web/dist
+# Restore the original override while idle; retain the new files and ledger.
+go run ./cmd/subscriberchr -state "$lab_dir/runtime.json" -action rollback-landing
+```
+
+Both actions refuse another VM lifecycle, a changed review/profile, a busy
+HotSpot, unknown files or differing readback. Do not copy these commands onto an
+operator router. `journey`, `exhausted` and `reconciling` browser actions now require
+the rendered landing: they navigate to the NAS once, submit one portal credential
+form, perform the actual browser HTTPS HotSpot POST, and assert the owned account
+return. Browser storage is blocked, so the owned return URL must carry context.
+All three actions passed against the actual rendered landing in the fresh #64
+acceptance below. An invocation without its own `complete.json` remains incomplete.
+
+For a separate build directory, set `SUBSCRIBER_CHR_WEB` to its absolute path
+when starting the owned runtime. It must contain built `subscriber.html` and
+`subscriber.js`. This avoids replacing assets served by an existing development
+runtime. Its resolved argument is retained in the process ownership receipt.
+
+### Fresh automatic return and disruptive acceptance (#64)
+
+After the owner finished the interactive CHR trial and approved the disruptive
+synthetic cases, the owned viewer stopped and audited immutable plan assignments
+prepared separate exhaustion and outage subscriptions. Previous subscriptions,
+lifetime totals and journal records were retained. No production NAS was touched.
+
+| Actual normal-runtime case | Observed result |
+| --- | --- |
+| Automatic landing and single credential form | One portal login, one connect request, one genuine NAS HTTPS POST; owned confirmed return; both speed readbacks pass |
+| 65536-byte download cap with simultaneous time/upload limits | 1 MiB attempt interrupted; 89148 client payload bytes and 89564 accounted download bytes; complete API absence and final Stop; 24028 accounted bytes over cap |
+| Exhausted re-entry | Genuine RADIUS refusal and automatic owned return explaining exhausted download; account available; administration 404; confirmed balances unchanged |
+| 91.679-second application outage | Last local remaining timeout 26 seconds; complete API absence at 25874.270 ms after stop, including polling/read delay |
+| Missing Stop after same-ledger restart | Seat closes; one pending final reading, positive known credit and `reconciling`; genuine RADIUS re-entry refusal and automatic account recovery; no free credit |
+
+Each browser action completed all six 375/1280 and blue/green/purple axe/overflow
+checks with session storage blocked. Two fresh success return samples were
+2166 and 2183 ms. The shared worker had already retained one earlier session for
+19 verified renewals with every browser closed. These are individual virtual
+router measurements, not target SLA or an approved operational overrun budget.
+The incomplete transfer took 12011 ms including its client timeout; this is not
+a disconnect-latency measurement.
+
+Fast rejection exposed CDP response-body lifetime races in the test harness.
+Failed attempts remain private; the passing harness captures clones in the
+requesting browser before returning the real API response to the shipped page.
+It leaves all requests, responses and NAS form traffic unchanged. Private full
+evidence remains in `.temp/subscriber-chr-entry-64`, including the unresolved
+outage ledger. A covering final reading or evidence-backed review is still
+required to restore that synthetic account's network eligibility. Never restore
+an old database or invent a final counter to make this case green.

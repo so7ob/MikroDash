@@ -484,3 +484,40 @@ and byte fields at 74 connected seconds with a verified renewal; owned HTTPS
 logout follows. Malformed and ten-year/overflow cases are scripted inputs,
 not hardware observations. Final full gate and exact-head/post-merge CI remain
 required before Issue #62 delivery.
+
+## Owned connection entry verification (Issue #64)
+
+Application revision `85817872485d8df91d18154c430c971362b758da` passed
+[PR CI](https://github.com/so7ob/MikroDash/actions/runs/39515748159).
+Local verification used an exact `git archive` of that revision: 2221 tracked
+files were byte-checked against the visible issue checkout. The snapshot excludes
+ignored operator data, matching the CI source universe. It is not another
+development checkout. A prior root sweep refused the existing ignored GeoIP
+`cities.json` because it exceeds the credential scanner's size bound; that
+failed sweep is retained. No GeoIP data was deleted and no scanner was weakened.
+
+Go 1.27.2 formatting, `go vet -p 2 ./...`, and
+`go test -p 2 -count=1 -exec <ordinary-disk-wrapper> ./...` passed all 64 tested
+Go packages. The wrapper sets both `GOTMPDIR=/tmp` and `TMPDIR=/tmp` for test
+processes; compiler caches may remain in RAM. Govulncheck found zero called or
+imported vulnerabilities, with one unused required-module advisory. Six Go
+generators and seven generated frontend tables were current.
+`sh tools/verify.sh --no-docker` passed TypeScript, 150 frontend tests and
+32 tooling tests. Its Go half was explicitly skipped by the wrapper and run
+natively immediately beforehand; this does not claim a Docker verification run.
+
+Focused native cgo race instrumentation passed in subscriber (5.483 s), server
+(10.851 s) and subscriberlab (1.021 s), selecting the new connection, ticket,
+outcome, handoff and installer tests. Four compiling overlays killed their
+intended invariants: foreign NAS ticket consumption, stale confirmation,
+Access-Accept escaping failed outcome persistence, and skipped asset readback.
+Compilation failures do not count as kills. The first NAS-result classifier
+expected an earlier assertion; the retained test instead correctly failed on
+ticket consumption, and its verified classification records that distinction.
+
+Actual coverage-guided `go test -fuzz` runs used two workers and 15 seconds each:
+accounting monotone replay: 248 executions; receipt ranges/retry identity:
+100314; renewal time-budget conservation: 155. All passed. These are instrumented
+fuzz runs, separate from earlier standalone random testing without coverage.
+Private commands, raw logs and overlay receipts remain in
+`.temp/subscriber-64-recovery`; they contain no target-router acceptance claim.

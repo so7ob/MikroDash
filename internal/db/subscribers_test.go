@@ -8,7 +8,7 @@ func TestSubscriberMigrationFrom37PreservesExistingData(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer d.Close()
-	for _, table := range []string{"subscriber_gap_periods", "subscriber_byte_gaps", "subscriber_legacy_exposure", "subscriber_sources", "subscriber_holds", "subscriber_reconciliations", "subscriber_observations", "subscriber_operations", "subscriber_tickets", "subscriber_events", "subscriber_reservations", "subscriber_buckets", "subscriber_leases", "subscriber_subscriptions", "subscriber_plans", "subscriber_accounts", "subscriber_audit"} {
+	for _, table := range []string{"subscriber_connection_flows", "subscriber_gap_periods", "subscriber_byte_gaps", "subscriber_legacy_exposure", "subscriber_sources", "subscriber_holds", "subscriber_reconciliations", "subscriber_observations", "subscriber_operations", "subscriber_tickets", "subscriber_events", "subscriber_reservations", "subscriber_buckets", "subscriber_leases", "subscriber_subscriptions", "subscriber_plans", "subscriber_accounts", "subscriber_audit"} {
 		if _, err = d.sql.Exec("DROP TABLE " + table); err != nil {
 			t.Fatal(err)
 		}

@@ -363,7 +363,7 @@ var extraRoots = []string{"activity.Result", "backups.Hunk", "collect.PingPoint"
 // global `Error`. An unlisted collision is refused in render(), with both
 // sources named, rather than resolved by a rule nobody chose.
 var tsNames = map[string]string{
-	"subscriber.Snapshot": "SubscriberSnapshot", "subscriber.Plan": "SubscriberPlan", "subscriber.Policy": "SubscriberPolicy", "subscriber.Period": "SubscriberPeriod", "subscriber.Limit": "SubscriberLimit", "subscriber.Speed": "SubscriberSpeed", "subscriber.Window": "SubscriberWindow", "subscriber.Decision": "SubscriberDecision", "subscriber.Lease": "SubscriberLease", "subscriber.Subscription": "SubscriberSubscription", "subscriber.LimitView": "SubscriberLimitView",
+	"subscriber.ConnectionStatus": "SubscriberConnectionStatus", "subscriber.Snapshot": "SubscriberSnapshot", "subscriber.Plan": "SubscriberPlan", "subscriber.Policy": "SubscriberPolicy", "subscriber.Period": "SubscriberPeriod", "subscriber.Limit": "SubscriberLimit", "subscriber.Speed": "SubscriberSpeed", "subscriber.Window": "SubscriberWindow", "subscriber.Decision": "SubscriberDecision", "subscriber.Lease": "SubscriberLease", "subscriber.Subscription": "SubscriberSubscription", "subscriber.LimitView": "SubscriberLimitView",
 	"activity.Event": "ActivityEvent", "activity.Rule": "ActivityRule", "activity.Settings": "ActivitySettings", "activity.Status": "ActivityStatus", "activity.Result": "ActivityResult", "activity.Filter": "ActivityFilter", "activity.Coverage": "ActivityCoverage", "activity.Totals": "ActivityTotals", "activity.Ranking": "ActivityRanking", "activity.Point": "ActivityPoint", "activity.Heat": "ActivityHeat",
 	"alert.Row":      "AlertRow",
 	"backups.Row":    "BackupRow",
