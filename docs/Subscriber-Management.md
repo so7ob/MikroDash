@@ -36,7 +36,9 @@ reservations and the accounting journal in the existing `mikrodash.db`. Schema m
 add `subscriber_*` tables; migration 42 adds partial finality/account lookup indexes,
 and migration 43 adds NAS/peer-bound connection-flow metadata. Migration 44 adds
 only the indexed status-audit lookup used by reviewed account changes. They do not rewrite `users.json` or use User Manager as a hidden
-runtime backend. User Manager is currently a read-only preview source.
+runtime backend. User Manager is currently a read-only preview source. Its
+[structured source review](Subscriber-Import-Preview.md) reports unavailable menus,
+identity/reference problems and a versioned source fingerprint without applying imports.
 
 `internal/subscriber/policy.go` is a pure policy evaluator. `storage.go` and `accounting.go`
 implement SQL transactions. `radius.go` uses pinned `layeh.com/radius`, including its packet
