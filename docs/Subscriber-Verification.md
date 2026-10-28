@@ -877,3 +877,9 @@ not weakened. No UI was changed, and no browser or target-router acceptance is
 claimed. Full Go tests/vet, current vulnerability scan, generated Go checks,
 SQLite integration and CI remain required before merge. Issue #38's broader
 editors/import/administration work and #76's actual L009/C trial remain open.
+
+Follow-up: both tooling failures were reproduced with umask 0077. The fixtures
+now explicitly chmod only their disposable synthetic manifests to 0644 and
+assert that precondition before invoking the unchanged permission guards.
+All 32 tooling tests pass with the original restrictive umask. No process umask,
+system permissions, real lab file or production guard changed.
