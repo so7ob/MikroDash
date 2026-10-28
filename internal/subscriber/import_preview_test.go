@@ -152,3 +152,38 @@ func FuzzImportPreviewIgnoresUnrequestedFields(f *testing.F) {
 		}
 	})
 }
+
+func TestImportPreviewQuarantinesInvalidTextAndFingerprintsOriginalBytes(t *testing.T) {
+	const menu = "/user-manager/user/print"
+	preview := func(name string) ImportPreview {
+		return PreviewUserManager(&previewReader{rows: map[string][]routeros.Reply{menu: {{".id": "*a", "name": name}}}})
+	}
+	a, b := preview("\xff"), preview("\xfe")
+	if a.Fingerprint == b.Fingerprint {
+		t.Fatal("different retained source bytes collided after JSON replacement")
+	}
+	for _, p := range []ImportPreview{a, b} {
+		if _, ok := p.Rows[menu][0]["name"]; ok {
+			t.Fatal("invalid source text was presented as a usable name")
+		}
+		found := false
+		for _, problem := range p.Problems {
+			if problem.Menu == menu && problem.Row == 0 && problem.Field == "name" && problem.Code == "invalid-utf8" {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("invalid text lacked a precise source diagnostic", p.Problems)
+		}
+		raw, err := json.Marshal(p)
+		if err != nil || strings.Contains(string(raw), "\\ufffd") {
+			t.Fatal("preview silently substituted a source identity", string(raw), err)
+		}
+	}
+	if a.Fingerprint == preview("�").Fingerprint {
+		t.Fatal("invalid bytes collided with a valid replacement character")
+	}
+	if a.Fingerprint == preview("").Fingerprint {
+		t.Fatal("quarantine erased the raw fingerprint distinction")
+	}
+}

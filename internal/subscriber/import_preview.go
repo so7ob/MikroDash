@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"mikrodash/internal/routeros"
 )
@@ -46,6 +47,9 @@ func PreviewUserManager(reader Reader) ImportPreview {
 			"Menu reads are sequential, not an atomic source snapshot. No mapping or import is approved by this report.",
 		},
 	}
+	// Byte slices encode losslessly in the fingerprint even when the NAS returns
+	// invalid UTF-8; JSON string encoding would replace those bytes with U+FFFD.
+	sourceBytes := map[string][]map[string][]byte{}
 	for _, menu := range userManagerPreviewMenus {
 		rows, err := reader.Do(routeros.Cmd{Path: menu.path, Args: []string{"=.proplist=" + menu.fields}, Timeout: 5 * time.Second})
 		if err != nil {
@@ -57,16 +61,25 @@ func PreviewUserManager(reader Reader) ImportPreview {
 		// field must not leak a credential into a review or change its fingerprint.
 		clean := make([]routeros.Reply, 0, len(rows))
 		fields := strings.Split(menu.fields, ",")
-		for _, row := range rows {
+		rawRows := make([]map[string][]byte, 0, len(rows))
+		for index, row := range rows {
 			copy := routeros.Reply{}
+			raw := map[string][]byte{}
 			for _, field := range fields {
 				if value, ok := row[field]; ok {
+					raw[field] = []byte(value)
+					if !utf8.ValidString(value) {
+						p.Problems = append(p.Problems, ImportProblem{Menu: menu.path, Row: index, Field: field, Code: "invalid-utf8"})
+						continue
+					}
 					copy[field] = value
 				}
 			}
 			clean = append(clean, copy)
+			rawRows = append(rawRows, raw)
 		}
 		p.Rows[menu.path] = clean
+		sourceBytes[menu.path] = rawRows
 		previewIdentities(&p, menu.path, clean)
 		if menu.path == "/user-manager/limitation/print" {
 			for _, row := range clean {
@@ -84,10 +97,10 @@ func PreviewUserManager(reader Reader) ImportPreview {
 	// missing vs explicit-zero properties and ambiguous textual map renderings.
 	// Preserve row order: preview does not assume source ordering is irrelevant.
 	material, _ := json.Marshal(struct {
-		Version     int                         `json:"version"`
-		Rows        map[string][]routeros.Reply `json:"rows"`
-		Unavailable []string                    `json:"unavailable"`
-	}{p.FingerprintVersion, p.Rows, p.Unavailable}) // Only strings/integers/slices/maps: encoding cannot fail.
+		Version     int                            `json:"version"`
+		Rows        map[string][]map[string][]byte `json:"rows"`
+		Unavailable []string                       `json:"unavailable"`
+	}{p.FingerprintVersion, sourceBytes, p.Unavailable}) // Only strings/integers/slices/maps: encoding cannot fail.
 	p.Fingerprint = fmt.Sprintf("%x", sha256.Sum256(material))
 	return p
 }

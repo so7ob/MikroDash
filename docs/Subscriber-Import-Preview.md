@@ -16,8 +16,13 @@ plus structured review information:
   values and entity names. Every duplicate occurrence is flagged. Names are
   compared exactly, without case folding, trimming or Unicode normalization.
   `missing-reference` identifies an absent profile/user/limitation link field.
+  `invalid-utf8` quarantines a requested field whose raw bytes are not valid UTF-8;
+  that field is omitted from display rows rather than replaced with a fabricated
+  identity. Missing-identity/reference diagnostics may consequently also appear.
 - `fingerprintVersion`: currently 2. The fingerprint hashes structured JSON
-  containing that version, projected menu rows and unavailable-menu names. It
+  containing that version, lossless byte encodings of requested source values,
+  menu rows and unavailable-menu names. Invalid UTF-8 bytes still contribute to
+  the fingerprint even though the field is quarantined from display rows. It
   includes menu boundaries, preserves row order, distinguishes missing properties
   from explicit zeros and distinguishes empty reads from unavailable reads.
 
@@ -54,3 +59,8 @@ compiling mutants (unfiltered rows, suppressed duplicate diagnostics and the old
 flattened fingerprint) were killed by behavioral assertions, then source bytes
 were restored. Full package/SQLite and real-router acceptance are separate gates;
 the local pinned SQLite archive remains unavailable under the environment policy.
+
+Independent review reproduced a collision between retained source names containing
+raw FF and FE bytes: ordinary JSON strings replaced both with U+FFFD. A red-to-green
+regression now requires separate fingerprints, explicit invalid-text diagnostics,
+no fabricated display name, and distinction from a valid U+FFFD character.
