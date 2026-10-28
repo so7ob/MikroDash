@@ -86,3 +86,62 @@ func TestStatusHistoryEmptyValidationAndBatchEvidence(t *testing.T) {
 		t.Fatal(reason, err)
 	}
 }
+
+func TestStatusHistoryPageBoundariesAndReadOnlyLedger(t *testing.T) {
+	for _, count := range []int{0, 1, 49, 50, 51, 100, 101} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			s, _, a, _ := protocolFixture(t)
+			// Sparse IDs and decreasing timestamps: ordering must follow audit ID,
+			// without inventing missing transitions or sorting by wall-clock time.
+			for i := 0; i < count; i++ {
+				if _, err := s.sql.Exec(`INSERT INTO subscriber_audit(id,actor,action,target,reason,created_at) VALUES(?,?,?,?,?,?)`, 100+i*3, "synthetic-admin", "account.suspended", a.ID, fmt.Sprintf("repeat %d", i), 1000-i); err != nil {
+					t.Fatal(err)
+				}
+			}
+			// The production reader must work on a connection refusing all SQL writes.
+			// protocolFixture limits this isolated database to one connection.
+			if _, err := s.sql.Exec(`PRAGMA query_only=ON`); err != nil {
+				t.Fatal(err)
+			}
+			var cursor Quantity
+			seen := 0
+			for {
+				page, err := s.StatusHistory(t.Context(), a.ID, cursor)
+				if err != nil {
+					t.Fatal(err)
+				}
+				want := count - seen
+				if want > 50 {
+					want = 50
+				}
+				if len(page.Events) != want {
+					t.Fatalf("page size %d want %d", len(page.Events), want)
+				}
+				for _, event := range page.Events {
+					index := count - 1 - seen
+					if event.ID != Quantity(100+index*3) || event.Action != "account.suspended" || event.Reason != fmt.Sprintf("repeat %d", index) || event.CreatedAt != int64(1000-index) {
+						t.Fatalf("changed or invented event: %+v", event)
+					}
+					seen++
+				}
+				if seen == count {
+					if page.NextBefore != nil {
+						t.Fatal("terminal page advertised another page")
+					}
+					break
+				}
+				if page.NextBefore == nil || cursor != 0 && *page.NextBefore >= cursor {
+					t.Fatal("cursor did not advance")
+				}
+				cursor = *page.NextBefore
+			}
+			if _, err := s.sql.Exec(`INSERT INTO subscriber_audit(actor,action,target,reason,created_at) VALUES('fixture','fixture','fixture','fixture',0)`); err == nil {
+				t.Fatal("read-only assertion did not actually reject writes")
+			}
+			exhausted, err := s.StatusHistory(t.Context(), a.ID, 1)
+			if err != nil || len(exhausted.Events) != 0 || exhausted.NextBefore != nil {
+				t.Fatal("cursor before all events", exhausted, err)
+			}
+		})
+	}
+}

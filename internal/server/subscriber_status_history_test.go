@@ -48,3 +48,23 @@ func TestSubscriberStatusHistoryAuthorityValidationAndOfflineRead(t *testing.T) 
 		t.Fatal("unprivileged history", w.Code)
 	}
 }
+
+func TestSubscriberStatusHistoryRejectsLegacySessionAndUnavailableLedger(t *testing.T) {
+	s, mux, id := reconciliationFixture(t)
+	request := func() *httptest.ResponseRecorder {
+		r := httptest.NewRequest("GET", "/api/subscribers/status-history?account="+id, nil)
+		r.Header.Set("Cookie", "mikrodash_sid=synthetic-token")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		return w
+	}
+	s.auth = authFor("synthetic-token", &Session{AuthMode: "legacy", Username: "synthetic-admin"})
+	if w := request(); w.Code != 403 {
+		t.Fatal("legacy session received audit history", w.Code)
+	}
+	s.auth = authFor("synthetic-token", &Session{AuthMode: "modern", Username: "synthetic-admin"})
+	s.auditDB = nil
+	if w := request(); w.Code != 503 {
+		t.Fatal("unavailable ledger was not explicit", w.Code)
+	}
+}
