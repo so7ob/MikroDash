@@ -11,7 +11,9 @@ import (
 // authenticate, reserve entitlement or commit an administrative change.
 func subscriberBody(w http.ResponseWriter, r *http.Request, v any) bool {
 	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 64<<10))
-	raw = bytes.TrimSpace(raw)
+	// JSON permits only these four whitespace bytes; Unicode trimming would
+	// silently repair malformed commands before the decoder sees them.
+	raw = bytes.TrimLeft(raw, " \t\r\n")
 	if err != nil || len(raw) == 0 || raw[0] != '{' {
 		writeJSONErr(w, 400, "Invalid request")
 		return false

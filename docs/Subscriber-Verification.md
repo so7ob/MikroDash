@@ -883,3 +883,9 @@ now explicitly chmod only their disposable synthetic manifests to 0644 and
 assert that precondition before invoking the unchanged permission guards.
 All 32 tooling tests pass with the original restrictive umask. No process umask,
 system permissions, real lab file or production guard changed.
+
+Independent review reproduced five malformed-whitespace acceptances introduced
+by Unicode TrimSpace (leading/trailing vertical tab and NBSP, leading form feed).
+The object check now skips only JSON's four leading whitespace bytes; trailing
+input is left intact for EOF validation. All five regressions failed before the
+correction and pass afterward, together with size/interruption and policy tests.
