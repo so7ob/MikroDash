@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strconv"
 	"time"
 	_ "time/tzdata"
 )
@@ -15,7 +16,6 @@ type Quantity int64
 
 func (q Quantity) MarshalJSON() ([]byte, error) { return []byte(fmt.Sprintf(`"%d"`, q)), nil }
 func (q *Quantity) UnmarshalJSON(b []byte) error {
-	var n int64
 	if len(b) < 3 || b[0] != '"' || b[len(b)-1] != '"' {
 		return errors.New("quantities must be decimal strings")
 	}
@@ -24,7 +24,8 @@ func (q *Quantity) UnmarshalJSON(b []byte) error {
 			return errors.New("invalid quantity")
 		}
 	}
-	if _, err := fmt.Sscan(string(b[1:len(b)-1]), &n); err != nil {
+	n, err := strconv.ParseInt(string(b[1:len(b)-1]), 10, 64)
+	if err != nil {
 		return errors.New("quantity exceeds signed 64-bit range")
 	}
 	*q = Quantity(n)
