@@ -7,8 +7,9 @@ import (
 	"net/http"
 )
 
-// subscriberBody validates the complete bounded request before a caller can
-// authenticate, reserve entitlement or commit an administrative change.
+// subscriberBody validates the complete bounded request before command effects
+// such as portal login, entitlement reservation or administrative mutations.
+// Administrator authorization and origin checks still run first in the caller.
 func subscriberBody(w http.ResponseWriter, r *http.Request, v any) bool {
 	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 64<<10))
 	// JSON permits only these four whitespace bytes; Unicode trimming would

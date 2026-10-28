@@ -855,7 +855,8 @@ Existing persisted values are not rewritten or guessed back to their inputs.
 All subscriber JSON command callers now require one complete object within
 64 KiB, including trailing whitespace. Null, second values, trailing garbage,
 read interruptions and oversized bodies return the existing generic HTTP 400
-before authentication or mutations. Unknown fields remain rejected. No router
+before command effects or mutations. Administrator authorization and Origin
+checks still run first. Unknown fields remain rejected. No router
 configuration, schema or public payload type changes are introduced.
 
 Local isolated Go 1.27.3 tests pass for the actual decoder and policy source
