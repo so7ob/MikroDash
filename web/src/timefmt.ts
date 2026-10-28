@@ -66,3 +66,10 @@ export function fmtMonthDay(ts: Stamp, tz = getDisplayTimezone()): string {
 export function browserTimezone(): string {
   return new Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
+
+/** Whether the browser recognizes an explicitly selected calendar time zone. */
+export function validTimezone(zone: string): boolean {
+  if (!zone) return false;
+  try { new Intl.DateTimeFormat('en', {timeZone: zone}); return true; }
+  catch { return false; }
+}
