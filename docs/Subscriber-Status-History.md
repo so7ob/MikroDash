@@ -24,8 +24,8 @@ accounts and malformed cursors are rejected. Cursors never change account scope.
 Only `account.active`, `account.suspended`, and `account.status.batch` actions are
 returned, using the existing account status index. No migration or new writes are
 introduced. Unrelated audit actions, credentials, balances and other accounts are
-excluded. This API increment addresses part of #38's administration gap; a browser
-history view, general audit/usage screens and full device history remain pending.
+excluded. The API and status-history view address part of #38's administration gap;
+general audit/usage screens and full device history remain pending.
 Actual L009/C acceptance under #76 remains untested.
 
 Regression tests use isolated SQLite fixtures for account/action isolation,
@@ -33,3 +33,29 @@ Regression tests use isolated SQLite fixtures for account/action isolation,
 reason preservation, empty/invalid requests, authorization and disabled-runtime
 reads. Local full-package execution remains blocked by the pinned SQLite archive
 restriction; final-head GitHub CI is required before delivery.
+
+## Administrator view
+
+Choose **Status history** on a subscriber row to open the history tab for that
+account. The view clears old rows immediately on account selection and ignores
+late responses from previous selections. It displays loading, empty and error
+states; **Retry page** retains already loaded entries after an interrupted older
+page. **Load older changes** passes the exact decimal cursor. **Refresh history**
+starts again from the latest page. Repeated clicks during a pending request do
+not issue another request. Source text is escaped and dates use the installation's
+shared timezone formatter. Historical batch reasons remain the original evidence
+string. No historical before-state or successful NAS application is inferred.
+
+The view uses the same administrator API; it does not change authorization,
+configuration or router state. It is an incremental status-audit view, not a
+complete usage/device/general-audit screen. Local browser checks use synthetic
+HTTP responses, the actual administrator page and vendored assets. They cover
+account switching with delayed results, empty/loading states, a truncated older
+page and retry, exact cursors, keyboard focus, refresh, and dark/light layouts at
+375/1280px with axe accessibility checks. They are not live-router acceptance.
+
+Review regressions also cover stale history rejection, initial-page failure and
+retry, synthetic HTTP401/403 responses through the real fetch helper, and leaving
+a tab while history loads. A reproduced inherited Inspect race was fixed:
+Inspect responses and errors now respect newer Inspect/tab selections and leaving
+the Subscribers page, so they cannot replace a newer history view or its notice.
