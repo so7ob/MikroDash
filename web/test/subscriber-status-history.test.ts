@@ -26,3 +26,19 @@ test('history rejects wrong account, duplicate ordering and malformed cursors wi
   let state!:HistoryState;const c=createStatusHistory(async<T>()=>page as T,s=>state=s);c.open('A','A');await tick();assert.ok(state.error);assert.equal(state.events.length,0);
  }
 });
+test('stale rejection cannot replace the new account loading or result state',async()=>{
+ const requests:{resolve:(v:unknown)=>void;reject:(e:Error)=>void}[]=[];let state!:HistoryState;
+ const c=createStatusHistory(<T>()=>new Promise<T>((resolve,reject)=>requests.push({resolve:resolve as (v:unknown)=>void,reject})),s=>state=s);
+ c.open('A','Account A');c.open('B','Account B');
+ requests[0].reject(new Error('Old account denied'));await tick();
+ assert.equal(state.accountId,'B');assert.equal(state.busy,true);assert.equal(state.error,'');assert.equal(state.events.length,0);
+ requests[1].resolve({accountId:'B',events:[event('99')]});await tick();
+ assert.equal(state.busy,false);assert.equal(state.events[0].id,'99');assert.equal(state.error,'');
+});
+test('initial-page failure clears prior account rows and retry requests the same first page',async()=>{
+ const calls:string[]=[];let state!:HistoryState;let fail=true;
+ const c=createStatusHistory(async<T>(path:string)=>{calls.push(path);if(path.endsWith('A'))return {accountId:'A',events:[event('99')]} as T;if(fail)throw new Error('Subscriber administration permission required');return {accountId:'B',events:[]} as T;},s=>state=s);
+ c.open('A','Account A');await tick();c.open('B','Account B');await tick();
+ assert.equal(state.events.length,0);assert.equal(state.loaded,false);assert.equal(state.busy,false);assert.match(historyMarkup(state),/Subscriber administration permission required/);assert.match(historyMarkup(state),/Retry page/);
+ fail=false;c.retry();await tick();assert.equal(calls[1],calls[2]);assert.equal(state.loaded,true);assert.equal(state.error,'');assert.equal(state.events.length,0);
+});

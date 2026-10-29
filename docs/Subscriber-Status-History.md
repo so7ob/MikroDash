@@ -53,3 +53,9 @@ HTTP responses, the actual administrator page and vendored assets. They cover
 account switching with delayed results, empty/loading states, a truncated older
 page and retry, exact cursors, keyboard focus, refresh, and dark/light layouts at
 375/1280px with axe accessibility checks. They are not live-router acceptance.
+
+Review regressions also cover stale history rejection, initial-page failure and
+retry, synthetic HTTP401/403 responses through the real fetch helper, and leaving
+a tab while history loads. A reproduced inherited Inspect race was fixed:
+Inspect responses and errors now respect newer Inspect/tab selections and leaving
+the Subscribers page, so they cannot replace a newer history view or its notice.
