@@ -165,8 +165,9 @@ time are distinct. Unknown timestamps are marked uncertain, with reception as
 the query time. Logs must use the timezone configured for that router.
 
 Rules are scoped to the selected router. Local overrides precede built-ins;
-the longest matching domain wins. Stored events are classified at query time,
-so an edit applies to the retained history immediately. DNS counts describe
+the longest matching domain wins. Derived classifications are versioned against the
+current rules and rebuilt before serving affected queries, so an edit applies to
+the retained history. Source records and import checkpoints are not re-imported. DNS counts describe
 recorded queries, not confirmed visits or usage volume. Firewall packet lengths
 are metadata, not traffic totals, and IP destinations are never guessed to be
 domains by proximity to DNS events.
@@ -180,6 +181,74 @@ its current URL filters. API/file content is never sent on that notification.
 Disk logs are rotating files, not an unlimited archive. If RouterOS overwrites a
 file before MikroDash reads it, those missing rows cannot be recovered from it.
 Sync status displays failures, last successful scan and invalid records.
+
+## Indexed analysis and live navigation
+
+Schema 45 adds a projection beside the authoritative `activity_events` rows:
+distinct event shapes, time-indexed facts, second-level event groups, daily shape
+counts and hourly chart counts. New events, metadata replay, projection changes,
+source counters and checkpoints commit together. Retention updates the projection
+in the same deletion transaction; the 30-day policy is unchanged.
+
+On upgrade, a durable queue identifies existing rows that need indexing. A local
+worker processes bounded batches independently of RouterOS synchronization and
+resumes after interruption. It reads SQLite, never the router's archive again.
+Until a router's queue is complete, queries use the complete legacy history path;
+an incomplete index is never shown as a smaller, complete data set. Synchronization
+shows remaining index rows and **stored events across all retained periods**.
+The analysis badge explicitly refers to **the selected period**.
+
+Filtering, literal Unicode substring search, distinct counts, grouped rankings,
+ordering and pagination execute in SQLite. Only the Events page's original details
+are decoded. Current classification and GeoIP are cached per distinct domain/IP,
+with persisted derivation context and a content fingerprint for GeoIP. Result and
+count caches hold at most 128 entries / 32 MiB of serialized results. Keys include
+router, filters, data revision, rules/builtins, timezone and GeoIP; cached results
+contain no authorization decisions. Permissions are checked for every HTTP request
+and again before sending a completed analysis.
+
+The Activity page requests the visible tab only. Archive scans that find no actual
+changes emit `activity:status`, while imports, replay changes, retention and rule
+changes invalidate data through `activity:changed`. Repeated invalidations are
+coalesced; they do not cancel an active query. A filter/router change cancels and
+discards its preceding request. Search retains its 300 ms debounce.
+
+Events refresh automatically. The first page follows the current sort, newest
+first by default. Later pages refresh around their reference group and preserve
+scroll position and keyboard focus. Retention moves an expired reference to the
+nearest surviving rows, including the last available page. Ordering uses the
+selected key, timestamp second and a stable shape ID to break ties. Cursors use
+that tuple; they are checked against the router, filters, range and ordering.
+
+### Query compatibility
+
+Existing `/api/activity/*` paths and `page` links remain supported. Requests without
+`parts` still return the full response. The UI opts into these parts:
+
+| `parts` | Result work |
+| --- | --- |
+| `overview` | Summary, rankings, distributions and previous-period comparison |
+| `table` | The selected Events, grouped or users table; Events skip charts/comparison |
+| `status` | Synchronization/settings, retained total and index progress |
+| `rules` | Classification rules/settings; no history analysis |
+
+Events responses add `nextCursor`, `prevCursor`, `anchor`, `hasNext`, and
+`hasPrevious`. Pass `cursor` for navigation, or `anchor` to refresh around the first
+visible group. Keep the original filters and sort. Rolling `days` ranges accept
+these references as the window advances; explicit `from`/`to` references remain
+bound to that exact range. Legacy `page` requests still use an offset when no
+cursor is supplied.
+
+`dataRevision` identifies source changes, `resultVersion` also identifies the
+derived classification/geography context, `computedAt` identifies the result
+snapshot, and `refreshAt` expires it. Expiry observes events entering/leaving
+rolling windows and chart bucket boundaries. `totalStored` is independent of the
+selected range; `indexPending` identifies initial local backfill. CSV remains a
+stream of individual source events with the same filters and formula protection.
+
+Performance measurements, fixture details and upgrade evidence are recorded in
+[Activity performance verification](Activity-Analytics-Performance.md). Installing
+a verified build against an operator's data remains a separate deployment step.
 
 ## Visual analysis and geography
 
@@ -276,7 +345,9 @@ its unit and DNS-country drilldowns. Otherwise it uses explicit Firewall events.
 All six summarize the selected router's last 24 hours. One shared request to
 `/api/activity/dashboard` feeds them; visible cards refresh on `activity:changed`
 and on returning to the Dashboard. Hiding the cards/page cancels pending work.
-No collector or browser polling loop is added. Drilldowns carry the router and
+The server-provided result expiry refreshes rolling windows between imports.
+Status-only notifications update the status line through a lightweight request,
+without recalculating charts. No collector is added. Drilldowns carry the router and
 matching filter into `/activity`. The dashboard endpoint checks both Dashboard
 and Activity read permission on that router. The card picker follows the source
 page's permission, and permission changes clear displayed Activity data.
@@ -300,7 +371,7 @@ hardware. With Playwright and @axe-core/playwright available to Node, run:
 
 ```sh
 NODE_PATH=/usr/lib/node_modules MIKRODASH_ACTIVITY_BROWSER=1 \
-  go test ./internal/server -run TestActivityBrowserJourney -v -timeout 180s
+  go test ./internal/server -run TestActivityBrowserJourney -v -timeout 10m
 ```
 
 In Events, Ctrl + click copies only the displayed value under the pointer;

@@ -315,6 +315,11 @@
       "key": "settings",
       "title": "Settings",
       "settingsKey": null
+    },
+    {
+      "key": "subscribers",
+      "title": "Subscriber Management",
+      "settingsKey": null
     }
   ],
   "categoryKeys": [

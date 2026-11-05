@@ -594,3 +594,66 @@ prints. Proplists are `/system/script/print`: `name,invalid,policy,dont-require-
 not requested. No live connection means an unverified result, not a fresh dial
 or a claim that configuration is missing. Read-only live metadata on the
 reference 7.24.5 router satisfied all six checks; no configuration was applied.
+
+## Subscriber Management preview
+
+`internal/server/subscribers.go` uses `/ip/hotspot/host/print` with
+`address,mac-address,server`, and `/ip/hotspot/active/print` with
+`user,mac-address,server,uptime`, through the shared session. These reads verify
+ticket and disconnect ownership; neither mutates RouterOS.
+
+`internal/subscriber/readiness.go` declares the exact non-secret proplists for
+readiness and User Manager previews. Read-only inspection covered those menus on
+RouterOS 7.24.5. The source is [the official RADIUS/HotSpot manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/)
+and [User Manager limitations](https://manual.mikrotik.com/docs/cli-reference/user-manager/limitation/).
+No new RouterOS API write path was introduced; optional disconnect uses RADIUS
+with the dedicated subscriber service guard.
+
+
+Subscriber continuation adds shared `/ip/hotspot/active/print` with `stats` and
+`.id,user,mac-address,server,address,uptime,bytes-in,bytes-out,session-time-left,limit-bytes-in,limit-bytes-out,limit-bytes-total`;
+`/queue/simple/print` with `.id,name,target,max-limit,dynamic,disabled`; and the existing
+`/system/resource/print` with `version`. One set serves all enrolled subscribers on a router.
+Active counters/timeout semantics are capability-gated and remain subject to the target probe.
+Dynamic queue verification requires a unique exact host target, never a shared subnet queue.
+CoA uses the pinned RADIUS implementation and an independent narrow service grant; it does
+not edit dynamic queues through the RouterOS API.
+
+
+The owned disposable `subscriberchr` domain probe additionally uses
+`/radius/monitor =numbers=<owned-id> =once=` for `requests`, `accepts`, `rejects`,
+`resends`, `timeouts` and `bad-replies`; `/radius/add`, `/radius/move` and
+`/radius/remove` for its single synthetic endpoint; and `/ip/hotspot/profile/set`
+for the owned profile's `split-user-domain` and positive-control
+`radius-default-domain`. Non-secret configuration proplists are declared in
+`internal/subscriberlab/domain_config.go`. The original ordered rows/profile are
+read back after rollback; secrets are neither requested nor recorded.
+
+The [RADIUS manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/)
+documents ordered selection, domain/realm and monitor counters; the
+[HotSpot profile manual](https://manual.mikrotik.com/docs/authentication-authorization-accounting/hotspot-captive-portal/)
+documents default-domain and user/domain splitting. The actual CHR 7.24.5 matrix,
+including first/last order and both username syntaxes, is in Subscriber-CHR-Lab.md.
+These commands are behind disposable process/topology/firmware guards. They add
+no operator-router mutation path and do not prove production domain handoff.
+
+Optional domain-mode runtime authorization uses one background shared-session
+view per NAS, independently of display watchers. It reads the following exact
+non-secret fields through the existing connection and limiter:
+
+| Menu | Properties |
+| --- | --- |
+| `/system/resource/print` | `version` |
+| `/ip/hotspot/print` | `name,profile,disabled` |
+| `/ip/hotspot/profile/print` | `name,login-by,use-radius,radius-accounting,radius-default-domain,split-user-domain` |
+| `/radius/print` | `address,authentication-port,accounting-port,domain,realm,service,disabled,protocol,require-message-auth` |
+| `/ip/hotspot/user/print` | `name,server,disabled` |
+| `/user-manager/user/print` | `name,disabled`, only for an explicitly configured legacy-domain transition |
+
+`internal/server/subscriber_login_routing.go` bounds each command to two seconds;
+the worker has a five-second context and a ten-second refresh cadence. Cached
+evidence older than fifteen seconds, failed reads or a mismatched firmware version
+cannot authorize a new domain admission or CoA write. Direct mode adds no routing
+read. Existing accounting continues independently. These are configuration
+intervals rather than measured worst-case latency guarantees. See
+[the routing guard and actual CHR acceptance](Subscriber-Login-Domain.md).

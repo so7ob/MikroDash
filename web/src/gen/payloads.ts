@@ -1343,6 +1343,136 @@ export interface Site {
   created_at: number;
 }
 
+export interface SubscriberConnectionStatus {
+  version: string;
+  flowId: string;
+  stage: string;
+  network: string;
+  device: string;
+  leaseId: string;
+  reasons: string[];
+  requestedAt: string;
+  observedAt: string;
+}
+
+export interface SubscriberPeriod {
+  kind: string;
+  zone: string;
+  anchor: string;
+}
+
+export interface SubscriberLimit {
+  id: string;
+  kind: string;
+  state: string;
+  amount: string;
+  period: SubscriberPeriod;
+  action: string;
+  down: string;
+  up: string;
+}
+
+export interface SubscriberWindow {
+  days: number[];
+  from: number;
+  until: number;
+  zone: string;
+}
+
+export interface SubscriberPolicy {
+  id: string;
+  limits: SubscriberLimit[];
+  windows: SubscriberWindow[];
+}
+
+export interface SubscriberSpeed {
+  id: string;
+  name: string;
+  down: string;
+  up: string;
+}
+
+export interface SubscriberPlan {
+  id: string;
+  version: number;
+  name: string;
+  validSeconds: string;
+  start: string;
+  maxSessions: number;
+  networks: string[];
+  policies: SubscriberPolicy[];
+  speeds: SubscriberSpeed[];
+  down: string;
+  up: string;
+}
+
+export interface SubscriberSubscription {
+  id: string;
+  accountId: string;
+  plan: SubscriberPlan;
+  assignedAt: string;
+  activatedAt: string;
+  expiresAt: string;
+  status: string;
+  speedId: string;
+  speedState: string;
+}
+
+export interface SubscriberLimitView {
+  provisional: string;
+  limit: SubscriberLimit;
+  used: string;
+  remaining: string;
+  reserved: string;
+  periodStart: string;
+  nextReset: string;
+  quality: string;
+}
+
+export interface SubscriberDecision {
+  allowed: boolean;
+  disconnect: boolean;
+  reasons: string[];
+  limits: SubscriberLimitView[];
+  down: string;
+  up: string;
+  timeout: number;
+}
+
+export interface SubscriberLease {
+  connectionState: string;
+  appliedDown: string;
+  appliedUp: string;
+  rateState: string;
+  rateObservedAt: string;
+  id: string;
+  routerId: string;
+  network: string;
+  device: string;
+  sessionId: string;
+  state: string;
+  createdAt: string;
+  deadline: string;
+  observedAt: string;
+  seconds: string;
+  download: string;
+  upload: string;
+}
+
+export interface SubscriberSnapshot {
+  pendingAccounting: number;
+  version: string;
+  subscription: SubscriberSubscription;
+  decision: SubscriberDecision;
+  observedAt: string;
+  lastSyncedAt: string;
+  quality: string;
+  lifetimeSeconds: string;
+  lifetimeDownload: string;
+  lifetimeUpload: string;
+  sessions: SubscriberLease[];
+}
+
 export interface SystemPayload {
   ts: number;
   uptimeRaw: string;
@@ -2109,6 +2239,10 @@ export interface ActivityRanking {
 }
 
 export interface ActivityFilter {
+  parts?: string;
+  cursor?: string;
+  anchor?: string;
+  rollingDays?: number;
   dnsCountry: string;
   canonical: string;
   deviceName: string;
@@ -2236,6 +2370,17 @@ export interface ActivitySettings {
 }
 
 export interface ActivityResult {
+  resultVersion: string;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  refreshAt: number;
+  computedAt: number;
+  dataRevision: number;
+  totalStored: number;
+  indexPending: number;
+  nextCursor: string;
+  prevCursor: string;
+  anchor: string;
   dnsCountries: ActivityRanking[];
   queryTypes: ActivityRanking[];
   matchMethods: ActivityRanking[];
@@ -2326,6 +2471,7 @@ export interface ConnsUpdate {
 // payload Go declared for it.
 export interface Events {
   'activity:changed': ActivityChanged;
+  'activity:status': ActivityChanged;
   'alert:acked': AlertRow;
   'apps:progress': AppsProgressPayload;
   'apps:state': AppsPayload;
@@ -2363,6 +2509,8 @@ export interface Events {
   'secscan:result': SecScanPayload;
   'secscore:state': SecScorePayload;
   'sites:update': Site[];
+  'subscriber:connection': SubscriberConnectionStatus;
+  'subscriber:snapshot': SubscriberSnapshot;
   'system:update': SystemPayload;
   'talkers:update': TalkersPayload;
   'term:complete': TermCompletePayload;

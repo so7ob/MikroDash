@@ -4015,4 +4015,4 @@ textarea.sform-input.ff-code { white-space: pre; font-size: .74rem; }
 .activity-copy-notice.activity-copy-failed { border-color:var(--accent-err); }
 
 /* Optional-feature table headers use the page palette in both schemes. */
-html:root :is(#page-dns,#page-wifi-clients,#page-capsman) table th{color:var(--text-main);background:linear-gradient(var(--bg-card),var(--bg-card)),var(--bg-deep)}
+html:root :is(#page-dns,#page-wifi-clients,#page-capsman,#page-subscribers) table th{color:var(--text-main);background:linear-gradient(var(--bg-card),var(--bg-card)),var(--bg-deep)}

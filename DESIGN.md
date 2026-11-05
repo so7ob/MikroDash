@@ -661,3 +661,124 @@ after the clipboard result. It uses the existing palette/type tokens and a polit
 status live region. Repeated copies replace it; leaving Events clears it. Failed
 copies say so instead of confirming success. The shared clipboard helper retains
 its HTTP/LAN fallback. No extra controls, fonts or decorative motion are added.
+
+
+### Subscriber accounting review
+
+Subscriber Management retains its main navigation entry and the existing dense
+technical console style: Oxanium UI, JetBrains Mono values, shared semantic pills,
+forms and buttons. Four header tabs wrap at phone widths and use roving keyboard
+focus with named tab panels. Reconciliation groups one account's uncertain byte
+intervals, absent sessions and legacy bounds; evidence and an explicit approval
+remain next to the affected record. Confirmed usage, delegated reservations and
+provisional exposure have separate labels. There is no inferred measured distribution.
+
+Synthetic HTTP/SQLite browser checks cover account-response races, invalid/approved
+settlements, retained evidence, Unicode user data, keyboard/focus, 375/1280 layouts
+and zero axe violations. Existing local fonts, tokens and LTR layout are reused.
+No decorative patterns or additional design system were introduced.
+
+
+### Subscriber setup before runtime activation
+
+Administration remains a dense English/LTR console while the separately configured
+network runtime is disabled. A persistent semantic status above the four tabs
+explains the configured mode and the next setup requirement; action feedback uses
+its own live region. Preparing a subscriber never implies Internet connectivity.
+The subscriber table uses the existing optional-page header palette rule, so the
+same tokens provide readable headers without changing global typography or colors.
+The synthetic browser journey covers creation with no runtime, retained Unicode,
+375/1280 layouts, persistent status and the existing reconciliation workflow.
+
+
+### Subscriber accounting receipts
+
+Receipt state and missing-statistic explanations stay within the existing dense
+technical console. Native disclosure elements reveal original whitelisted fields;
+shared semantic pills identify pending/covered/applied states, with explicit text
+alongside color. Evidence and reasoned final-reading approval remain beside the
+affected session. The portal and Inspect retain confirmed balances while a
+separate message explains blocked admission. No new typography, palette, cards,
+icons, animations or translation system are introduced.
+
+The synthetic protected HTTP/SQLite browser journey passes at 375/1280 in
+default dark, default light and Nord, with keyboard/account isolation, escaped
+Unicode content, retained evidence, final correction and zero axe violations. This extends the existing technical console
+direction; checklist: zero new decorative patterns.
+
+
+### Subscriber display-name editing
+
+The technical administration console uses its existing table actions, form grid,
+inputs and semantic buttons. Editing replaces the creation form and restores it
+on cancel/save; it does not add a modal or change global typography/palettes.
+A read-only username identifies the selected account. Input survives validation
+or stale-state errors; busy controls prevent another account selection during a
+save. Keyboard focus returns to that account's Edit name button.
+
+The actual protected HTTP/SQLite Chromium journey passes in dark, light and Nord
+at 375/1280 with zero axe violations. It covers cancel, invalid input, concurrent
+edit conflict, reviewed save, escaped Unicode data and focus. The existing dense
+console structure, local font system and semantic accent roles are retained;
+audit result: zero new decorative patterns or design systems.
+
+
+### Subscriber Internet connection evidence
+
+The standalone portal keeps the existing dense, calm, technical direction and
+local Oxanium/JetBrains Mono tokens. Its first account card places this device's
+Internet status, evidence time and recovery text beside the network/Connect
+action. The header identifies portal sign-in and update transport separately.
+Other device rows cannot supply this device's status. Shared semantic pills and
+plain text distinguish requested, authorized, connected, stale, denied and ended
+states without relying on color. No new font, palette, illustration, icon system
+or decorative motion is introduced.
+
+A network landing hint changes the explicit credential-submit action to Sign in
+and connect. A page load or an existing portal cookie never submits a HotSpot
+form. Return context is an owned opaque reference; errors remain in the account
+without automatic retries or redirect loops. The existing form and action
+components carry busy and keyboard states.
+
+### Reviewed subscriber account selection
+
+The dense, calm, technical administration console retains its existing fonts,
+semantic pills, table density and English/LTR forms. Search and status filters
+state shown/total counts without changing original Unicode data. Individual row
+checkboxes create an explicit bounded selection; no implicit all-account action
+or hidden filtered selection is applied. The inline review places the frozen
+identities, before/after status and reason beside the confirmation and apply
+controls. It uses the existing form grid and button hierarchy, with no new
+palette, typography, decorative patterns, cards or motion.
+
+Busy, conflict, empty-filter, cancellation and committed states use plain text
+and existing controls. Keyboard focus returns to the selected checkbox after a
+row redraw, to the reason when returning from review and to search after a
+committed batch. The synthetic protected HTTP/SQLite browser journey checks
+dark/light/Nord at 375/1280, escaped Unicode content, frozen review and zero axe
+violations. Checklist: zero new decorative tells; existing token system retained.
+
+Synthetic Shadow browser checks pass for native TLS and the explicit proxy,
+normal/pending accounting, restricted session storage, explicit login intent,
+owned return recovery, keyboard sign-in/Connect/logout focus, 375/1280, three
+existing themes and zero axe WCAG 2 A/AA plus 2.1 AA findings. The mobile and
+wide renders retain the shared type, density, forms and semantic color roles;
+visual consistency audit: 8/10, with zero new decorative patterns. Complete
+HotSpot handoff, live connected-state browser proof and manual screen-reader
+acceptance remain pending; the automated checks do not establish all WCAG 2.2
+criteria or target-router acceptance.
+
+
+### Activity query scope and live pages
+
+Retain the existing dense technical console, fonts, palette, tabs and controls.
+The header badge names the selected period and appears on analysis tabs; the
+Synchronization status separately names all retained events and initial index
+progress. No additional chart, dialog or navigation mode is introduced.
+
+Automatic Events updates preserve the later page's reference row, scroll and
+keyboard focus. Only the visible tab renders its data. A reference removed by
+retention moves to the nearest retained page with an accurate final-page boundary.
+Status-only updates change synchronization text without repainting analytics.
+The existing 375/1280, keyboard, Ctrl-copy, dark/light/Nord and axe browser journey
+covers these changes; no new decorative patterns or design system are introduced.

@@ -162,7 +162,7 @@ func (s *Session) reasonsLocked() Reasons {
 		Alerts:      s.holds["alerts"],
 		History:     s.holds["history"],
 		Devices:     s.holds["devices"],
-		Warm:        s.holds["warm"] || s.holds["activity"],
+		Warm:        s.holds["warm"] || s.holds["activity"] || s.holds["subscribers"],
 		Watch:       s.holds["watch"],
 		WifiHistory: s.holds["wifi-history"],
 	}

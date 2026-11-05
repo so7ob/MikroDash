@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"mikrodash/internal/hub"
 	"mikrodash/internal/session"
 )
 
@@ -29,6 +30,9 @@ func TestEveryEnabledRouterIsHeldWarm(t *testing.T) {
 	  {"id":"quiet","label":"Quiet","host":"198.51.100.1","port":8728,"username":"u","password":""},
 	  {"id":"off","label":"Off","host":"198.51.100.2","port":8728,"username":"u","password":"",
 	   "disabled":true}]`)
+	// A real connection loop can publish a failed dial after the assertion.
+	// Give this fixture the same non-nil hub required by production startup.
+	s.hub = hub.New()
 	s.sessions = session.NewManager(s.store, s.hub)
 	t.Cleanup(func() { s.sessions.Shutdown() })
 	s.holdFleet = true

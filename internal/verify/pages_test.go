@@ -96,7 +96,14 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 	root := repoRoot(t)
 
 	produced := map[string]bool{}
-	for _, body := range readFiles(t, root, "web/src/ui/", func(r string) bool { return hasExt(r, ".html") }) {
+	templates := readFiles(t, root, "web/src/ui/", func(r string) bool { return hasExt(r, ".html") })
+	// NAS handoff documents are rendered by Go, outside the dashboard shell.
+	// Scan the real production templates as producers, never a test fixture or
+	// a list of exempt IDs. Removing an ID still fails the lookup check.
+	for name, body := range readFiles(t, root, "internal/subscriber/", func(r string) bool { return hasExt(r, ".go") && !isTestSource(r) }) {
+		templates[name] = body
+	}
+	for _, body := range templates {
 		for _, m := range regexp.MustCompile(`id="([A-Za-z0-9_-]+)"`).FindAllStringSubmatch(body, -1) {
 			produced[m[1]] = true
 		}
@@ -105,6 +112,12 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 	ts := joined(tsFiles)
 	// Ids the TypeScript itself writes into markup it builds.
 	for _, m := range regexp.MustCompile(`id=\\?["']([A-Za-z][\w-]*)\\?["']`).FindAllStringSubmatch(ts, -1) {
+		produced[m[1]] = true
+	}
+	// A literal ID passed to the shared toggle helper is produced by that
+	// helper's real input markup, just as a literal markup ID is. Dynamic
+	// helper arguments remain outside this literal scan; no ID is exempted.
+	for _, m := range regexp.MustCompile(`\btoggleHtml\(\s*['"]([A-Za-z][\w-]*)['"]`).FindAllStringSubmatch(ts, -1) {
 		produced[m[1]] = true
 	}
 	// AND IDS ASSIGNED TO AN ELEMENT, which is markup built without markup:

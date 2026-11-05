@@ -150,7 +150,7 @@ func appOpts(here, dist string) api.BuildOptions {
 	}
 }
 
-// classic are the two classic scripts. Same target, NO SOURCEMAP — they are
+// classic are the separate document scripts. Same target, NO SOURCEMAP — they are
 // short, and a map for a file served to an unauthenticated browser is a file
 // served to an unauthenticated browser.
 //
@@ -159,6 +159,8 @@ func appOpts(here, dist string) api.BuildOptions {
 // is what tells them apart, and they read this list rather than guessing.
 var classic = []struct{ src, out string }{
 	{"entry/login.ts", "login.js"},
+	{"entry/subscriber.ts", "subscriber.js"},
+	{"entry/subscriber-handoff.ts", "subscriber-handoff.js"},
 	{"entry/preflight.ts", "preflight.js"},
 }
 
@@ -173,7 +175,11 @@ func classicOpts(here, dist string) []api.BuildOptions {
 			Target:        api.ES2020,
 			Outfile:       filepath.Join(dist, c.out),
 			LogLevel:      api.LogLevelInfo,
-			Write:         true,
+			// The router-served helper is kept within the validated small-file budget.
+			MinifyWhitespace:  c.out == "subscriber-handoff.js",
+			MinifyIdentifiers: c.out == "subscriber-handoff.js",
+			MinifySyntax:      c.out == "subscriber-handoff.js",
+			Write:             true,
 		})
 	}
 	return out
@@ -233,6 +239,10 @@ func main() {
 	}
 	// login.html is markup in web/src/ui like the page bodies. It ships to dist
 	// so the whole served document set comes from one directory.
+	if err := copyFile(filepath.Join(ui, "subscriber.html"), filepath.Join(dist, "subscriber.html")); err != nil {
+		fmt.Fprintln(os.Stderr, "webbuild: subscriber document:", err)
+		os.Exit(1)
+	}
 	if err := copyFile(filepath.Join(ui, "login.html"), filepath.Join(dist, "login.html")); err != nil {
 		fmt.Fprintln(os.Stderr, "webbuild: copying login.html:", err)
 		os.Exit(1)

@@ -1,0 +1,844 @@
+# Subscriber Management verification record
+
+> Storage correction (2026-10-20): Go 1.27 makes `testing.T.TempDir` follow
+> GOTMPDIR. Historical local claims of ordinary SQLite temporary storage are
+> not disk-persistence evidence when the command put GOTMPDIR in RAM. Behavioral
+> results remain valid. See the explicit disk-backed rerun below; CI and the
+> real synthetic runtime are separate evidence.
+
+Date: 2026-10-19 (Asia/Aden). Issue: [#38](https://github.com/so7ob/MikroDash/issues/38).
+This is a **development preview, not acceptance-complete**. Passing the checks below does not
+establish live HotSpot sign-in, CoA speed verification, production readiness or deployment.
+See [architecture and remaining work](Subscriber-Management.md) and the
+[lab guide](Subscriber-Lab-Guide.md).
+
+The focused missing-final-accounting safety correction has a separate
+[contract and verification record](Subscriber-Final-Accounting.md).
+
+## Source and isolation
+
+Implementation took place in the visible `/root/So7ob/MikroDash` checkout, on
+`feat/38-subscriber-management`, from `develop` at `18a5f7de`. The origin is
+`so7ob/MikroDash`; neither the upstream reference nor `so7ob/web` was modified.
+Unrelated `.vscode/` files and the running debugger binary were preserved and not staged.
+
+Clean detached worktrees were used only for verification and deliberate negative mutations.
+They contained the same committed source, without the operator's ignored runtime directory.
+The visible checkout's baseline `go test ./...` fails `TestNoCommittedCredential` because
+`.temp/geo/cities.json` exceeds that existing check's 8 MiB scan limit. The file and the check
+were retained. A passing clean-checkout result does not mean that local warning disappeared.
+
+## Commands and actual results
+
+| Check | Evidence and limits |
+| --- | --- |
+| `sh tools/verify.sh` | Passed at `90ba843d`, and again after the late-byte correction at `5cdd4515`: gofmt, vet, 62 Go packages, govulncheck, six Go generators, seven generated-table checks, TypeScript, 141 frontend tests and 22 tooling tests. No skipped half in these runs. |
+| Authentication/resource and multiple-limit follow-up | At `f704de47`, focused subscriber/server tests passed for shared credential concurrency, portal routes, simultaneous limits and cross-router budgets. Final branch CI is a separate check on the PR head. |
+| `go test -race ./internal/subscriber ./internal/db -count=1` | Passed after the SQLite URI fix: subscriber 18.268 s, database 48.886 s. |
+| `go test -race ./internal/server -count=1` | Passed at `c958eefa` in 297.350 s after initializing the pre-existing fleet fixture's hub. This is not a RouterOS timing measurement. |
+| Portal race coverage | `go test -race ./internal/server -run '^(TestPortal\|TestShadowCannotIssueHotSpotTicket)' -count=1`: passed, 4.831 s. |
+| Accounting fuzz | `go test ./internal/subscriber -run '^$' -fuzz '^FuzzAccountingMonotoneReplay$' -fuzztime=5s -parallel=2`: passed at `5cdd4515`, 91 executions in the final run. |
+| Period fuzz | Same command with `FuzzPeriodContainsTimestamp`: passed at `5cdd4515`, 41,415 executions in the final run. Five seconds is a bounded probe, not exhaustive exploration. |
+| Browser acceptance | Real Chromium, synthetic TLS server and SQLite: login, persisted speed choice with pending status, shadow connection refusal, logout, LTR, 375/1280, blue/green/purple, no page errors, and axe WCAG 2 A/AA + 2.1 AA checks passed. No real HotSpot was involved. |
+| Patched RouterOS adapter | Existing adapter tests, including `TestNoReplyIsLostBeforeItsTagIsRegistered` and `TestTracingNeverLogsACredential`, remain in the passing Go suite. The vendored module itself has no standalone test files. |
+| Live read-only protocol | Existing `cmd/conformance`: seven protocol cases passed against the configured router. This does not test subscriber RADIUS or internet access. |
+| Existing data compatibility | `go run ./cmd/compat -data ./devdata`: all eleven reported checks passed, including the encryption envelope, bare user array, router credential decryption and audit reads. Password verification was not requested. |
+| Builds | Frontend and host binary built. The additional ARM64 build did not complete during disk exhaustion; no ARM64 success is claimed. |
+
+The browser harness is `tools/subscriber-browser.mjs`, invoked by
+`go test -tags=subscriberbrowser ./internal/server -run '^TestSubscriberBrowserAcceptance$' -count=1 -v`.
+The tested external tooling was Playwright 1.64.1 and @axe-core/playwright 4.14.0, with an
+explicitly selected installed Chromium executable. Only the synthetic test context ignores
+its self-signed certificate; production TLS verification is not disabled.
+
+## Failures found and repaired
+
+- A literal `#` in a SQLite filename was interpreted as URI syntax. The new fuzz seed exposed
+  that defect. Creation and reopening now share escaped absolute URIs, with regression tests
+  for `#`, `?`, `%`, spaces and Unicode. No data-directory contents were deleted to resolve it.
+- One-second protocol-test deadlines were too short for race-instrumented scrypt under load.
+  Correctness tests now retain a five-second bound; they do not assert a latency SLA.
+- A pre-existing fleet-session test created a real asynchronous session manager with a nil hub.
+  Delayed dial failure could panic under race instrumentation. Its fixture now initializes the
+  hub, preserving the assertions and production code.
+- A delayed reading with higher bytes and an older clock could invert a boundary interval.
+  The correction now charges every touched period conservatively and never doubles lifetime
+  counters. A midnight regression pins the case.
+- The first axe run found muted text contrast failures. The portal now uses shared dark-theme
+  attributes and an accessible scoped text token; the subsequent browser run passed.
+- Additional checks and cross-compilation exhausted the host disk. Those runs failed and are
+  not counted as passes. Rebuildable compilation caches were cleaned; the complete verification
+  and both fuzz probes then passed again. Databases, volumes and operator runtime files were
+  not deleted. No performance inference is drawn from these resource-contended runs.
+
+## Negative mutation evidence
+
+Four deliberate, non-equivalent mutations were applied one at a time in an isolated copy and
+restored immediately. All four were killed by a test assertion, not by a compilation error:
+
+| Mutation | Test that failed |
+| --- | --- |
+| Add cumulative seconds instead of taking the high-water mark | `TestDuplicateLateStopDoesNotCloseNewSession` |
+| Ignore outstanding reserved balances | `TestAtomicSharedAdmission` |
+| Delete usage buckets when changing speed | `TestTimeSurvivesSessionsAndSpeed` |
+| Ignore the service disconnect grant | `TestSubscriberServiceGrantIsNarrow` |
+
+The mutation run used `90ba843d`. Its logs do not claim exhaustive mutation coverage of the
+later changes. No test, guard or check was removed to make a failed run green.
+
+## Acceptance coverage
+
+| Requested behavior | Implemented evidence / remaining boundary |
+| --- | --- |
+| One hour before first use; 20-minute reconnect; 109 + 51 seconds | Persistent-ledger tests prove 3600, 2400 and 3440 seconds remaining respectively. |
+| Simultaneous time/download/upload/monthly total | Four independent limits, exhaustion reaching the background decision, denial of re-entry and daily renewal preserving monthly usage are tested. |
+| Speed preserves balance and validity | Persistence and entitlement checks pass. Live speed application/readback is not implemented; the portal says `pending-reconnect`. |
+| Duplicates, reordering, delayed Stop and reused session identity | Journal deduplication, independent counter high-water marks and lease-bound identity are tested. |
+| Midnight, monthly periods and minute-25 hourly anchor | Calendar and conservative boundary-accounting tests pass. Exact byte distribution within an unsampled gap is not claimed. |
+| One-second snapshot skew | Regression keeps known counters and balances; it does not convert the account to Unknown. |
+| Multiple devices/routers share entitlement | Concurrent admission and distinct-router/network reservation tests pass. Multiple networks using the same NAS source address are still refused by runtime configuration. |
+| No browsers open | Real loopback UDP test proves the background worker sends a guarded Disconnect independently of portal presence. Its NAS and API identity callback are synthetic. |
+| Application restart and missing Stop | Actual SQLite close/reopen preserves counters, deduplication and reservations. Missing Stop remains fail-closed until final accounting; automated reconciliation is outstanding. |
+| Exhausted/suspended account can view portal | Credential verification is separate from admission, with ownership and refusal tests. Live post-exhaustion walled-garden reachability is untested. |
+| Unauthorized profile/account/device/ticket | Server ownership, CSRF, Origin, device-bound ticket replay, forged accounting, unknown fields and access to admin routes are tested. |
+| Zero/unknown/unlimited, >4 GiB, Unicode | Quantity/string/BigInt, RADIUS gigawords and escaping tests pass. Import application and approved opening balances remain outstanding. |
+| Existing MikroDash behavior | Full repository gates and data compatibility pass within the stated snapshots; live production behavior was not changed. |
+| English/LTR and local design resources | New UI text is English, user data retains Unicode, existing fonts/tokens/logo are reused, three themes share one stylesheet. No i18n or RTL project was introduced. |
+
+## Performance and artifacts
+
+On the development host (linux/amd64, Xeon E-2176M),
+`BenchmarkDurableDuplicateAccounting-4` measured 182,512 ns/op, 3,854 B/op and 108 allocs/op
+for 6,302 operations. **This is duplicate-event transaction overhead**: it does not append a
+new accounting row on every operation and is not a durable-write, flash-wear or router-load
+benchmark. No measured production CPU, memory, API-channel or enforcement-latency budget is
+claimed. Normal-condition five-second usage freshness is not achieved by the current
+60-second RADIUS observation path.
+
+Synthetic screenshots and local command logs are kept in the ignored workspace directory
+`.screenshots/subscribers-38/`. Six PNGs are named
+`subscriber-synthetic-{375,1280}-{blue,green,purple}.png`. They contain synthetic accounts,
+not subscriber data. Raw live topology and User Manager output remain outside the repository.
+
+The PR's Files changed view is the authoritative changed-file inventory. Runtime changes are
+in `internal/subscriber`, `internal/server/subscriber*`, `internal/db`, `internal/guard`, the
+session hold/RBAC/page integration, the subscriber frontend and build/type generators.
+The two new commands are `cmd/subscribercheck` and `cmd/subscriberconfig`.
+
+No merge, release, image publication, production deployment, router configuration write,
+production Disconnect or authentication cutover is implied by this record.
+
+
+## Administration without network runtime (Issue #47, 2026-10-20)
+
+This independent fix starts from verified `develop` `dcf1e161`. The actual
+running debugger has no subscriber configuration; no subscriber TLS/configuration
+files were present in its data directory. No runtime was enabled or restarted.
+A fresh read-only NAS inspection still reports 7.24.5 and C RADIUS accounting;
+this does not constitute a subscriber hardware test.
+
+The new HTTP/SQLite regression first reproduced the reported 503. After separating
+administration from the optional runtime, focused subscriber server tests passed.
+They exercise durable account creation, Unicode, immutable plan/assignment,
+simultaneous time/download limits, zero-usage pending activation, status changes,
+reconciliation and existing auth/Origin/storage guards with no running runtime.
+Frontend tests passed: 145 tests, zero failures/skips.
+
+Actual Chromium against protected HTTP handlers and SQLite passed (4.151 seconds),
+including account creation while Disabled, persistent status after success,
+375/1280 screenshots, axe and the existing reconciliation journey. The first new
+browser sweep failed table-header contrast (2.76:1). Extending the existing
+optional-page header token rule fixed the product; axe was not suppressed.
+Synthetic evidence lives under `.screenshots/subscriber-offline-47/`, including
+`subscriber-admin-offline-synthetic-{375,1280}.png`. These are not live accounts.
+
+Full clean-checkout verification and exact PR/post-merge CI are delivery gates;
+the final PR/issue receipts record their actual runs. This fix enables preparation
+and inspection. It does not claim live HTTPS HotSpot sign-in, NAS capability proof,
+authentication cutover or Internet connectivity.
+
+
+The first full #47 sweep passed Go (62 packages), generators, 145 frontend tests
+and 22 tooling tests, but failed TypeScript: `info` is not a valid `PillTone`.
+The status now uses the existing `rx` tone. The failed sweep is retained as a
+failure; a complete rerun is required on the corrected source. The final synthetic
+browser run before that type correction passed in 4.728 seconds.
+
+
+## Isolated HTTPS reverse proxy (Issue #49, 2026-10-20)
+
+Implementation starts from verified `develop` `fe0db269` on its own issue branch.
+No router write, deployment, active-session change or authentication cutover was
+performed. The target's reported architecture is arm; prior static ARMv7 build
+success does not prove target execution. Current RouterOS documentation describes
+HTTP proxy upstreams; its 7.26 header description still needs a 7.24.5 target probe.
+
+Historical commands (native Go 1.27.2, linux/amd64; synthetic accounts and scripted
+NAS reads). The earlier claim of ordinary SQLite temporary storage was incorrect
+for commands using RAM GOTMPDIR; see the explicit disk-backed correction below:
+
+- `go test ./cmd/subscriberconfig ./internal/subscriber ./internal/server -run '^(TestSeal|TestPortal|TestSubscriber|TestShadow)' -count=1`: exit 0
+  (0.292 / 0.006 / 5.445 seconds). The sealing tool preserves explicit peer/transport
+  configuration using the existing key and private-file rules.
+- Focused proxy/HTTPS/RADIUS/startup tests: exit 0, 4.427 seconds. HTTP/TLS, cookies,
+  SQLite and RADIUS packets run through real listeners. NAS host-table rows are
+  scripted. The controlled edge appends its actual client after a forged address;
+  the resulting ticket accepts only the verified device, permits an exact packet
+  retry and rejects a new replay. Admin routes and socket commands stay isolated.
+- `go test -race ./internal/server -run '^TestSubscriber(ProxyBoundary|HTTPSProxy|StartupServes)' -count=1`:
+  exit 0, 8.807 seconds with native cgo/race instrumentation.
+- `go test ./internal/server -run '^$' -fuzz '^FuzzSubscriberProxyNeverTrustsAnInjectedLeftClaim$' -fuzztime=5s -parallel=2`:
+  exit 0, 14,939 executions. This is a short bounded property probe.
+- `go test -tags=subscriberbrowser ./internal/server -run '^TestSubscriberBrowserAcceptance$' -count=1 -v`:
+  exit 0, 14.373 seconds, native TLS and HTTPS-edge/private-HTTP paths. Actual Chromium
+  covers login, speed choice/pending status, Shadow refusal, logout, three themes,
+  English/LTR, 375/1280 and axe. Only the synthetic edge certificate is accepted by
+  the test browser. Production native TLS verification was not disabled.
+
+Failed probes are retained: the new config test first failed the former TLS-only
+validation; a boundary case found a mapped-unspecified IP accepted as `0.0.0.0`;
+the first integration cleanup called full teardown on a collector-free scripted
+session and panicked. Config/normalization and fixture cleanup were corrected,
+without weakening assertions or production teardown.
+
+Screenshots are under `.screenshots/subscriber-proxy-49/` (native TLS) and its
+`proxy/` child (HTTPS edge), with the existing clearly synthetic file names.
+Full clean-checkout verification and exact PR/post-merge CI remain delivery gates;
+final receipts belong to this issue/PR. No Internet session or RouterOS timing
+claim is made from these synthetic integration runs.
+
+
+Two non-equivalent mutations at implementation `b200018c` were killed by the
+expected assertions in an isolated verification worktree: bypassing the verified
+client at the ticket call site returned HTTP 400 instead of 200; removing the
+exact proxy-peer condition admitted an untrusted peer and failed its 403 check.
+Source was restored byte-for-byte before verification. A further login-limiter
+call-site regression passed: changing a forged left claim cannot evade an exhausted
+actual-client bound, and another verified client is not charged to the proxy.
+
+Static `linux/arm`, `GOARM=7`, `CGO_ENABLED=0` build succeeded at `b200018c`; `file`
+reports ARM EABI5, statically linked. It was not executed on the target. The first
+full sweep reported Go failure without a retained filtered cause; it is not a
+passing full run. The unchanged complete Go half then passed with trace/raw output,
+including all packages, govulncheck and generators. No source/test failure cause
+was proven, so none is invented. A complete sweep with raw Docker output retained
+is required at the final head. Data files, volumes and operator caches were retained.
+
+
+## Durable receipt continuation (Issue #46)
+
+Current independent branch: `fix/46-durable-accounting-receipts`, based on verified
+`develop` `baae4f3e`. See [receipt behavior](Subscriber-Accounting-Receipts.md).
+
+- `go test ./internal/subscriber ./internal/db ./internal/server -count=1`: exit 0,
+  13.775 / 13.219 / 61.063 seconds on the development host. These are behavioral
+  results; RAM GOTMPDIR also places SQLite T.TempDir files in RAM. They do not
+  establish ordinary-storage persistence.
+- `npx --no-install tsc --noEmit` and `npm test --silent`: exit 0, 146 tests passed.
+- `go test -race ./internal/subscriber -run 'TestReceipt|TestRealUDPIncomplete' -count=1`:
+  exit 0, 9.065 seconds, native cgo/race instrumentation.
+- `go test ./internal/subscriber -run '^$' -fuzz '^FuzzReceiptRangesAndRetryIdentity$' -fuzztime=5s -parallel=2`:
+  exit 0, 37,000 executions. Valid uint64 wire values remain exact; unsupported
+  signed-ledger sums/durations remain pending rather than wrapping. Financial
+  identity ignores changed packet identifiers, delay and receipt time.
+- Tagged `TestSubscriberAdminReconciliationBrowserAcceptance`: exit 0, 4.566 seconds,
+  real protected TLS/HTTP/SQLite, original receipt fields, missing-versus-known
+  counters, evidence-backed correction, account-response races, Unicode,
+  English/LTR, 375/1280 and zero axe violations. Only NAS data is synthetic.
+
+Failed probes remain recorded. The first recovery test did not compile because
+it used the wrong operation signature; this is not counted as a behavioral
+failure. After correction, the actual late-partial assertion failed. Parser
+regressions also failed because malformed Start became zero and malformed values
+shared an identity. The corrected cases pass. No test or assertion was removed.
+
+The new credential-whitelist and unknown-NAS tests are supplemental; final full
+verification, mutation checks, current-head CI and post-merge CI remain delivery
+gates. Screenshots remain private under `.screenshots/subscriber-receipts-46/`.
+No target-router traffic, reboot, power-loss durability or latency acceptance is
+claimed. A successful commit is not itself an exact-head verification result.
+
+
+At implementation `296a7bb5`, `sh tools/verify.sh` passed in an isolated checkout:
+62 Go packages, gofmt, vet, live govulncheck, six Go generators, TypeScript, seven
+JavaScript generators, 146 frontend tests and 22 tooling tests. Raw Docker output
+was retained; no check was skipped. Its RAM GOTMPDIR also affected SQLite test
+storage, contrary to the earlier ordinary-filesystem description. The disk
+briefly approached capacity during concurrent
+compilation; both commands completed successfully and released their temporary
+files. No operator data, image, volume or unrelated cache was deleted.
+
+The extended administrative browser passed in 7.316 s across default dark,
+default light and Nord at 375/1280 with zero axe violations. The built portal
+browser passed in 13.551 s across native TLS and the explicitly trusted HTTPS
+proxy, each with clean and pending-receipt accounts. Pending snapshots display
+20 confirmed seconds and 00:59:40 remaining, preserve known values and explain
+blocked admission. Screenshots are clearly synthetic; no real NAS was used.
+
+Two non-equivalent mutations were killed by compiling behavioral assertions:
+acknowledging a failed receipt/debit and allowing API Start/final Stop. Their
+source files were restored byte-for-byte. The initial mutation runner searched
+for the wrong diagnostic phrase; its retained output already contained the
+correct failing assertion, which was then validated explicitly. This was a
+runner diagnostic error, not an additional product regression or a passing test.
+
+The source and tested behavior are unchanged by this evidence update. Final
+revision verification and exact-head/post-merge CI remain required before delivery.
+
+
+## Display-name editing (Issue #52)
+
+Base: verified `develop` `b897307b`. The actual HTTP regression first failed with
+400 on the unsupported payload. The integrated handler/store then passed. This
+was a behavioral red, not an initial compile failure.
+
+- `go test ./internal/subscriber ./internal/server -run 'Test(AccountName|SubscriberName)' -count=1 -v`:
+  exit 0, 0.370/0.212 s. Covers preserved snapshot/password/voucher values,
+  Unicode and whitespace, before/after audit, stale/no-op edits, validation,
+  rollback on audit failure, selected-account isolation and admin/Origin checks.
+- `npx --no-install tsc --noEmit`: exit 0.
+- Tagged `TestSubscriberAdminReconciliationBrowserAcceptance`: exit 0, 10.923 s
+  after focused-form changes. The actual protected HTTP/SQLite journey covers
+  cancel, validation retention, a real concurrent edit and 409, reviewed save,
+  disabled busy controls, escaped Unicode, focus and 375/1280 dark/light/Nord with
+  zero axe violations. Existing reconciliation acceptance still runs unchanged.
+
+Only NAS data is synthetic. Screenshots are private in
+`.screenshots/subscriber-name-52/`. Full final-head checks, mutation evidence and
+pre/post-merge CI remain delivery gates; the name editor is not target acceptance.
+
+
+The first full #52 sweep failed `TestEveryLookupHasAProducer`: the generated
+input helper hid the literal `subEditName` producer from the static scan, while
+the browser journey had passed. The field now declares its input ID explicitly,
+using the same local form classes. The audit and all its assertions remain intact.
+The failed full sweep is not reported as green.
+
+## Confirmed HotSpot CoA address, Issue #55
+
+Real isolated CHR 7.24.5 testing found that the original CoA selectors received
+Unsupported-Extension. Adding the API-confirmed Framed-IP-Address produced ACK
+and actual timeout/rate readback; see [the detailed evidence](Subscriber-CoA-Targets.md).
+The private raw successful journey ran Start, a standard 60-second Interim and
+Stop; final counters were 63 seconds, 66746 download and 18027 upload bytes.
+The original compile error, selector NAKs and rerun-with-existing-session failure
+remain retained, separately from the successful probes. No L009 write was made.
+
+`go test ./internal/subscriber ./internal/subscriberlab ./internal/guard` on the
+development checkout passed after the production correction (7.497 s / 0.007 s /
+cached). The subscriberlab package is separate work under #54 and is not part of
+this focused fix. `go test ./internal/subscriber -run
+'Test(CoA|IssuedCoA|FiveContinuous)' -count=1` passed in 0.142 s. Full exact-source,
+mutation and CI delivery evidence follows only after those checks complete.
+
+Focused delivery source: `84c1bee9fd89dc3ddc6bdd595e1900a07d32d78a`.
+The isolated worktree's `sh tools/verify.sh` passed: gofmt, vet, 62 Go packages,
+live govulncheck, all generated contracts, tsc, 146/146 frontend tests and 22/22
+tooling tests. Raw Docker output was retained; only the compiler cache and
+GOTMPDIR moved to RAM. Go 1.27 also placed T.TempDir SQLite files there;
+the earlier ordinary-filesystem description was incorrect. The explicit
+disk-backed rerun below corrects that evidence. The task-created node_modules symlink was removed after checking.
+
+`go test -race ./internal/subscriber -run
+'Test(CoA|IssuedCoA|FiveContinuous)' -count=1` passed in 2.270 s. Two compiling
+mutants were killed: omitting the Framed-IP-Address setter and bypassing the
+processor's issued-address fence. Their specific regressions failed; neither
+was a compilation failure. The working source was restored byte-for-byte.
+Raw private logs: `/tmp/subscriber-55-full.log`,
+`/tmp/subscriber-55-raw-docker.log`, `/tmp/subscriber-55-race.log` and
+`/tmp/subscriber-55-mutation-*.log`. No browser UI changed in this correction;
+existing frontend coverage passed. Required PR and post-merge CI remain separate
+checks and are recorded in the issue after delivery.
+
+
+## Confirmed HotSpot Disconnect address, Issue #57
+
+Base: verified develop `16deeb1b`. The new production-call-site UDP regression
+first failed because the emitted packet had no Framed-IP-Address (both ACK/NAK
+subcases, behavioral failures). After correction, `go test ./internal/subscriber
+-run 'TestDisconnect|TestGuardedBackgroundDisconnect' -count=1` passed in 3.282 s.
+Tests cover exact selectors, observed identity/freshness/address refusals,
+service authority, ledger ownership, audit failure and retained entitlement.
+
+The isolated CHR 7.24.5 HTTPS HotSpot probe first retained the production failure
+on the base revision. Adding only the observed IPv4 in a diagnostic packet
+produced Disconnect-ACK and Admin-Reset Stop. Running the corrected production
+method with a Go source overlay then passed: API disappearance plus committed
+Stop, 0 pending accounting receipts, one 77.169 ms sample, exit 0. The overlay
+replaced only `internal/subscriber/runtime.go`; the private #54 lab harness and
+fresh synthetic ledger remained separate from this fix's delivery scope.
+No operator NAS configuration, capability flags or deployed process changed.
+
+Full final-source verification, mutation/race checks and current-head/post-merge
+CI remain separate delivery gates. L009 acceptance and performance budgets are
+not inferred from the single CHR sample.
+
+
+The initial full sweep passed 62 Go packages, 146 frontend tests and 22 tooling
+tests, all generated contracts and live govulncheck. Scoped race tests passed
+in 15.278 s. The missing-address mutant failed behaviorally. A first stale-read
+mutant survived because the test's timestamp also mismatched the session start;
+that result is retained. The fixture now preserves a valid start-time match,
+and the same compiling mutant fails with `unconfirmed target accepted`. Final
+source verification follows this test correction; the earlier sweep is not
+reported as checking the corrected assertion.
+
+
+## Explicit disk-backed verification correction, Issue #54
+
+Go 1.27's testing source documents and implements GOTMPDIR as the parent of
+T.TempDir. Setting only TMPDIR does not override that. Earlier local runs with
+RAM GOTMPDIR are behavioral tests, not evidence of disk persistence or fsync
+cost. The real runtime ledger remains under the ordinary development filesystem;
+GitHub CI did not set GOTMPDIR to a RAM mount. No source assertion is weakened.
+
+The subscriber source exactly matches verified develop `7d6f8121`. It was
+compiled as a race-enabled test executable in RAM, then run separately:
+
+```sh
+go test -race -c -o /path/to/ram/subscriber.test ./internal/subscriber
+GOTMPDIR=/tmp TMPDIR=/tmp /path/to/ram/subscriber.test -test.count=1 -test.v
+```
+
+The compile command alone may use RAM GOTMPDIR. The test process must use an
+ordinary filesystem directory for **both** variables. The actual rerun passed
+all 64 top-level subscriber tests/fuzz seed checks, including receipts, crash
+recovery, CoA, Disconnect, accounting boundaries and concurrent reservations.
+Actual database startup logs show `/tmp/Test.../mikrodash.db`. Randomized fuzzing
+is separate from these seed checks. The raw private log is
+`/tmp/subscriber-57-all-disk-race.log`. A focused disk race run also passed.
+
+The complete subscriberlab test executable passed separately with the same
+disk settings; actual preparation logs show `/tmp/Test.../runtime-data/`.
+It exercises the real encryption/ledger/RBAC preparation call site and refuses
+repeat preparation without replacing accounts. Private log:
+`/tmp/subscriber-54-disk-unit.log`. New runtime exhaustion helpers added after
+that binary was compiled still require their own final-source checks.
+
+
+## Finality and CHR continuation verification
+
+Issue #59 / PR #60 delivered account-wide missing-final accounting gates at
+`develop` `3bfdbd25`. The reviewed head `1abd51de` and merged trees match;
+[head CI](https://github.com/so7ob/MikroDash/actions/runs/39376922603) and
+[post-merge CI](https://github.com/so7ob/MikroDash/actions/runs/39377365380)
+passed. Its complete standalone subscriber race run passed 70 top-level
+checks on ext4 `/tmp`; all six compiling finality mutants failed relevant
+behavioral assertions. The first restart fixture's Store-pointer race was
+repaired by draining the old receiver before storage reopen, without weakening
+production synchronization.
+
+A supplemental 20-second standalone accounting fuzz run passed 33 executions
+in about 21 seconds on that source. Go warned that the binary lacked coverage
+instrumentation; it is random input testing without coverage guidance. The
+first invocation lacked `-test.fuzzcachedir` and executed no fuzz cases. Both
+logs are retained. Do not equate this with a coverage-guided fuzz campaign.
+
+The CHR continuation at `679ad9fd` passed the full local sweep: 63 Go packages,
+gofmt/vet/govulncheck and current generators, TypeScript, 146 frontend and 32
+tooling tests. The Docker wrapper applies `-count=1` and an execution environment
+with both GOTMPDIR and TMPDIR on ordinary `/tmp`; only compilation work/cache
+uses RAM. A separate subscriberlab race executable passed all 11 top-level
+tests on ext4 `/tmp`, including actual encrypted runtime-data/RBAC preparation.
+
+Subsequent isolated assertions for the process binary hash passed and killed
+a compiling omission of that fence. Six Node mutations cover PID start ticks,
+argv, binary/config hashes, app-before-VM teardown and the isolated listener
+firewall. Four compiling Go overlay mutations cover administrator grant at its
+preparation call site, malformed durations, mixed certificate material and
+failed evidence writes. Every mutation fails a behavioral assertion; syntax or
+compilation failure was not counted as a kill.
+
+The clean native application at `1abd51de` also passed the public actual-client
+`reconciling` browser case against the retained CHR outage ledger: positive known
+credit, pending final accounting, refused HTTPS HotSpot re-entry, retained
+confirmed balances and safe portal access. Three themes at 375/1280 pass LTR,
+overflow and axe checks. This is not an L009/C or automatic landing result.
+Final #54 head and post-merge CI remain separate delivery gates.
+
+
+## Checked HotSpot duration observations, Issue #62
+
+Develop `3bfdbd25` fails the real shared observer call-site regressions: malformed
+uptime becomes a complete snapshot and closes a trusted active lease; nonempty
+garbage timeout becomes known zero. The corrected native source at `7adcc155`
+passes the focused server race executable with GOTMPDIR/TMPDIR on ext4 `/tmp`,
+including preservation of the exact trusted ledger snapshot. Parsing and byte
+values use fixed-width checked quantities; the collector legacy helper is
+unchanged. The first race build failed for lack of task RAM build space before
+testing, then succeeded after only task-built executables and old task compiler
+cache entries were reclaimed; the manifest and failure output are retained.
+
+The arithmetic fuzz property compares canonical duration components against
+independent big.Int sums. A 10-second standalone race run with two workers
+passed 121505 executions in about 11 seconds. Its binary lacked coverage
+instrumentation, so this is random testing without coverage guidance. Six
+compiling overlay mutants fail relevant assertions: partial parsing, sum-bound
+omission, timeout nonempty coercion, permissive uptime call site, skipped bad
+active row and lost explicit zero. No compilation failure counts as a kill.
+
+The actual namespace browser against the same owned CHR 7.24.5 and clean native
+source passes HTTPS login, exact-device speed readbacks/cooldown and all six
+responsive/theme axe checks. A later normal-worker observation has known time
+and byte fields at 74 connected seconds with a verified renewal; owned HTTPS
+logout follows. Malformed and ten-year/overflow cases are scripted inputs,
+not hardware observations. Final full gate and exact-head/post-merge CI remain
+required before Issue #62 delivery.
+
+## Owned connection entry verification (Issue #64)
+
+Application revision `85817872485d8df91d18154c430c971362b758da` passed
+[PR CI](https://github.com/so7ob/MikroDash/actions/runs/39515748159).
+Local verification used an exact `git archive` of that revision: 2221 tracked
+files were byte-checked against the visible issue checkout. The snapshot excludes
+ignored operator data, matching the CI source universe. It is not another
+development checkout. A prior root sweep refused the existing ignored GeoIP
+`cities.json` because it exceeds the credential scanner's size bound; that
+failed sweep is retained. No GeoIP data was deleted and no scanner was weakened.
+
+Go 1.27.2 formatting, `go vet -p 2 ./...`, and
+`go test -p 2 -count=1 -exec <ordinary-disk-wrapper> ./...` passed all 64 tested
+Go packages. The wrapper sets both `GOTMPDIR=/tmp` and `TMPDIR=/tmp` for test
+processes; compiler caches may remain in RAM. Govulncheck found zero called or
+imported vulnerabilities, with one unused required-module advisory. Six Go
+generators and seven generated frontend tables were current.
+`sh tools/verify.sh --no-docker` passed TypeScript, 150 frontend tests and
+32 tooling tests. Its Go half was explicitly skipped by the wrapper and run
+natively immediately beforehand; this does not claim a Docker verification run.
+
+Focused native cgo race instrumentation passed in subscriber (5.483 s), server
+(10.851 s) and subscriberlab (1.021 s), selecting the new connection, ticket,
+outcome, handoff and installer tests. Four compiling overlays killed their
+intended invariants: foreign NAS ticket consumption, stale confirmation,
+Access-Accept escaping failed outcome persistence, and skipped asset readback.
+Compilation failures do not count as kills. The first NAS-result classifier
+expected an earlier assertion; the retained test instead correctly failed on
+ticket consumption, and its verified classification records that distinction.
+
+Actual coverage-guided `go test -fuzz` runs used two workers and 15 seconds each:
+accounting monotone replay: 248 executions; receipt ranges/retry identity:
+100314; renewal time-budget conservation: 155. All passed. These are instrumented
+fuzz runs, separate from earlier standalone random testing without coverage.
+Private commands, raw logs and overlay receipts remain in
+`.temp/subscriber-64-recovery`; they contain no target-router acceptance claim.
+
+## Issue 66 calendar delegation verification
+
+Implementation source: `82f52e99` on `feat/66-calendar-boundary-renewal`, PR #67.
+All development was in the visible checkout. The full verification archive was
+created from that exact commit and byte-matched 2232 tracked files; it omitted
+ignored operator runtime data, including a pre-existing oversized GeoIP source
+that the root credential scanner correctly refuses. No scanner was disabled and
+no operator data was removed. Mutations ran only in the archive and every tracked
+byte was restored. The final test/documentation follow-up does not change the
+production implementation used by the CHR run.
+
+| Check | Actual result / environment |
+| --- | --- |
+| Native full format/vet/test | Passed, Go 1.27.3 linux/amd64; 64 tested packages |
+| `govulncheck@latest ./...` | Go 1.27.2 failed GO-2026-6809; Go 1.27.3 passed with zero reachable vulnerabilities; an uncalled module advisory remains diagnostic |
+| `go run ./cmd/webbuild -dir web` | Passed |
+| `sh tools/verify.sh --no-docker` | Passed generators, tsc, 7 generated tables, 150 frontend tests and 32 tooling tests; its skipped Go half was separately executed above |
+| `go test -race ./internal/subscriber -count=1` | Passed 82.738 s on implementation with Go 1.27.2 |
+| Expanded five-anchor authenticated UDP scenario under `-race` | Passed 4.054 s on Go 1.27.3 |
+| `go test ./internal/subscriber -run '^$' -fuzz '^FuzzCalendarAdmissionPeriodConservation$' -fuzztime=30s -parallel=2` | Passed 77040 executions, independent interval-conservation oracle |
+| Six compiling isolated mutants | All killed by behavioral failures; no compile failure counted |
+
+Go compilation used a RAM build cache/temp directory. Test execution used an
+`-exec` wrapper setting both TMPDIR and GOTMPDIR to ordinary `/tmp`, as required
+by the earlier storage correction. These checks do not prove power-loss media
+durability. The official Go 1.27.3 archive checksum was verified and installed
+alongside the preserved old toolchain. The owner F5 process was never signalled.
+
+Mutants removed the legacy retry commit, early-start coverage, exact byte endpoint,
+combined renewal rate verification, suspension replay guard and maximum prior
+period exposure. Each produced a behavioral assertion failure in its focused
+regression. Raw commands, fail/pass logs and source/restoration proof remain in
+private `.temp/subscriber-66-recovery`; no credentials enter public fixtures.
+
+### Actual owned CHR result
+
+An independent explicitly synthetic account and immutable hourly plan ran through
+the actual namespace client's HTTPS portal, owned ticket, HTTPS HotSpot login and
+normal MikroDash background worker on CHR 7.24.5. The existing unresolved account
+was retained. The pilot allowlist contained only the new fixture, in a cloned
+private configuration. The first attempt correctly refused missing host-table
+presence, with zero issued leases. A documented v2 reschedule and actual HotSpot
+landing corrected the fixture without changing earlier usage.
+
+With no browsers or WebSocket watchers, the same live session crossed the actual
+hourly reset and five verified renewals in 202.294 seconds of observation. At the
+last live reading, 203 seconds split into 90 before and 113 after the reset. Logout
+and trusted final accounting committed 204 seconds, 66055 download bytes and 1924
+upload bytes, with zero pending accounting. A 65536-byte application payload took
+3.990 seconds after the reset; all download usage belonged to the new period.
+The lifetime/bucket totals conserved the final counters, and the earlier account's
+counters, subscription and unresolved finality were unchanged.
+
+This is actual CHR protocol/runtime evidence, not L009/C Internet acceptance.
+It does not measure bytes inside a sampling gap, captive-browser compatibility,
+under-load resource budgets or a guaranteed update/disconnect latency. The C-device
+owner separately confirmed existing-router-CA portal HTTPS without warnings, and
+the live chain/admin-route isolation was verified; C remains Shadow with Internet
+admission disabled. Current PR-head and post-merge CI are required separately.
+
+
+## Domain selection and rollback: Issue #70
+
+Tested implementation: `8ec2f0f1`, Go 1.27.3. All 2235 tracked files were
+byte-matched to the isolated source archive; the visible checkout remained the
+only development checkout and retained the owner's untracked debugger files.
+
+- Native `gofmt`, `go vet ./...` and `go test ./...`: exit 0, 64 tested packages.
+  Test executables used the existing disk-backed temporary-directory wrapper;
+  only compiler/cache artifacts used RAM.
+- `go run golang.org/x/vuln/cmd/govulncheck@latest ./...`: exit 0, zero reachable
+  findings; one uncalled required-module advisory remains visible.
+- `go run ./cmd/webbuild -dir web` and `sh tools/verify.sh --no-docker`: exit 0;
+  all Go generators, seven JavaScript generators, TypeScript, 150 frontend tests
+  and 32 tooling tests passed. The script's skipped Go half was run separately
+  above; the skip itself is not counted as a completed check.
+- `go test -race ./internal/subscriberlab -count=1`: exit 0, 3.585 seconds.
+- Four separately compiling mutants were behaviorally killed: skipped cleanup,
+  ignored profile drift, ignored evidence-write failure and accepted bad NAS
+  counter deltas. Archived mutation sources were restored; visible source was
+  never mutated.
+- The final committed `subscriberchr` binary exercised `probe-radius-domain`
+  against the guarded owned CHR 7.24.5: exit 0, twelve real HTTPS/NAS matrix
+  attempts plus one positive control, all rejected, zero active sessions.
+  Exactly the first-position/split-enabled qualified forms reached the secondary
+  with the normalized account username; plain names remained with the primary.
+- `probe-radius-domain-fault`: intentional exit 1 after profile change, followed
+  by fresh exact original configuration readback and `verified: true` rollback.
+  Normal completion also verified rollback. Raw private JSONL/error logs and
+  the expected failure were retained.
+
+The CHR result qualifies endpoint selection only. It does not prove an actual
+User Manager deployment, target C Internet admission, domain accounting/CoA
+identity, performance bounds or the production portal domain handoff. Those
+remain separate implementation/acceptance work. No operator RADIUS or profile
+was changed by this issue. Final-head and post-merge CI are delivery checks and
+must still be verified separately from these local observations.
+
+
+## Guarded domain runtime: Issue #72
+
+Implementation `f83b1337` was byte-matched across all 2244 tracked files to its
+isolated verification archive. The visible checkout remained the development
+checkout; unrelated owner debugger/configuration files were preserved.
+
+- Native Go 1.27.3 `gofmt`, `go vet ./...`, `go test ./...`: exit 0, all 64 tested
+  packages. Test executables used the disk-backed temporary-directory wrapper.
+- Current `govulncheck`: zero reachable findings; the uncalled required-module
+  advisory remains visible. Frontend build, all generated-source checks,
+  TypeScript, 150 frontend and 32 tooling tests passed. The script's skipped
+  container Go half was run separately with the native compiler, not counted
+  as a passing container check.
+- Focused routing/admission/operation race tests passed for subscriber (5.524 s)
+  and server (3.016 s). The independent domain-identity fuzz run passed 134719
+  executions in 31.016 seconds with two workers.
+- Four separately compiling mutants were killed by behavioral assertions:
+  removing the RADIUS routing guard, portal guard, failed-read invalidation and
+  renewal packet guard. Visible source was never mutated; archive files were
+  restored after each run.
+- Authenticated UDP tests cover wrong/duplicate domain identities, normalized
+  Unicode usernames, exact accepted retries, replay refusal and ticket retention
+  on identity mismatch. Call-site tests cover cold/unsafe routing before ticket
+  creation or lease reservation, shared background metadata lifecycle, continued
+  accounting and guarded renewal sends.
+
+The final guarded implementation ran through actual Chromium, HTTPS HotSpot,
+RADIUS, accounting, shared API observations and CoA on owned CHR 7.24.5. A new
+Unicode account used a single credential submission and returned to a confirmed
+dashboard in 2158 ms. Both speeds were readback-verified without changing the
+subscription/expiry/byte balances. Six viewport/theme axe, overflow, English/LTR,
+browser-error and portal/admin-isolation checks passed. Five renewals retained
+the same session with every browser closed. The final 65536-byte download quota
+test committed 242 seconds, 88321 download and 2636 upload bytes, zero pending
+finality, 3358 seconds left and zero download left. Actual exhausted re-entry was
+rejected while account access remained available; its six browser checks passed.
+
+The offered 1 MiB download delivered 87840 client payload bytes before curl exit
+28 after 12.019 seconds. That is a client timeout sample, not disconnect latency.
+Accounted download excess was 22785 bytes, under concurrent two-worker fuzz and
+focused race tests. No target overshoot/resource/latency budget is inferred.
+
+Earlier independently preserved fixtures expose two instrumentation failures:
+the initial exhaustion helper queried nonexistent `stop_at` after transferring
+data, and the outage helper expected flow stage `denied` instead of the actual
+`rejected`. Original failures remain; read-only continuation verified trusted Stop
+and 55905-byte accounted excess in the first case, and retained missing-Stop
+holds with rejected admission in the second. Lost client/absence/downtime samples
+remain null. Assertions proved local absence within the 71-second bound and at
+least 95 seconds of outage; these are bounds, not recovered measurements. The
+outage ran on the earlier transport source, not the final guarded runtime.
+
+Actual NAS timeout routing also exposed fallback to a blank-domain legacy
+stand-in. A separate disjoint-domain trial selected the intended authority and
+made no legacy request when the pilot endpoint timed out, for both qualified
+syntaxes. It did not run a real User Manager package. The runtime now rejects
+blank-domain/ambiguous fallback before granting admission or renewal.
+
+After the last browser exited, nested and outer rollback verified the exact
+original ordered non-secret RADIUS rows/profile. The original owned calendar
+runtime was restored, all older balances/exhausted accounts/unresolved holds
+were checked unchanged, and the operator debugger was never signalled. Private
+raw logs, screenshots, receipts and failed runs remain under the issue/lab
+evidence directories. No target C RADIUS/profile/cutover was applied. Target UDP,
+real User Manager transition, final guarded outage and load acceptance remain
+pending. Final lifecycle/documentation changes require their own exact-head CI.
+
+The final lifecycle correction moves the routing permission check immediately
+before packet creation, preserving policy/deadline failure and fact verification
+when routing is unavailable. Its focused regressions passed (0.722 s). A fifth
+compiling mutant moved the check back before deadline processing; the new
+call-site regression killed it by detecting the incorrectly retained pending
+operation. This correction adds no permission to send a packet.
+
+
+## Reviewed account batches: Issue #74
+
+Real SQLite tests cover all-or-nothing rollback after an earlier update, later
+audit failure, overlapping concurrent reviews, stale replay, no-op behavior,
+empty/duplicate/oversized requests and the valid 50-account boundary. Passwords,
+one-code vouchers, Unicode names, subscriptions, usage and unresolved reservations
+are retained. A changed then restored status is detected through its audit
+revision; revisions above 2^53 remain exact decimal JSON strings. Protected HTTP
+tests exercise modern-admin permission, Origin/marker validation, missing/numeric
+revision rejection, committed results and whole-selection 409 conflicts.
+
+Focused Go 1.27.3 race checks pass: subscriber 27.519 s, db 2.807 s and server
+3.542 s. They use disk-backed test temporary directories. A real authenticated
+loopback UDP test proves a committed batch suspension reaches the ordinary
+guarded background Disconnect before local delegation expiry with no browser.
+The observed NAS identity is synthetic; the ACK retains unresolved accounting.
+These suite durations are not measured network enforcement latency.
+
+The actual synthetic protected HTTP/SQLite Chromium journey passes original-data
+search/status filters, clear-on-filter selection, cancellation, immutable review,
+changed-then-restored conflict, delayed genuine commit response, disabled busy
+controls, unchanged unselected accounts, suspension/reactivation, keyboard focus
+and escaped data. Dark/light/Nord at 375/1280 pass axe and screenshots; review
+controls are captured separately from the scrollable page shell. The independent
+read-only test connection requires exactly four per-account changes in two
+correlated batches, proving the browser path wrote durable audit rather than
+only changing DOM state. The full earlier reconciliation/name-edit journey stays
+part of this acceptance.
+
+Retained failures include an initially missing browser environment, a DOM shim
+without `querySelectorAll`, and a query-plan assertion expecting SQLite's
+`COVERING INDEX` wording instead of its actual `USING INDEX` target seek. The
+corrected assertion still requires the named indexed target search. A real
+success-banner race during successive reconciliation approvals was also found:
+the old success remained visible before the next response. The production
+handler now clears that success to `Recording settlement…` before awaiting the
+write. A held genuine response proves pending feedback and the existing final
+committed-state assertions remain in place. No retry or weakened finality check
+was used to conceal that failure.
+
+Schema 43-to-44 migration and idempotence retain credentials/audit and use the
+real indexed query plan. Existing active-consumption migration acceptance is
+replayed as well. Full exact-source repository checks, behavioral mutants and
+protected delivery are recorded separately in the issue/PR. No operator runtime,
+database or router setting was changed for these tests; C stays Shadow.
+
+The final browser run passed in 17.649 seconds, including all six real form/table
+geometry checks and a deliberate 50px search-control mutation that the geometry
+gate rejected before restoration. That gate first rejected a bare confirmation
+checkbox; the production review now uses the shared field/toggle component.
+The earlier failing geometry log is retained. These are suite durations, not
+service latency measurements.
+
+The repository's read-only `cmd/compat` also passed against the existing real
+development `/data`: schema stayed v43, stored users retained their bare-array
+hash shape, router credentials decrypted, the in-memory encrypted Unicode
+round-trip passed, and existing audit visibility/detail checks passed. No password
+challenge was requested and no migration/runtime restart was performed by that
+check. This is separate from the synthetic v44 migration tests.
+
+Five compiling safety mutants on implementation `6867d50e` were behaviorally
+killed: ignored restored-status revision, committed partial failed transaction,
+ignored audit failure, omitted index migration and reused prior settlement
+success. The last mutant ran the real browser journey and failed its held-response
+assertion. Archived sources were restored; visible source was never mutated.
+
+The first complete repository pass stopped on three static integration findings:
+the documented frontend file count needed 114, the ARIA-only review heading
+needed its explicit existing-ledger entry, and the producer scanner did not know
+literal IDs passed to the real shared toggle helper. No check or orphan ID was
+exempted. The scanner now recognizes that producer syntax; its positive control
+passes and renaming the actual toggle producer while retaining the lookup is
+detected by a separately compiling behavioral mutant. The three affected static
+checks pass (17.671 s). Full final-source checks and CI remain separate evidence.
+
+The exact `8e91eb36` browser run also passed (19.059 s). Its complete Go pass
+stopped at linker failures because the task-owned RAM compiler cache exhausted
+`/dev/shm`; those are retained as build failures, not passing package tests.
+Maintenance was deferred while another compiler was live, then only that
+reproducible task cache was cleaned after all compilers ended. Operator data,
+global/named caches, active binaries and raw evidence were preserved. The final
+complete pass must run again after this environment correction.
+
+
+After the task-cache repair, exact source `70be6f05` passed the full native Go
+format/vet/package checks, current vulnerability scan, frontend build, generated
+source checks, TypeScript, all 151 frontend tests and 32 tooling tests. The script's
+Go-half omission is covered by the separately completed native commands; it is
+not counted as a script-executed check. No called vulnerability was reported.
+
+The subsequent per-item result completion has its own working-source evidence:
+focused ledger/HTTP tests passed (10.874 s / 0.440 s), TypeScript passed and the
+actual protected HTTP/SQLite Chromium journey passed (68.598 s). It verifies
+ordered changed/unchanged outcomes, unconfirmed rows after a rejected review,
+and clears old committed feedback while a second genuine response is held.
+Synthetic result screenshots at 375/1280 passed overflow and axe checks. A compiling
+mutant omitting unchanged outcomes failed the mixed-result regression. A first
+command used the visible positive control rather than the archive; its passing
+log is retained separately and is not counted as a mutation kill. Full final-head
+repository/CI checks remain separately required after this code change.
+
+
+The per-item pending-feedback mutant type-checked and then failed the real browser
+assertion that old results must be hidden while the next genuine response is
+pending. Its first failure was obscured by an undrained response promise; that
+failed run is retained separately. The harness now always drains the response
+before propagating an assertion, and the diagnostic replay reports the intended
+stale-result assertion (61.305 s). This is test instrumentation repair, not a
+weakened product assertion. The isolated source was restored afterward.
+
+
+Exact `7048bab5` also passed the complete native repository checks and tagged
+protected-browser journey (51.843 s). Focused per-item race checks passed for
+subscriber/server (63.078 s / 8.792 s). A subsequent integer-boundary review found
+that SQLite's default rowid allocation can pick a smaller identity after the
+signed 64-bit maximum; the original individual status route then reused the
+maximum review token. The real SQLite regression failed on the old allocator,
+then passed after explicitly allocating the next audit ID and refusing exhaustion
+inside the transaction. Focused ledger/server checks passed (9.037 s / 0.348 s).
+The test covers the last exact commit, old individual status writes, reviewed
+batches, rollback and retained revision/state. The final code change requires its
+own complete verification; the earlier full passes do not establish that result.
+
+
+At corrected product source `bc8a9a6d`, native format/vet, all 64 Go packages,
+focused revision/concurrency/API race (4.911 s / 4.796 s), current vulnerability
+scan, frontend/binary builds, generated code, 151 frontend and 32 tooling tests
+passed. The tagged browser run then timed out waiting for the existing final
+reconciliation success notice after its HTTP 200 response (83.077 s). This is a
+failed browser result, not a completed full pass or proven environment failure.
+
+A diagnostic-only harness update preserves API completion, notice changes, DOM
+and a synthetic screenshot on failure. It changes no assertion, product code or
+30-second wait. The diagnostic replay passed the real protected SQLite browser
+journey in 83.986 s. The first timeout was not reproduced and no causal product
+fix is claimed for it; retain it as an intermittent observation for follow-up.
+Issue #74's account-batch cases passed in both runs. Final PR-head and post-merge
+CI remain required. No extra product feature was added for this observation.
+
+Before further build work, the development host had roughly 715 MiB ordinary
+storage and 4.5 GiB RAM-filesystem headroom, no compiler/test processes left and
+one unrelated owned CHR QEMU runtime. The task uses its RAM compiler cache and
+serialized jobs; no operator cache/data/volume was removed. Native Go/runtime
+source remains byte-identical to the fully checked product source above when
+only the diagnostic harness and delivery notes change. Static and harness checks
+must cover those changed inputs, and CI still runs the complete final PR tree.

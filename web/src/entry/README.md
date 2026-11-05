@@ -1,11 +1,13 @@
 # `web/src/entry/` - the bundles that are NOT the app
 
-Three documents are served, and `web/build.mjs` builds a bundle for each:
+`cmd/webbuild` builds separate entry bundles for the dashboard and its independent browser documents:
 
 | entry | document | format |
 |---|---|---|
 | `src/main.ts` | `index.html` - the dashboard | ESM module, deferred |
 | `src/entry/login.ts` | `login.html` - the sign-in and first-run page | IIFE, classic |
+| `src/entry/subscriber.ts` | isolated subscriber portal | IIFE, classic |
+| `src/entry/subscriber-handoff.ts` | generated NAS HotSpot handoff files | IIFE, classic, at most 4096 bytes |
 | `src/entry/preflight.ts` | the `<head>` of `index.html` | IIFE, **blocking** |
 
 ## Why they live apart
@@ -16,7 +18,7 @@ files arrived:
 
 - **`reachable-audit` and `module-reachability-audit`** walk the import graph from
   `main.ts`. An entry point is imported by nothing, so both reported these two as
-  dead code. They now read the entry list out of `build.mjs` and walk from each.
+  dead code. They now read the entry list out of `cmd/webbuild` and walk from each.
 - **`wiring-audit`** asks "does the port touch every element the live app's page
   has". `login.html` has its own `#setupError`, and so does the ROUTER first-run
   overlay in `index.html` - the same id in two documents. Scanning `login.ts`

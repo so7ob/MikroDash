@@ -61,13 +61,13 @@ func TestUpstreamMigrationsPreserveForkData(t *testing.T) {
 				t.Fatalf("grant fixture missing: %d %v", before, err)
 			}
 			n, err := d.Migrate()
-			if err != nil || n != 37-version {
+			if err != nil || n != schemaVersion-version {
 				t.Fatalf("migrate = %d %v", n, err)
 			}
 			if got := integrationSchema(t, d); got != want {
 				t.Fatalf("migrated schema differs from fresh schema")
 			}
-			if v, err := d.SchemaVersion(); err != nil || v != 37 {
+			if v, err := d.SchemaVersion(); err != nil || v != schemaVersion {
 				t.Fatalf("version %d %v", v, err)
 			}
 			var grants int
@@ -95,7 +95,7 @@ func TestUpstreamMigrationsPreserveForkData(t *testing.T) {
 				t.Fatalf("second migration %d %v", n, err)
 			}
 			cfgExec(t, d, `DELETE FROM schema_version WHERE version>=36`)
-			if n, err := d.Migrate(); err != nil || n != 2 {
+			if n, err := d.Migrate(); err != nil || n != schemaVersion-35 {
 				t.Fatalf("replay %d %v", n, err)
 			}
 		})

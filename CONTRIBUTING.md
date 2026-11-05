@@ -67,7 +67,16 @@ For country/city labels in a local build, also supply the local GeoIP data with
 `-geo`; see [Activity geography setup](docs/Activity-Analytics.md#geoip-for-local-runs).
 The Docker image includes that data.
 
-You need **Go 1.27+**. **Node 24** is needed only to type-check and test the frontend: the frontend itself is built by a Go program, and nothing Node-related runs at runtime.
+You need **Go 1.27.3 or newer**. The module minimum includes the `crypto/x509`
+security fix in [Go 1.27.3](https://go.dev/doc/devel/release#go1.27.3).
+Go's default `GOTOOLCHAIN=auto` can select or download the required toolchain.
+With `GOTOOLCHAIN=local`, install and select a sufficiently recent Go first;
+an older compiler refuses this module before building. See the
+[official toolchain selection rules](https://go.dev/doc/toolchain).
+A running application or VS Code debug session must be rebuilt and restarted to
+use a new compiler; changing the module requirement does not replace that process.
+
+**Node 24** is needed only to type-check and test the frontend: the frontend itself is built by a Go program, and nothing Node-related runs at runtime.
 
 ```sh
 go run ./cmd/webbuild -dir web                    # build the TypeScript frontend into web/dist
@@ -100,7 +109,7 @@ It **discovers** what to check rather than working from a list, so a new check r
 | | |
 |---|---|
 | `internal/verify/` | 113 Go tests - static checks over the current source. Picked up by `go test ./...`. |
-| `web/test/` | 110 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test` in `web/`. |
+| `web/test/` | 114 test files that bundle the app's TypeScript and run it against a DOM shim, via `npm test` in `web/`. |
 
 Package tests use the standard library `testing` package only.
 
@@ -114,7 +123,7 @@ These are deliberate constraints rather than style preferences:
 - **A check that cannot fail is worse than no check.** Anything that scans a set asserts it actually found something. An audit that silently measures zero reads exactly like one that passed.
 - **A gap is recorded, never hidden.** The ledgers in `internal/verify/` fail in both directions: an unrecorded gap fails, and so does a recorded one that has since closed.
 - **Self-hosted assets.** Everything the browser loads lives in `web/public/vendor/`, so the dashboard works on an isolated network with no internet access. No CDN references.
-- **A small dependency footprint.** There are eight Go dependencies and each has a reason beyond convenience. `esbuild` is used through its Go API, which is why building the frontend needs no JavaScript runtime. New ones are worth discussing first.
+- **A small dependency footprint.** There are nine Go dependencies and each has a reason beyond convenience. `esbuild` is used through its Go API, which is why building the frontend needs no JavaScript runtime. New ones are worth discussing first.
 - **Errors are sanitised.** Anything reaching the browser goes through `safe.Message()` first.
 - **Deliberate changes are welcome; silent ones are not.** If your change alters what a page shows, a WebSocket payload or an interaction, say so in the PR. If it makes a check fail, update the check and explain why in the commit - do not delete it.
 

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"mikrodash/internal/subscriber"
 	"os"
 	"sort"
 	"strings"
@@ -23,7 +24,7 @@ import (
 // Stamping anything lower would make `Open` refuse the database it had just
 // written; stamping higher than the migrations listed would claim ones that
 // never ran.
-const schemaVersion = 37
+const schemaVersion = 45
 
 // portMigrations are the schema steps this port owns, keyed by the version they
 // take a database TO.
@@ -305,6 +306,14 @@ var portMigrations = map[int][]string{
 	// 37: watched devices and Wi-Fi client samples, two optional features
 	// (Settings -> Features). See clientwatch_schema.go.
 	37: {clientWatchDDL},
+	38: {subscriber.Schema},
+	39: {subscriber.SessionSchema},
+	40: {subscriber.ReconciliationSchema},
+	41: {subscriber.ReceiptSchema},
+	42: {subscriber.FinalityIndexes},
+	43: {subscriber.ConnectionSchema},
+	44: {subscriber.AccountStatusIndexes},
+	45: {activityIndexDDL},
 }
 
 // createSchema builds a new database at `path`.
@@ -323,7 +332,11 @@ var portMigrations = map[int][]string{
 // this path for ever, and then fail on whichever table did not get made. On any
 // error the file is removed, so the next start tries again from nothing.
 func createSchema(path string) error {
-	h, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(1)&_txlock=immediate")
+	dsn, err := sqliteDSN(path, "_pragma=foreign_keys(1)&_txlock=immediate")
+	if err != nil {
+		return err
+	}
+	h, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return fmt.Errorf("creating %s: %w", path, err)
 	}

@@ -64,6 +64,7 @@ const (
 // are different licences and naming the wrong one is a false statement about
 // somebody else's terms.
 var moduleLicences = map[string]string{
+	"layeh.com/radius":                        "MPL-2.0",
 	"github.com/coder/websocket":              "ISC",
 	"github.com/dustin/go-humanize":           "MIT",
 	"github.com/go-pdf/fpdf":                  "MIT",
@@ -107,6 +108,7 @@ var moduleLicences = map[string]string{
 // `TestEveryDirectRequirementIsRecordedAsDirect`. A new direct dependency that
 // is not here would silently never appear on the page.
 var directModules = map[string]bool{
+	"layeh.com/radius":                        true,
 	"github.com/coder/websocket":              true,
 	"github.com/evanw/esbuild":                true,
 	"github.com/go-pdf/fpdf":                  true,

@@ -45,6 +45,7 @@ import { initContainersApps } from './pages/containers-apps';
 import { initWireguardPeers } from './pages/wireguard-peers';
 import { initFilesTransfer } from './pages/files-transfer';
 import { initLogsPage } from './pages/logs';
+import { initSubscribersPage } from './pages/subscribers';
 import { initActivityPage } from './pages/activity';
 import { initTopologyPage } from './pages/topology';
 import { initWirelessPage } from './pages/wireless';
@@ -664,6 +665,7 @@ async function main(): Promise<void> {
   initAreaPages(socket, pageVisible);
   initLogsPage(socket, pageVisible);
   initActivityPage(socket, pageVisible, () => routers, () => activeRouterId);
+ initSubscribersPage();
   initTopologyPage(socket, pageVisible);
   initWirelessPage(socket, pageVisible);
   initWifiMapPage(socket, pageVisible);

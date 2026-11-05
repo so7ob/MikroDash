@@ -91,21 +91,20 @@ func TestEveryModuleIsReachable(t *testing.T) {
 	// The entry points are whatever the build actually bundles.
 	build := mustRead(t, filepath.Join(root, "cmd", "webbuild", "main.go"))
 	var entries []string
-	for _, m := range regexp.MustCompile(`"(?:web/)?src/([A-Za-z0-9_/-]+\.ts)"`).
-		FindAllStringSubmatch(build, -1) {
-		if p := filepath.Join(srcDir, m[1]); src[p] != "" {
-			entries = append(entries, p)
-		}
-	}
-	if len(entries) == 0 {
-		// Fall back to the known roots rather than silently declaring every
-		// module unreachable.
-		for _, name := range []string{"main.ts", "entry/login.ts", "entry/preflight.ts"} {
+	// Read both filepath.Join(here, "src", ...) and classic entry tuples from
+	// the Go build, so new isolated documents cannot be omitted by a fallback.
+	entryPattern := regexp.MustCompile(`"(?:web/)?src/([A-Za-z0-9_/-]+\.ts)"|filepath\.Join\(here,\s*"src",\s*"([A-Za-z0-9_/-]+\.ts)"\)|\{"(entry/[A-Za-z0-9_/-]+\.ts)",`)
+	for _, match := range entryPattern.FindAllStringSubmatch(build, -1) {
+		for _, name := range match[1:] {
+			if name == "" {
+				continue
+			}
 			if p := filepath.Join(srcDir, name); src[p] != "" {
 				entries = append(entries, p)
 			}
 		}
 	}
+
 	if len(entries) == 0 {
 		t.Fatal("no build entry points found - this test would call every module unreachable")
 	}

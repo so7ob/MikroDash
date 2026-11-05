@@ -1,0 +1,430 @@
+package subscriber
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"slices"
+	"time"
+)
+
+type Lease struct {
+	ConnectionState string    `json:"connectionState"`
+	AppliedDown     Quantity  `json:"appliedDown"`
+	AppliedUp       Quantity  `json:"appliedUp"`
+	RateState       string    `json:"rateState"`
+	RateObservedAt  time.Time `json:"rateObservedAt"`
+	ID              string    `json:"id"`
+	RouterID        string    `json:"routerId"`
+	Network         string    `json:"network"`
+	Device          string    `json:"device"`
+	SessionID       string    `json:"sessionId"`
+	State           string    `json:"state"`
+	CreatedAt       time.Time `json:"createdAt"`
+	Deadline        time.Time `json:"deadline"`
+	ObservedAt      time.Time `json:"observedAt"`
+	Seconds         Quantity  `json:"seconds"`
+	Download        Quantity  `json:"download"`
+	Upload          Quantity  `json:"upload"`
+}
+type Admission struct {
+	TimingBasis string   `json:"timingBasis"`
+	LeaseID     string   `json:"leaseId"`
+	Decision    Decision `json:"decision"`
+	Download    Quantity `json:"download"`
+	Upload      Quantity `json:"upload"`
+	Total       Quantity `json:"total"`
+}
+
+// Reserve serializes admission with accounting using SQLite's immediate
+// transaction. Crossing quota resets reserves each period independently;
+// subscription expiry and access-window closure remain mandatory cutoffs.
+// Quotas are shared across all routers, with a sub-budget for each device slot.
+func (s *Store) Reserve(ctx context.Context, account, router, network, device, request string, at time.Time) (Admission, error) {
+	var a Admission
+	if router == "" || network == "" || device == "" || request == "" {
+		return a, denyAdmission("admission-context-missing")
+	}
+	tx, err := s.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return a, err
+	}
+	defer tx.Rollback()
+	count, err := pendingAccounting(tx, account)
+	if err != nil {
+		return a, err
+	}
+	if count > 0 {
+		return a, denyAdmission("accounting-reconciliation-required")
+	}
+	var legacy bool
+	if err = tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM subscriber_operations o JOIN subscriber_leases l ON l.id=o.lease_id JOIN subscriber_subscriptions sub ON sub.id=l.subscription_id WHERE sub.account_id=? AND o.kind='renew' AND o.state IN ('requested','applying','acknowledged') AND coalesce(json_extract(o.request,'$.timeBasis'),'')!=?)`, account, renewalTimeBasis).Scan(&legacy); err != nil {
+		return a, err
+	}
+	if legacy {
+		return a, denyAdmission("authorization-reconciliation-required")
+	}
+	if err = retainLegacyExposure(tx, account, at); err != nil {
+		return a, err
+	}
+	var previous, owner, oldRouter, oldNetwork, oldDevice, oldState, accountStatus string
+	var deadline int64
+	err = tx.QueryRow(`SELECT l.decision,s.account_id,l.deadline,l.router_id,l.network,l.device,l.state,a.status FROM subscriber_leases l JOIN subscriber_subscriptions s ON s.id=l.subscription_id JOIN subscriber_accounts a ON a.id=s.account_id WHERE l.request_key=?`, request).Scan(&previous, &owner, &deadline, &oldRouter, &oldNetwork, &oldDevice, &oldState, &accountStatus)
+	if err == nil {
+		if owner != account || oldRouter != router || oldNetwork != network || oldDevice != device {
+			return a, denyAdmission("connection-request-mismatch")
+		}
+		if at.Unix() >= deadline {
+			return a, denyAdmission("authorization-expired")
+		}
+		if oldState == "stopped" {
+			return a, denyAdmission("session-ended")
+		}
+		if accountStatus != "active" {
+			return a, denyAdmission("account-suspended")
+		}
+		if err = json.Unmarshal([]byte(previous), &a); err != nil {
+			return a, err
+		}
+		// A retry can have upgraded legacy exposure above. Return the same
+		// issued grant only after those reservations and their audit commit.
+		return a, tx.Commit()
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return a, err
+	}
+	var status string
+	if err = tx.QueryRow(`SELECT status FROM subscriber_accounts WHERE id=?`, account).Scan(&status); errors.Is(err, sql.ErrNoRows) {
+		return a, denyAdmission("account-unavailable")
+	}
+	if err != nil {
+		return a, err
+	}
+	if status != "active" {
+		return a, denyAdmission("account-suspended")
+	}
+	sub, err := subscription(tx, account)
+	if errors.Is(err, sql.ErrNoRows) {
+		return a, denyAdmission("subscription-unavailable")
+	}
+	if err != nil {
+		return a, err
+	}
+	if !slices.Contains(sub.Plan.Networks, network) {
+		return a, denyAdmission("network-not-entitled")
+	}
+	var active, duplicate int
+	err = tx.QueryRow(`SELECT count(*),coalesce(sum(CASE WHEN device=? THEN 1 ELSE 0 END),0) FROM subscriber_leases WHERE subscription_id=? AND state!='stopped'`, device, sub.ID).Scan(&active, &duplicate)
+	if err != nil {
+		return a, err
+	}
+	blocked := []string{}
+	if active >= sub.Plan.MaxSessions {
+		blocked = append(blocked, "session-limit")
+	}
+	if duplicate > 0 {
+		blocked = append(blocked, "device-already-connected")
+	}
+	if len(blocked) > 0 {
+		return a, denyAdmission(blocked...)
+	}
+	u, err := usage(tx, sub.ID)
+	if err != nil {
+		return a, err
+	}
+	if sub.ActivatedAt.IsZero() {
+		sub.ActivatedAt = at
+		sub.ExpiresAt = at.Add(time.Duration(sub.Plan.ValidSeconds) * time.Second)
+	}
+	slots := Quantity(sub.Plan.MaxSessions - active)
+	var reservations []periodReservation
+	var end time.Time
+	a, reservations, end, err = planAdmission(sub.Plan, sub.SpeedID, at, sub.ExpiresAt, u, slots)
+	if err != nil {
+		return a, err
+	}
+	a.LeaseID = ID()
+	raw, err := json.Marshal(a)
+	if err != nil {
+		return a, err
+	}
+	_, err = tx.Exec(`INSERT INTO subscriber_leases(id,subscription_id,router_id,network,device,request_key,created_at,deadline,decision) VALUES(?,?,?,?,?,?,?,?,?)`, a.LeaseID, sub.ID, router, network, device, request, at.Unix(), end.Unix(), string(raw))
+	if err != nil {
+		return a, err
+	}
+	for _, r := range reservations {
+		if _, err = tx.Exec(`INSERT INTO subscriber_reservations VALUES(?,?,?,?)`, a.LeaseID, r.LimitID, r.Start.Unix(), r.Amount); err != nil {
+			return a, err
+		}
+	}
+	if _, err = tx.Exec(`UPDATE subscriber_subscriptions SET activated_at=?,expires_at=?,status='active' WHERE id=?`, sub.ActivatedAt.Unix(), sub.ExpiresAt.Unix(), sub.ID); err != nil {
+		return a, err
+	}
+	if err = audit(tx, "service:subscriber", "admission.reserve", a.LeaseID, "bounded network delegation", at); err != nil {
+		return a, err
+	}
+	return a, tx.Commit()
+}
+func smallest(a, b Quantity) Quantity {
+	if a == 0 {
+		return b
+	}
+	return min(a, b)
+}
+
+type Accounting struct {
+	Source string // radius or a verified session-cumulative API observation
+
+	LeaseID   string
+	RouterID  string
+	Network   string
+	Device    string
+	SessionID string
+	Status    string
+	Seconds   Quantity
+	Download  Quantity
+	Upload    Quantity
+	At        time.Time
+}
+
+// Account persists the normalized cumulative reading before the transport may
+// acknowledge it. Verified API observations enter this same high-water ledger;
+// overlapping sources and retries never add a cumulative snapshot twice.
+func (s *Store) Account(ctx context.Context, e Accounting) error {
+	if e.Source == "" {
+		e.Source = "radius"
+	}
+	if e.Source != "radius" && e.Source != "api" {
+		return errors.New("invalid accounting source")
+	}
+	if e.Source == "api" && e.Status != "interim" {
+		return errors.New("API counters cannot establish Start or final Stop")
+	}
+	if !slices.Contains([]string{"start", "interim", "stop"}, e.Status) || e.SessionID == "" || e.Seconds < 0 || e.Download < 0 || e.Upload < 0 || e.Seconds > 315360000 {
+		return errors.New("invalid accounting event")
+	}
+	if _, err := add(e.Download, e.Upload); err != nil {
+		return err
+	}
+	tx, err := s.sql.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	e, err = preserveReceiptSeconds(tx, e)
+	if err != nil {
+		return err
+	}
+	if err = s.accountTx(tx, e); err != nil {
+		return err
+	}
+	if err = resolveReceiptCoverage(tx, e); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *Store) accountTx(tx *sql.Tx, e Accounting) error {
+	var err error
+	key := Digest(fmt.Sprintf("%s:%s:%s:%d:%d:%d", e.LeaseID, e.SessionID, e.Status, e.Seconds, e.Download, e.Upload))
+	var subID, router, network, device, session, state, raw string
+	var oldSec, oldDown, oldUp Quantity
+	var started, created int64
+	err = tx.QueryRow(`SELECT l.subscription_id,l.router_id,l.network,l.device,l.session_id,l.state,l.seconds,l.download,l.upload,l.started_at,l.created_at,p.definition FROM subscriber_leases l JOIN subscriber_subscriptions s ON s.id=l.subscription_id JOIN subscriber_plans p ON p.id=s.plan_id AND p.version=s.plan_version WHERE l.id=?`, e.LeaseID).Scan(&subID, &router, &network, &device, &session, &state, &oldSec, &oldDown, &oldUp, &started, &created, &raw)
+	if err != nil {
+		return err
+	}
+	if router != e.RouterID || network != e.Network || device != e.Device || (session != "" && session != e.SessionID) {
+		return ErrDenied
+	}
+	if _, err = tx.Exec(`INSERT INTO subscriber_sources VALUES(?,?,?) ON CONFLICT(lease_id,source) DO UPDATE SET observed_at=max(observed_at,excluded.observed_at)`, e.LeaseID, e.Source, e.At.Unix()); err != nil {
+		return err
+	}
+	var exists int
+	if err = tx.QueryRow(`SELECT count(*) FROM subscriber_events WHERE event_key=?`, key).Scan(&exists); err != nil {
+		return err
+	}
+	if exists > 0 {
+		return nil
+	}
+	var p Plan
+	if err = json.Unmarshal([]byte(raw), &p); err != nil {
+		return err
+	}
+	if started == 0 {
+		started = e.At.Unix() - int64(e.Seconds)
+		if started < created-admissionStartLead || started > created+admissionStartLag {
+			return errors.New("accounting start does not match authorization")
+		}
+		var grantRaw string
+		var grant Admission
+		if err = tx.QueryRow(`SELECT decision FROM subscriber_leases WHERE id=?`, e.LeaseID).Scan(&grantRaw); err != nil {
+			return err
+		}
+		if err = json.Unmarshal([]byte(grantRaw), &grant); err != nil {
+			return err
+		}
+		if _, err = tx.Exec(`UPDATE subscriber_leases SET deadline=? WHERE id=?`, started+grant.Decision.Timeout, e.LeaseID); err != nil {
+			return err
+		}
+	}
+	sec := max(oldSec, e.Seconds)
+	down := max(oldDown, e.Download)
+	up := max(oldUp, e.Upload)
+	from := time.Unix(started+int64(oldSec), 0)
+	until := time.Unix(started+int64(sec), 0)
+	quality := "fresh"
+	if e.Source == "admin" {
+		quality = "approved-settlement"
+	}
+	if e.Seconds < oldSec && (e.Download > oldDown || e.Upload > oldUp) {
+		quality = "reconciling"
+	}
+	for _, po := range p.Policies {
+		for _, l := range po.Limits {
+			if l.State == "disabled" {
+				continue
+			}
+			var delta Quantity
+			switch l.Kind {
+			case "seconds":
+				delta = sec - oldSec
+			case "download":
+				delta = down - oldDown
+			case "upload":
+				delta = up - oldUp
+			case "total":
+				delta, err = add(down-oldDown, up-oldUp)
+				if err != nil {
+					return err
+				}
+			}
+			if delta == 0 {
+				continue
+			}
+			if l.Kind == "seconds" {
+				for cursor := from; cursor.Before(until); {
+					start, end, berr := l.Period.Bounds(cursor)
+					if berr != nil {
+						return berr
+					}
+					edge := until
+					if end.Before(edge) {
+						edge = end
+					}
+					n := Quantity(edge.Sub(cursor) / time.Second)
+					if n <= 0 {
+						return errors.New("invalid accounting period")
+					}
+					if err = charge(tx, subID, e.LeaseID, l.ID, start, n, quality); err != nil {
+						return err
+					}
+					cursor = edge
+				}
+			} else {
+				// The bytes inside an unsampled boundary gap are unknowable. Charge the
+				// full delta to every touched period, conservatively, and label it. The
+				// lifetime counter remains exact and is never this sum of period buckets.
+				byteFrom, endTime := from, until
+				if e.Seconds < oldSec {
+					// A delayed correction can carry more bytes but an earlier clock.
+					// Cover the uncertain interval; never produce an inverted range
+					// that updates lifetime bytes without charging a period bucket.
+					byteFrom = time.Unix(started+int64(e.Seconds), 0)
+				} else if !endTime.After(byteFrom) {
+					endTime = e.At
+					if endTime.Before(byteFrom) {
+						byteFrom, endTime = endTime, byteFrom
+					}
+				}
+				first, _, berr := l.Period.Bounds(byteFrom)
+				if berr != nil {
+					return berr
+				}
+				last, _, berr := l.Period.Bounds(endTime)
+				if berr != nil {
+					return berr
+				}
+				q := quality
+				if !first.Equal(last) {
+					q = "boundary-provisional"
+					quality = q
+				}
+				cursor := first
+				count := 0
+				for !cursor.After(last) {
+					count++
+					if count > 10000 {
+						return errors.New("accounting gap requires reconciliation")
+					}
+					if !first.Equal(last) {
+						gapID := Digest("byte-gap:" + key + ":" + l.ID)
+						if _, err = tx.Exec(`INSERT OR IGNORE INTO subscriber_byte_gaps(id,event_key,lease_id,limit_id,from_at,until_at,amount) VALUES(?,?,?,?,?,?,?)`, gapID, key, e.LeaseID, l.ID, byteFrom.Unix(), endTime.Unix(), delta); err != nil {
+							return err
+						}
+						holdID := gapID + ":" + fmt.Sprint(cursor.Unix())
+						if _, err = tx.Exec(`INSERT INTO subscriber_holds(id,lease_id,limit_id,period_start,amount) VALUES(?,?,?,?,?)`, holdID, e.LeaseID, l.ID, cursor.Unix(), delta); err != nil {
+							return err
+						}
+						if _, err = tx.Exec(`INSERT INTO subscriber_gap_periods VALUES(?,?,?)`, gapID, cursor.Unix(), holdID); err != nil {
+							return err
+						}
+						if _, err = tx.Exec(`UPDATE subscriber_reservations SET amount=max(0,amount-?) WHERE lease_id=? AND limit_id=? AND period_start=?`, delta, e.LeaseID, l.ID, cursor.Unix()); err != nil {
+							return err
+						}
+					} else if err = charge(tx, subID, e.LeaseID, l.ID, cursor, delta, q); err != nil {
+						return err
+					}
+					_, next, berr := l.Period.Bounds(cursor)
+					if berr != nil {
+						return berr
+					}
+					cursor = next
+				}
+			}
+		}
+	}
+	if e.Status == "stop" {
+		state = "stopped"
+	} else if state != "stopped" {
+		state = "active"
+	}
+	_, err = tx.Exec(`UPDATE subscriber_leases SET session_id=?,state=?,started_at=?,seconds=?,download=?,upload=?,observed_at=max(observed_at,?) WHERE id=?`, e.SessionID, state, started, sec, down, up, e.At.Unix(), e.LeaseID)
+	if err != nil {
+		return err
+	}
+	if state == "stopped" {
+		if e.Status == "stop" && e.Seconds >= max(0, oldSec-1) && e.Download >= oldDown && e.Upload >= oldUp {
+			if _, err = tx.Exec(`UPDATE subscriber_holds SET resolved_at=? WHERE lease_id=? AND resolved_at=0 AND id NOT IN (SELECT hold_id FROM subscriber_gap_periods)`, e.At.Unix(), e.LeaseID); err != nil {
+				return err
+			}
+		}
+		if _, err = tx.Exec(`DELETE FROM subscriber_reservations WHERE lease_id=?`, e.LeaseID); err != nil {
+			return err
+		}
+	}
+	_, err = tx.Exec(`INSERT INTO subscriber_events VALUES(?,?,?,?,?,?,?,?)`, key, e.LeaseID, e.Status, e.Seconds, e.Download, e.Upload, time.Now().Unix(), quality)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func charge(tx *sql.Tx, sub, lease, limit string, start time.Time, delta Quantity, quality string) error {
+	var old Quantity
+	err := tx.QueryRow(`SELECT used FROM subscriber_buckets WHERE subscription_id=? AND limit_id=? AND period_start=?`, sub, limit, start.Unix()).Scan(&old)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	next, err := add(old, delta)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`INSERT INTO subscriber_buckets VALUES(?,?,?,?,?) ON CONFLICT(subscription_id,limit_id,period_start) DO UPDATE SET used=excluded.used,quality=CASE WHEN excluded.quality='fresh' THEN subscriber_buckets.quality ELSE excluded.quality END`, sub, limit, start.Unix(), next, quality)
+	if err != nil {
+		return err
+	}
+	_, err = tx.Exec(`UPDATE subscriber_reservations SET amount=max(0,amount-?) WHERE lease_id=? AND limit_id=? AND period_start=?`, delta, lease, limit, start.Unix())
+	return err
+}
