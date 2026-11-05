@@ -292,3 +292,19 @@ func TestParserUpgradeResumesEnrichmentWithoutRecountingOrResurrection(t *testin
 		t.Fatal("new independent identical line was not appended")
 	}
 }
+
+func TestStatusOnlyPassDoesNotInvalidateAnalytics(t *testing.T) {
+	w, f, _ := fixture(t)
+	f.files[activity.DefaultFolder+"/netlog.0.txt"] = archiveLine("synthetic.test")
+	changed, status := 0, 0
+	w.changed = func(string) { changed++ }
+	w.statusChanged = func(string) { status++ }
+	w.Sync("r1")
+	if changed != 1 || status != 1 {
+		t.Fatal("initial data did not notify", changed, status)
+	}
+	w.Sync("r1")
+	if changed != 1 || status != 2 {
+		t.Fatal("unchanged archive invalidated analytics", changed, status)
+	}
+}
