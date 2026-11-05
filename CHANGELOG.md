@@ -2,6 +2,30 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [1.0.2] - Faster Activity Analytics and opt-in subscriber administration
+
+### Activity Analytics
+
+- Index retained events in SQLite and perform filtering, counting, grouping and sorting in the database. Existing archives are indexed locally in resumable batches; complete legacy reads remain available until indexing finishes, without reimporting router files.
+- Load only the visible tab's analysis and requested event details. Bounded caches reuse derived results while respecting data, classification rules, geography, time zones and moving time periods; authorization is checked for each request.
+- Add stable cursor navigation and automatic event refresh that preserves the reference row, scroll and focus on later pages. Periodic synchronization status alone no longer triggers heavy analysis, and consecutive data notifications share a refresh.
+- Preserve existing routes, page links, Unicode substring search, repeated-event counts, classification edits and CSV exports. Show the selected-period count separately from all retained events.
+- Verify real HTTP performance with 135,000 and 1,000,000 synthetic events, including concurrent import. The million-event fixture's cold p95 was 722 ms for overview and 612 ms for search; structured filtering and navigation stayed below 500 ms. These results depend on data distribution: higher-cardinality retained data can take longer, especially during initial derived-data preparation. See [the performance report](https://github.com/so7ob/MikroDash/blob/v1.0.2/docs/Activity-Analytics-Performance.md).
+
+### Subscriber Management development preview
+
+- Add protected subscriber administration, vouchers, versioned plans and policies, and an isolated subscriber portal with an explicitly configured RADIUS runtime. Administration is available while the network runtime remains disabled by default.
+- Add durable accounting receipts, audited reconciliation, bounded quota reservations across calendar periods, renewal credit conservation and refusal of new grants while final accounting remains unresolved.
+- Verify HotSpot connection ownership before reporting connection success; validate observed durations and target CoA/disconnect requests using fresh confirmed addresses. Domain-isolated admission and an optional trusted HTTPS proxy retain their explicit configuration and capability checks.
+- Add audited Unicode display-name editing, account search/status filtering, and reviewed atomic suspension/reactivation batches with stale-review rejection.
+- Subscriber Management remains a development preview. CHR lab results do not establish acceptance on physical hardware; integration issue #38 and the scoped hardware pilot #76 remain incomplete. This release does not enable network authentication, capability flags or production cutover. See [the setup and limitations](https://github.com/so7ob/MikroDash/blob/v1.0.2/docs/Subscriber-Management.md).
+
+### Upgrade and compatibility
+
+- Require Go 1.27.3 or newer for new builds, including its `crypto/x509` security fix.
+- Advance storage to schema 45: migrations 38–44 add subscriber storage and indexes, and migration 45 adds the Activity query index. SQLite, existing credentials and the current 30-day Activity retention policy are preserved. Back up the data directory before upgrading; initial indexing and derived-data preparation can take time.
+- Publish Docker images for `linux/amd64`, `linux/arm64` and `linux/arm/v7`. Publishing this release does not restart an existing installation or change router configuration.
+
 ## [1.0.1] - Upstream DNS and monitoring features with Activity compatibility
 
 ### New
