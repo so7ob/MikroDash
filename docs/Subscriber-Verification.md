@@ -842,3 +842,51 @@ serialized jobs; no operator cache/data/volume was removed. Native Go/runtime
 source remains byte-identical to the fully checked product source above when
 only the diagnostic harness and delivery notes change. Static and harness checks
 must cover those changed inputs, and CI still runs the complete final PR tree.
+
+## Issue #38: decimal inputs and complete request bodies (2026-10-28)
+
+This bounded correction starts from `develop` `de7dd435c44c4e5b368b96b18e0692a62c6bed88`.
+Subscriber quantities are explicitly base-10 signed 64-bit decimal strings. The
+previous scanner interpreted `"010"` as 8 and `"08"` as zero, including plan
+validity, quota amounts and speed ceilings. Leading zeros now retain decimal
+meaning; overflow and invalid representations leave the destination unchanged.
+Existing persisted values are not rewritten or guessed back to their inputs.
+
+All subscriber JSON command callers now require one complete object within
+64 KiB, including trailing whitespace. Null, second values, trailing garbage,
+read interruptions and oversized bodies return the existing generic HTTP 400
+before command effects or mutations. Administrator authorization and Origin
+checks still run first. Unknown fields remain rejected. No router
+configuration, schema or public payload type changes are introduced.
+
+Local isolated Go 1.27.3 tests pass for the actual decoder and policy source
+files. Both suites fail against their original implementations. The policy
+consumer regression covers simultaneous time/data quotas, decimal speed
+ceilings and disconnect at either exhaustion edge. A ten-second leading-zero
+fuzz run passed 306360 cases. These selected-file tests are not full-package
+or SQLite integration verification. The new protected HTTP/SQLite regression
+is present but could not run: the pinned `modernc.org/sqlite@v1.60.1` module
+archive returned HTTP Forbidden from the Go proxy's storage endpoint. Initial
+container CA trust failure was resolved by using the existing host CA bundle
+read-only; certificate checks were never disabled.
+
+TypeScript and all 151 frontend tests passed. Tooling tests reported 30 passes
+and 2 failures in private-manifest permission checks: the environment's umask
+makes requested public test files private, so they reach ownership validation
+instead of the expected public-file rejection. Tests and security checks were
+not weakened. No UI was changed, and no browser or target-router acceptance is
+claimed. Full Go tests/vet, current vulnerability scan, generated Go checks,
+SQLite integration and CI remain required before merge. Issue #38's broader
+editors/import/administration work and #76's actual L009/C trial remain open.
+
+Follow-up: both tooling failures were reproduced with umask 0077. The fixtures
+now explicitly chmod only their disposable synthetic manifests to 0644 and
+assert that precondition before invoking the unchanged permission guards.
+All 32 tooling tests pass with the original restrictive umask. No process umask,
+system permissions, real lab file or production guard changed.
+
+Independent review reproduced five malformed-whitespace acceptances introduced
+by Unicode TrimSpace (leading/trailing vertical tab and NBSP, leading form feed).
+The object check now skips only JSON's four leading whitespace bytes; trailing
+input is left intact for EOF validation. All five regressions failed before the
+correction and pass afterward, together with size/interruption and policy tests.
