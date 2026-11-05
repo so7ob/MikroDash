@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"mikrodash/internal/db"
 	"net/http"
 	"net/netip"
 	"net/url"
@@ -26,6 +27,8 @@ type ActivityChanged struct {
 	RouterID string `json:"routerId"`
 	At       int64  `json:"at"`
 }
+
+var EvActivityStatus = hub.Declare[ActivityChanged]("activity:status")
 
 var EvActivityChanged = hub.Declare[ActivityChanged]("activity:changed")
 
@@ -84,6 +87,18 @@ func activityFilter(r *http.Request, now time.Time) (activity.Filter, error) {
 		days = 1
 	}
 	f := activity.Filter{To: now.UnixMilli() + 1, Search: q.Get("q"), Client: q.Get("client"), Domain: q.Get("domain"), Service: q.Get("service"), Category: q.Get("category"), Country: q.Get("country"), Day: q.Get("day"), Hour: q.Get("hour"), Kind: q.Get("kind"), View: q.Get("view"), Group: q.Get("group"), Sort: q.Get("sort"), Desc: q.Get("dir") != "asc", Page: 1, Limit: 50}
+	f.Parts, f.Cursor, f.Anchor = q.Get("parts"), q.Get("cursor"), q.Get("anchor")
+	switch f.Parts {
+	case "", "overview", "table", "status", "rules":
+	default:
+		return f, errors.New("invalid activity parts")
+	}
+	if len(f.Cursor) > 4096 || len(f.Anchor) > 4096 {
+		return f, errors.New("invalid activity cursor")
+	}
+	if !q.Has("from") && !q.Has("to") {
+		f.RollingDays = days
+	}
 	f.DNSCountry = q.Get("dnsCountry")
 	f.Canonical, f.DeviceName, f.DNSIP = q.Get("canonical"), q.Get("deviceName"), q.Get("dnsIP")
 	f.IPBasis, f.Server, f.QType, f.Match = q.Get("ipBasis"), q.Get("server"), q.Get("qtype"), q.Get("match")
@@ -161,17 +176,29 @@ func (s *Server) activityResult(r *http.Request, id string) (activity.Result, er
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
-	out, err := activity.Analyze(f, rules, cfg.Timezone, func(from, to int64, fn func(activity.Event) error) error {
-		return s.auditDB.WalkActivity(ctx, id, from, to, fn)
-	}, activityLookup())
+	geoDB, _ := geo.Current()
+	lookup := activityLookup()
+	out, ready, err := s.auditDB.ActivityIndexedQuery(ctx, id, f, rules, cfg.Timezone, geoDB.Fingerprint(), lookup)
 	if err != nil {
 		return out, err
 	}
-	if f.View == "events" {
-		out.Events, out.TotalRows, err = s.auditDB.ActivityEventPage(ctx, id, f, rules, activityLookup())
+	if !ready {
+		metadata := out
+		out, err = activity.Analyze(f, rules, cfg.Timezone, func(from, to int64, fn func(activity.Event) error) error {
+			return s.auditDB.WalkActivity(ctx, id, from, to, fn)
+		}, lookup)
 		if err != nil {
 			return out, err
 		}
+		if f.View == "events" {
+			out.Events, out.TotalRows, err = s.auditDB.ActivityEventPage(ctx, id, f, rules, lookup)
+			if err != nil {
+				return out, err
+			}
+		}
+		out.TotalStored, out.DataRevision, out.IndexPending = metadata.TotalStored, metadata.DataRevision, metadata.IndexPending
+		out.ComputedAt = time.Now().UnixMilli()
+		out.RefreshAt = out.ComputedAt + 5000
 	}
 	out.RouterID = id
 	out.Settings = cfg.Settings
@@ -184,6 +211,7 @@ func (s *Server) activityResult(r *http.Request, id string) (activity.Result, er
 		out.Status.LastPersisted = cfg.LastPersisted
 	}
 	out.Status.Enabled = cfg.Enabled
+	out.GeoAvailable = lookup != nil
 	out.Rules = append(rules, activity.Builtins...)
 	out.Coverage, err = s.auditDB.ActivityCoverage(id, f.From-(f.To-f.From), f.To)
 	if err != nil {
@@ -203,7 +231,14 @@ func (s *Server) activityQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	out, err := s.activityResult(r, id)
 	if err != nil {
+		if errors.Is(err, db.ErrActivityCursor) {
+			writeJSONErr(w, 400, "Invalid activity cursor")
+			return
+		}
 		writeJSONErr(w, 500, "Activity query failed")
+		return
+	}
+	if sess, _ = s.activityAccess(w, r, "read"); sess == nil {
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store")
@@ -347,13 +382,11 @@ func (s *Server) activityExport(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 	cfg, _ := s.auditDB.ActivityState(id)
-	lookup := activityLookup()
+	evaluator := activity.NewEvaluator(cfg.Timezone, rules, activityLookup())
 	nextAuth := time.Time{}
 	err = s.auditDB.WalkActivity(ctx, id, f.From, f.To, func(e activity.Event) error {
-		if e.Kind == "dns" {
-			e.Service, e.Category = activity.Classify(e.Domain, rules)
-		}
-		activity.Enrich(&e, cfg.Timezone, lookup)
+		evaluator.Classify(&e)
+		evaluator.Enrich(&e)
 		if !activity.Matches(e, f) {
 			return nil
 		}
@@ -378,7 +411,9 @@ func (s *Server) activityExport(w http.ResponseWriter, r *http.Request) {
 		panic(http.ErrAbortHandler)
 	}
 }
-func (s *Server) broadcastActivity(id string) {
+func (s *Server) broadcastActivity(id string)       { s.broadcastActivityEvent(id, false) }
+func (s *Server) broadcastActivityStatus(id string) { s.broadcastActivityEvent(id, true) }
+func (s *Server) broadcastActivityEvent(id string, statusOnly bool) {
 	s.connsMu.Lock()
 	clients := make([]*conn, 0, len(s.conns))
 	for _, c := range s.conns {
@@ -391,7 +426,12 @@ func (s *Server) broadcastActivity(id string) {
 			continue
 		}
 		if permitted(s.rbac.CanPage(s.userIDFor(scope.sess.Username), "activity", "read", id)) {
-			EvActivityChanged.Send(s.hub, c.c, ActivityChanged{RouterID: id, At: time.Now().UnixMilli()})
+			payload := ActivityChanged{RouterID: id, At: time.Now().UnixMilli()}
+			if statusOnly {
+				EvActivityStatus.Send(s.hub, c.c, payload)
+			} else {
+				EvActivityChanged.Send(s.hub, c.c, payload)
+			}
 		}
 	}
 }

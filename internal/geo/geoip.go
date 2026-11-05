@@ -25,9 +25,12 @@
 package geo
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"os"
@@ -128,6 +131,7 @@ func coordsAt(rec []byte, latOff, lonOff, areaOff int) (*float64, *float64, uint
 // non-nil is what decides; everything below it is the legacy reader and is only
 // reached when no .mmdb was found. See mmdb.go for why the swap happened.
 type DB struct {
+	fingerprint string
 	// mmdb is the CURRENT backend. When it is set, the fields below are unused.
 	mmdb *maxminddb.Reader
 
@@ -184,7 +188,19 @@ func Load(dir string) (*DB, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &DB{mmdb: r}, nil
+		file, err := os.Open(p)
+		if err != nil {
+			r.Close()
+			return nil, err
+		}
+		h := sha256.New()
+		_, err = io.Copy(h, file)
+		file.Close()
+		if err != nil {
+			r.Close()
+			return nil, err
+		}
+		return &DB{mmdb: r, fingerprint: hex.EncodeToString(h.Sum(nil))}, nil
 	}
 	main, err := os.ReadFile(filepath.Join(dir, "geoip-city.dat"))
 	if err != nil {
@@ -212,6 +228,11 @@ func Load(dir string) (*DB, error) {
 		return nil, errors.New("geo: the index is not ordered — the on-disk format has changed")
 	}
 	loadV6(db, dir)
+	h := sha256.New()
+	h.Write(db.main)
+	h.Write(db.loc)
+	h.Write(db.main6)
+	db.fingerprint = hex.EncodeToString(h.Sum(nil))
 	return db, nil
 }
 
@@ -552,4 +573,12 @@ func indexZero(b []byte) int {
 		}
 	}
 	return -1
+}
+
+// Fingerprint identifies the loaded country/city data across process restarts.
+func (d *DB) Fingerprint() string {
+	if d == nil {
+		return "unavailable"
+	}
+	return d.fingerprint
 }

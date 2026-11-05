@@ -4,6 +4,7 @@ package activitywire
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -31,21 +32,24 @@ type file struct {
 	Size           int64
 }
 type Wire struct {
-	verified map[string]string
-	runs     map[string]activity.Coverage
-	mu       sync.Mutex
-	db       *db.DB
-	cfg      map[string]activity.Settings
-	status   map[string]activity.Status
-	source   func(string) Reader
-	changed  func(string)
-	stop     chan struct{}
-	done     chan struct{}
-	wake     chan struct{}
-	once     sync.Once
+	verified      map[string]string
+	runs          map[string]activity.Coverage
+	mu            sync.Mutex
+	db            *db.DB
+	cfg           map[string]activity.Settings
+	status        map[string]activity.Status
+	source        func(string) Reader
+	changed       func(string)
+	statusChanged func(string)
+	cancelIndex   context.CancelFunc
+	indexDone     chan struct{}
+	stop          chan struct{}
+	done          chan struct{}
+	wake          chan struct{}
+	once          sync.Once
 }
 
-func New(d *db.DB, source func(string) Reader, changed func(string)) (*Wire, error) {
+func New(d *db.DB, source func(string) Reader, changed func(string), statusChanged ...func(string)) (*Wire, error) {
 	if d == nil {
 		return nil, nil
 	}
@@ -61,6 +65,13 @@ func New(d *db.DB, source func(string) Reader, changed func(string)) (*Wire, err
 		}
 		w.status[id] = activity.Status{Enabled: c.Enabled, Invalid: s.Invalid, Dropped: s.Dropped, LastReceived: s.LastReceived, LastPersisted: s.LastPersisted}
 	}
+	if len(statusChanged) > 0 {
+		w.statusChanged = statusChanged[0]
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	w.cancelIndex = cancel
+	w.indexDone = make(chan struct{})
+	go w.indexLoop(ctx)
 	go w.loop()
 	return w, nil
 }
@@ -106,7 +117,7 @@ func (w *Wire) Close() {
 	if w == nil {
 		return
 	}
-	w.once.Do(func() { close(w.stop); <-w.done })
+	w.once.Do(func() { close(w.stop); w.cancelIndex(); <-w.done; <-w.indexDone })
 }
 func (w *Wire) stopping() bool {
 	select {
@@ -138,8 +149,15 @@ func (w *Wire) loop() {
 			w.Sync(id)
 		}
 		if now := time.Now().UnixMilli(); now-lastPrune > int64(time.Hour/time.Millisecond) {
+			before, _ := w.db.ActivityIndexes(context.Background())
 			if err := w.db.PruneActivity(now); err == nil {
 				lastPrune = now
+				after, _ := w.db.ActivityIndexes(context.Background())
+				for id, state := range after {
+					if state.Revision != before[id].Revision && w.changed != nil {
+						w.changed(id)
+					}
+				}
 			}
 		}
 		select {
@@ -215,6 +233,7 @@ func (w *Wire) Sync(id string) {
 	s.Syncing = true
 	w.status[id] = s
 	w.mu.Unlock()
+	before, _ := w.db.ActivityIndexState(context.Background(), id)
 	var syncErr error
 	defer func() {
 		w.mu.Lock()
@@ -248,8 +267,12 @@ func (w *Wire) Sync(id string) {
 		}
 		w.status[id] = s
 		w.mu.Unlock()
-		if w.changed != nil {
+		after, err := w.db.ActivityIndexState(context.Background(), id)
+		if err == nil && after.Revision != before.Revision && w.changed != nil {
 			w.changed(id)
+		}
+		if w.statusChanged != nil {
+			w.statusChanged(id)
 		}
 	}()
 	if w.source == nil {

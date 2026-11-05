@@ -1,6 +1,6 @@
 // Optional Activity cards share one SQLite query, regardless of how many are
 // visible. Layout and page visibility control demand; no RouterOS collector is
-// woken and no browser polling timer is created.
+// woken; expiry-driven refresh keeps rolling windows correct between imports.
 import { el, esc } from '../dom';
 import type { Socket } from '../socket';
 import type { ActivityResult } from '../gen/payloads';
@@ -48,6 +48,9 @@ export function renderActivityCards(data: ActivityResult): void {
     const label = fmtTs(point.at) + ': ' + n(point.count) + ' DNSUSER events';
     return `<a class="dc-activity-bucket" href="${esc(href)}" style="--activity-height:${point.count / max * 100}%" aria-label="${esc(label)}" title="${esc(label)}"><span></span></a>`;
   }).join('') + '</div><div class="dc-activity-axis"><span>' + esc(fmtTs(data.filter.from)) + '</span><span>' + esc(fmtTs(data.filter.to)) + '</span></div>' : '<p class="activity-empty">No DNSUSER events in the last 24 hours.</p>');
+  renderActivityCardStatus(data);
+}
+function renderActivityCardStatus(data: ActivityResult): void {
   for (const kind of ACTIVITY_CARDS) {
     const card = el(cardId(kind)); if (!card) continue;
     const state = card.querySelector<HTMLElement>('.dc-activity-status');
@@ -66,6 +69,8 @@ export function initActivityCards(socket: Socket): void {
   let data: ActivityResult | null = null;
   let controller: AbortController | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let expiry: ReturnType<typeof setTimeout> | undefined;
+  let statusController: AbortController | undefined;
   const wanted = (): boolean => !document.hidden && !!el('page-dashboard')?.classList.contains('active') && ACTIVITY_CARDS.some(kind => {
     const card = el(cardId(kind)); return !!card && card.style.display !== 'none';
   });
@@ -80,7 +85,8 @@ export function initActivityCards(socket: Socket): void {
     }
   }
   function cancel(): void {
-    generation++; controller?.abort(); controller = undefined;
+    generation++; controller?.abort(); controller = undefined; statusController?.abort();
+    if(expiry!==undefined)clearTimeout(expiry);expiry=undefined;
     if (timer !== undefined) clearTimeout(timer); timer = undefined;
     for (const kind of ACTIVITY_CARDS) el(cardId(kind))?.removeAttribute('aria-busy');
   }
@@ -100,6 +106,8 @@ export function initActivityCards(socket: Socket): void {
       if (current !== generation) return;
       if (result.routerId !== id) throw new Error('Activity router changed. Select the router again.');
       data = result; renderActivityCards(result);
+      if(expiry!==undefined)clearTimeout(expiry);
+      if(result.refreshAt) expiry=setTimeout(()=>{expiry=undefined;dirty=true;schedule();},Math.max(500,result.refreshAt-Date.now()));
     } catch (error) {
       if (current === generation) { data = null; message(error instanceof Error ? error.message : 'Activity could not be loaded.'); }
     } finally {
@@ -109,6 +117,18 @@ export function initActivityCards(socket: Socket): void {
         if (dirty) schedule(500);
       }
     }
+  }
+  async function loadStatus():Promise<void> {
+    if(!wanted() || !routerId || !data || controller || statusController)return;
+    const current=generation,id=routerId;statusController=new AbortController();
+    try {
+      const response=await fetch('/api/activity/dashboard?parts=status&routerId='+encodeURIComponent(id),{credentials:'same-origin',signal:statusController.signal});
+      if(!response.ok)throw new Error('Activity status could not be loaded.');
+      const result:ActivityResult=await response.json();
+      if(current!==generation || routerId!==id || !data)return;
+      data.status=result.status;renderActivityCardStatus(data);
+    } catch(error) {if(current===generation && !(error instanceof DOMException && error.name==='AbortError')){data=null;message('Activity access or status changed. Open Activity to check.');}}
+    finally{statusController=undefined;}
   }
   function sync(): void {
     if (!wanted()) { cancel(); dirty = true; return; }
@@ -127,6 +147,7 @@ export function initActivityCards(socket: Socket): void {
     cancel(); routerId = d.activeId || ''; data = null; dirty = true;
     message(routerId ? 'Loading Activity…' : 'Select a router to view Activity.'); sync();
   });
+  socket.on('activity:status',d=>{if(d.routerId===routerId)void loadStatus();});
   socket.on('activity:changed', d => { if (d.routerId === routerId) { dirty = true; schedule(500); } });
   socket.on('perms:changed', () => { cancel(); data = null; dirty = true; message('Checking Activity access…'); sync(); });
   socket.on('disconnect', () => { cancel(); data = null; dirty = true; message('Live updates disconnected. Reconnecting…'); });
