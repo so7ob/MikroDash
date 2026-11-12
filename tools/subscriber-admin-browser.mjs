@@ -228,11 +228,13 @@ try {
  assert.equal(JSON.parse(history.events[1].reason).reason,batchReason);
  assert.ok((await historyPanel.innerText()).includes(batchReason),'reviewed reason is unreadable');
  assert.ok((await historyPanel.innerText()).includes('Before: active · After: suspended'));
- await historyPanel.locator('details').nth(1).getByText('Original audit record',{exact:true}).click();
+ assert.equal(await page.getByRole('tab',{name:'Status history',exact:true}).evaluate(node=>node===document.activeElement),true);
+ const originalEvidence=historyPanel.locator('details').nth(1).locator('summary');
+ await originalEvidence.focus();await page.keyboard.press('Enter');
+ assert.equal(await originalEvidence.evaluate(node=>node===document.activeElement),true,'native evidence disclosure lost keyboard focus');
  assert.ok((await historyPanel.innerText()).includes(history.events[1].reason),'stored JSON audit evidence changed in the view');
  assert.ok(!(await historyPanel.innerText()).includes('Synthetic concurrent administrator'),'other account history leaked');
  assert.equal(await historyPanel.locator('script').count(),0);
- assert.equal(await page.getByRole('tab',{name:'Status history',exact:true}).evaluate(node=>node===document.activeElement),true);
  for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
   await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
   for(const width of [375,1280]) {
