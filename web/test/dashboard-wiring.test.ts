@@ -117,6 +117,7 @@ const HTTP_CARDS = new Set(['dashboard-card-activity']); // shared HTTP response
 // from "nobody remembered to add it to the table".
 const EXTRA_EVENTS = {
   'activity:changed': 'invalidates the shared Activity HTTP query; dashboard-activity.test.ts drives it',
+  'activity:status': 'refreshes Activity sync status without querying or redrawing analytics; dashboard-activity.test.ts drives it',
   'perms:changed': 'clears Activity data and rechecks the router-scoped HTTP permission',
   'stream:health': 'the per-card stream-degradation warning (dashboard-stream-health.ts). It ' +
     'tints a card and writes an element whose id is BUILT from the collector name, which is why ' +

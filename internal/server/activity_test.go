@@ -191,6 +191,15 @@ func TestActivityBrowserJourney(t *testing.T) {
 		_, _ = w.Write(b)
 		_, _ = w.Write([]byte(`<script type="module" src="/activity-entry.js"></script></body></html>`))
 	})
+	mux.HandleFunc("POST /fixture/append", func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now().UnixMilli()
+		e := activity.Event{RouterID: "r1", SourceKey: fmt.Sprintf("browser-live:%d", now), At: now, Received: now, Kind: "dns", Domain: "new-live.example", User: "Live synthetic user", Client: "live-user", TimeCertain: true}
+		if err := s.auditDB.PersistActivity([]activity.Event{e}, nil, nil, nil); err != nil {
+			writeJSON500OK(w)
+			return
+		}
+		writeJSON(w, map[string]bool{"ok": true})
+	})
 	setup := s.activitySetupGet(func(string) activitywire.Reader {
 		return activityReader{exec: func(c routeros.Cmd) ([]routeros.Reply, error) { return activitySetupRows()[c.Path], nil }}
 	})
@@ -343,5 +352,51 @@ func TestActivityMetadataAPIFiltersCSVAndScope(t *testing.T) {
 	}
 	if values["canonical"] != "cdn.example" || values["dns_ips"] != "198.51.100.7 | 2001:db8::7" || values["device_name"] != "'=SUM(1,2)" || values["ip_basis"] != "'=dns-cache" || !strings.Contains(values["dns_answer_locations"], `"ip":"2001:db8::7","country":"Unknown"`) {
 		t.Fatal("metadata omitted or unsafe in CSV", values)
+	}
+}
+
+func TestActivityPartialResponsesKeepFullDefaultAndRecheckCachedPermission(t *testing.T) {
+	s, mux, _ := activityTestServer(t)
+	now := time.Now().UnixMilli()
+	e := activity.Event{RouterID: "r1", SourceKey: "partial", Kind: "dns", At: now, Received: now, Domain: "partial.test"}
+	if err := s.auditDB.PersistActivity([]activity.Event{e}, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	get := func(query string) activity.Result {
+		t.Helper()
+		w := activityRequest(mux, "GET", "/api/activity/query?routerId=r1&"+query, "", "mikrodash_sid=activity-test-token")
+		if w.Code != 200 {
+			t.Fatal(w.Code, w.Body.String())
+		}
+		var r activity.Result
+		if err := json.Unmarshal(w.Body.Bytes(), &r); err != nil {
+			t.Fatal(err)
+		}
+		return r
+	}
+	full := get("view=events")
+	if len(full.Series) == 0 || len(full.Events) != 1 || full.ResultVersion == "" || full.ComputedAt == 0 {
+		t.Fatal("legacy full response changed")
+	}
+	table := get("view=events&parts=table")
+	if len(table.Events) != 1 || len(table.Series) != 0 || len(table.Heatmap) != 0 || table.TotalStored != 1 {
+		t.Fatal("table requested charts or lost metadata")
+	}
+	for _, part := range []string{"status", "rules"} {
+		r := get("parts=" + part)
+		if r.TotalStored != 1 || len(r.Series) != 0 || len(r.Events) != 0 || len(r.Rows) != 0 {
+			t.Fatal("lightweight part analyzed history", part)
+		}
+	}
+	invalid := activityRequest(mux, "GET", "/api/activity/query?routerId=r1&view=events&parts=table&cursor=invalid", "", "mikrodash_sid=activity-test-token")
+	if invalid.Code != 400 {
+		t.Fatal("invalid cursor not rejected", invalid.Code)
+	}
+	if _, err := s.auditDB.DeleteGrantsForScope("router", "r1"); err != nil {
+		t.Fatal(err)
+	}
+	denied := activityRequest(mux, "GET", "/api/activity/query?routerId=r1&view=events&parts=table", "", "mikrodash_sid=activity-test-token")
+	if denied.Code != 403 {
+		t.Fatal("cached analysis bypassed revoked permission", denied.Code)
 	}
 }

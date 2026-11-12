@@ -406,7 +406,7 @@ func New(st *store.Store, opts Options) (*Server, error) {
 	// synced, so the sync happens once at startup rather than waiting for a page.
 	srv.holdFleet = !opts.NoPool
 	var activityErr error
-	srv.activityWire, activityErr = activitywire.New(opts.AuditDB, srv.activityReader, srv.broadcastActivity)
+	srv.activityWire, activityErr = activitywire.New(opts.AuditDB, srv.activityReader, srv.broadcastActivity, srv.broadcastActivityStatus)
 	if activityErr != nil {
 		log.Printf("[activity] storage unavailable")
 	}
