@@ -1,7 +1,7 @@
 # Subscriber connection entry: implementation checkpoint
 
 Issue [#64](https://github.com/so7ob/MikroDash/issues/64) continues the existing
-HTTPS portal/PAP ticket path. The backend and English/LTR portal now consume the
+HTTPS portal/PAP ticket path. The backend and isolated subscriber portal consume the
 owned connection contract. Reviewable handoff rendering, the owned-CHR installer
 and the actual CHR success/exhaustion/reconciliation browser journeys pass.
 This is isolated virtual-router acceptance, not L009/C or full module completion.

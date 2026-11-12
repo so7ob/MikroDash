@@ -2239,6 +2239,10 @@ export interface ActivityRanking {
 }
 
 export interface ActivityFilter {
+  parts?: string;
+  cursor?: string;
+  anchor?: string;
+  rollingDays?: number;
   dnsCountry: string;
   canonical: string;
   deviceName: string;
@@ -2366,6 +2370,17 @@ export interface ActivitySettings {
 }
 
 export interface ActivityResult {
+  resultVersion: string;
+  hasNext: boolean;
+  hasPrevious: boolean;
+  refreshAt: number;
+  computedAt: number;
+  dataRevision: number;
+  totalStored: number;
+  indexPending: number;
+  nextCursor: string;
+  prevCursor: string;
+  anchor: string;
   dnsCountries: ActivityRanking[];
   queryTypes: ActivityRanking[];
   matchMethods: ActivityRanking[];
@@ -2456,6 +2471,7 @@ export interface ConnsUpdate {
 // payload Go declared for it.
 export interface Events {
   'activity:changed': ActivityChanged;
+  'activity:status': ActivityChanged;
   'alert:acked': AlertRow;
   'apps:progress': AppsProgressPayload;
   'apps:state': AppsPayload;

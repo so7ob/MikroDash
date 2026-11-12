@@ -1,23 +1,43 @@
 <!doctype html>
-<html lang="en" dir="ltr" data-theme="dark" data-bs-theme="dark">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Subscriber Portal</title>
-<link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/subscriber.css"><script defer src="/subscriber.js"></script></head>
-<body class="subscriber-body"><main class="subscriber-shell">
-<header class="card"><div class="card-header"><img src="/logo.png" alt="MikroDash" class="subscriber-logo"><h1 class="card-title">Subscriber Portal</h1><span id="connectionState" role="status" class="pill pill-muted">Portal signed out</span>
-<div class="hdr-actions"><label for="portalTheme">Theme</label><select id="portalTheme" class="sform-input"><option value="blue">Blue</option><option value="green">Green</option><option value="purple">Purple</option></select></div></div></header>
-<p id="portalNotice" role="status" aria-live="polite"></p>
-<section id="portalLogin" class="card"><div class="card-header"><h2 class="card-title">Sign in</h2></div><div class="card-body"><form id="subscriberLoginForm"><div class="ff-grid">
-<div class="ff"><label class="sform-label" for="subscriberUsername">Username</label><input class="sform-input" id="subscriberUsername" autocomplete="username" maxlength="128"><div class="ff-help">Leave blank when using a voucher code.</div></div>
-<div class="ff"><label class="sform-label" for="subscriberPassword">Password or voucher code</label><input class="sform-input" id="subscriberPassword" type="password" autocomplete="current-password" required maxlength="128"><div class="ff-help">Your account remains available after your internet allowance expires.</div></div></div><p id="portalLoginHelp" class="ff-help"></p><button id="portalLoginSubmit" class="sbtn sbtn-primary" type="submit">Sign in</button></form></div></section>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#083d3f"><title>بوابة المشترك | سُحُب</title>
+<link rel="stylesheet" href="/subscriber-portal.css"><script defer src="/vendor/jsqr/jsQR.min.js"></script><script defer src="/subscriber.js"></script></head>
+<body class="so7ob-portal">
+<div class="page-background" aria-hidden="true"></div>
+<div class="site-layout">
+<header class="site-header"><div class="brand-lockup"><div class="brand-mark"><img src="/subscriber/logo-white.svg" alt="" width="45" height="45"></div><div><div class="brand-name">سُحُب <span>التقنية</span></div><div class="brand-caption">بوابة حساب المشترك</div></div></div><span id="connectionState" role="status" class="pill pill-muted portal-status">لم تسجّل الدخول</span></header>
+<main>
+<p id="portalNotice" class="info-note portal-notice" role="status" aria-live="polite"></p>
+<div id="portalLogin" class="auth-grid">
+<section class="surface auth-card" aria-labelledby="loginTitle">
+<div class="panel-intro"><span class="eyebrow">تسجيل الدخول</span><h1 id="loginTitle">مرحباً بك من جديد</h1><p>اختر طريقة الدخول المناسبة لك لمتابعة حسابك والاتصال بالإنترنت.</p></div>
+<div class="login-switch" role="group" aria-label="طريقة تسجيل الدخول"><button type="button" id="voucherMode" class="sbtn mode-btn is-active" aria-pressed="true">بطاقة / قسيمة</button><button type="button" id="accountMode" class="sbtn mode-btn" aria-pressed="false">حساب مستخدم</button></div>
+<form id="subscriberLoginForm">
+<div class="field"><label id="subscriberUsernameLabel" for="subscriberUsername">رمز القسيمة</label><div class="input-shell"><input id="subscriberUsername" class="sform-input" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" required maxlength="128" placeholder="أدخل رمز القسيمة"></div></div>
+<div id="subscriberPasswordField" class="field" hidden><label for="subscriberPassword">كلمة المرور</label><div class="input-shell"><input id="subscriberPassword" class="sform-input" dir="ltr" type="password" autocomplete="current-password" maxlength="128" disabled></div></div>
+<p id="portalLoginHelp" class="help"></p><button id="portalLoginSubmit" class="sbtn primary-button" type="submit">تسجيل الدخول</button>
+</form>
+<div class="extra-actions"><button id="portalQR" type="button" class="sbtn qr-button">مسح رمز QR</button><span class="help">أو أدخل بياناتك يدوياً</span></div>
+</section>
+<aside class="side-content" aria-label="عن البوابة">
+<section class="hero-card"><div class="hero-top"><span class="hero-label">سُحُب · بوابة المشترك</span><img src="/subscriber/logo-white.svg" width="72" height="70" alt=""></div><div class="hero-copy"><h2>عالمك أقرب<br><span>بمجرد اتصال.</span></h2><p>تجربة دخول مريحة، سواء كان لديك رمز قسيمة أو حساب مستخدم.</p></div><div class="hero-bottom">سريع وبسيط <span aria-hidden="true">↗</span></div></section>
+<section class="surface help-card"><span class="eyebrow">حسابك في مكان واحد</span><h2>تابع باقتك بسهولة</h2><ul><li>الرصيد المتبقي واستهلاك الوقت والبيانات.</li><li>السرعات المتاحة والأجهزة المتصلة.</li><li>يبقى حسابك متاحاً بعد انتهاء رصيد الإنترنت.</li></ul><p class="help">ستظهر تفاصيل باقتك الفعلية بعد تسجيل الدخول.</p></section>
+</aside></div>
 <div id="portalAccount" hidden>
-<section class="card"><div class="card-header"><h2 class="card-title" id="subscriptionTitle">Your subscription</h2><div class="hdr-actions"><button id="portalLogout" class="sbtn sbtn-outline">Sign out of portal</button></div></div><div class="card-body">
-<p id="subscriptionSummary"></p><p id="syncState" role="status"></p><p id="liveClock"></p>
-<div class="ff-grid"><div class="ff"><label class="sform-label" for="subscriberNetwork">Network</label><select id="subscriberNetwork" class="sform-input"></select><div class="ff-help">Internet authentication is separate from portal sign-in.</div></div></div>
-<div class="subscriber-actions"><span id="internetState" role="status" aria-live="polite" class="pill pill-muted">Internet connection not checked</span></div>
-<p id="internetDetail" class="ff-help"></p><p id="connectionObserved" class="ff-help"></p>
-<button id="internetConnect" class="sbtn sbtn-primary">Connect to internet</button><p class="ff-help">Signing out of this portal does not disconnect your devices.</p></div></section>
+<section class="surface account-card"><div class="section-heading"><div><span class="eyebrow">حساب المشترك</span><h1 id="subscriptionTitle" tabindex="-1">اشتراكك</h1></div><button id="portalLogout" class="sbtn secondary-button">الخروج من البوابة</button></div>
+<p id="subscriptionSummary" class="help"></p>
+<div class="connection-banner"><div><span id="internetState" role="status" aria-live="polite" class="pill pill-muted">لم يتم التحقق من الاتصال</span><p id="internetDetail"></p><p id="connectionObserved" class="help"></p></div></div>
+<div class="connect-actions"><div class="field"><label for="subscriberNetwork">الشبكة</label><select id="subscriberNetwork" class="sform-input"></select></div><button id="internetConnect" class="sbtn primary-button">الاتصال بالإنترنت</button></div>
+<p class="help">تسجيل الدخول إلى البوابة يتيح متابعة حسابك. الاتصال بالإنترنت إجراء مستقل، والخروج من البوابة لا يفصل أجهزتك.</p>
+<div class="sync-panel"><p id="syncState" role="status"></p><p id="liveClock"></p></div></section>
 <div id="subscriberLimits" class="subscriber-grid"></div>
-<section class="card"><div class="card-header"><h2 class="card-title">Speed selection</h2></div><div class="card-body"><p id="speedState"></p><div id="speedButtons" class="subscriber-actions"></div><p class="ff-help">Rate ceilings apply per device. Changing speed preserves your subscription, expiry and usage. Reconnection requires your confirmation.</p></div></section>
-<section class="card"><div class="card-header"><h2 class="card-title">Devices and recent sessions</h2><span id="sessionCount" class="card-badge active-blue">0</span></div><div id="subscriberSessions" class="card-body"></div></section>
-<section class="card"><div class="card-header"><h2 class="card-title">Lifetime account usage</h2></div><div id="lifetimeUsage" class="card-body"></div></section>
-</div></main></body></html>
+<section class="surface account-card"><div class="section-heading"><h2>اختيار السرعة</h2></div><p id="speedState"></p><div id="speedButtons" class="subscriber-actions"></div><p class="help">تطبق السرعة على كل جهاز. تغييرها يحافظ على رصيدك واستهلاكك وتاريخ انتهاء اشتراكك.</p></section>
+<section class="surface account-card"><div class="section-heading"><h2>الأجهزة والجلسات الأخيرة</h2><span id="sessionCount" class="pill pill-ok">0</span></div><div id="subscriberSessions"></div></section>
+<section class="surface account-card"><h2>إجمالي استخدام الحساب</h2><p id="lifetimeUsage"></p></section>
+</div>
+<noscript><p class="info-note">يلزم تفعيل JavaScript لتسجيل الدخول وعرض بيانات الحساب.</p></noscript>
+</main>
+<footer class="site-footer"><span>سُحُب التقنية</span><span>إدارة الحساب والاتصال بواسطة MikroDash</span></footer>
+</div>
+<dialog id="portalQRDialog" aria-labelledby="qrTitle" aria-describedby="qrHelp"><div class="qr-dialog-header"><h2 id="qrTitle">مسح رمز القسيمة</h2><button id="portalQRClose" type="button" class="sbtn secondary-button">إغلاق</button></div><p id="qrHelp" class="help">استخدم الكاميرا أو اختر صورة QR. تتم قراءة الصورة داخل جهازك؛ راجع الرمز ثم سجّل الدخول.</p><video id="portalQRVideo" class="qr-video" autoplay playsinline muted hidden></video><div class="subscriber-actions"><button id="portalQRCamera" class="sbtn secondary-button" type="button">فتح الكاميرا</button><div class="field"><label for="portalQRFile">اختيار صورة QR</label><input id="portalQRFile" type="file" accept="image/*"></div></div><p id="portalQRFeedback" role="status"></p></dialog>
+</body></html>
