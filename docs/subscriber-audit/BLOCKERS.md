@@ -1,16 +1,25 @@
-# Blockers and boundaries
+# Blockers, missing work and resolved decisions
 
-Snapshot: 2026-11-13 (Asia/Aden). Baseline `ba39515f003484211afe3dfef783ade6dc39f813` on `develop`; `main` = `ca2b1d5284d2da98967a5bc482282ee85d02bc8e`. Issue #95, parent #38. Source inspection is not an executed test or physical-device acceptance.
+Snapshot: 2026-11-13 (Asia/Aden). Missing software is backlog work, not an excuse
+to mark the whole project blocked. Independent implementation continues while
+physical acceptance awaits its external requirements.
 
-| ID | Class | Actual condition | Affected work / safe independent action |
-|---|---|---|---|
-| HW-C | Hardware/external authority | #76 L009/C admission/CoA/counter/outage acceptance not performed here | Keep hardware claims pending; continue software increments |
-| PR-BASE | Integration | #77-#80 fork from de7dd435; current develop ba39515f; #81 stacked on #80 | Preserve branches, resolve against current develop, rerun exact-head/current-base checks |
-| VOUCHER-REF | Existing work unavailable | #94 closed not_planned; no local/remote feat/94-voucher-batches or voucher commits found in accessible refs/reflogs | Document absence; do not claim recovery of unknown work; new scoped implementation |
-| COMMERCIAL-POLICY | Product contract | Reset/rollover/proration/import opening balances lack reviewed explicit rules | Implement reviewable explicit policy contract before granting credit; continue unrelated work |
+| ID | Class / actual condition | Required resolution / independent work |
+|---|---|---|
+| HW-C | #76 L009/C target acceptance remains unperformed in this session | Refresh version/target/source/capability evidence and client availability; prepare scoped commands/preflight/rollback, obtain separate live authority and execute real traffic/auth/accounting/CoA/disconnect/outage tests. Continue software work. |
+| VERIFY-SCRATCH | Ignored local Go scratch is not gofmt-clean | Use an exact-SHA clean verification worktree; preserve the owner's scratch. Full unchanged gates have passed there. |
+| VOUCHER-REF | #94 closed not_planned; requested feature ref absent in accessible local/remote refs and reflogs; voucher PR search found unrelated single-voucher/portal work | Create a new scoped issue, reusing existing account/plan primitives. No recovery of unknown lost code is claimed. |
 
-Prior notes mentioned a blocked SQLite download; that is historical and must be checked before reuse. Current test results will establish whether it remains a blocker. No network or dependency restrictions will be bypassed. No real payment gateway or production cutover authorized.
+Resolved: the old SQLite dependency restriction no longer blocks this environment.
+Fresh store/HTTP tests execute. The owner explicitly selected fresh periods without
+rollover, preserving historical usage/subscriptions; commercial fulfillment no
+longer awaits that choice. Final CI waits for #79 and the audit are delivery gates,
+not completed acceptance. Original #77-#81 branches are preserved.
 
-Local gate isolation: ignored `.temp/activity-82-upgrade/check.go` is not gofmt-clean, so running the unmodified full gate in the operator checkout stops before Go tests. Use a clean detached worktree at the exact candidate SHA. This is a verification-environment constraint, not justification to edit scratch files or weaken gofmt. #77 clean-worktree gate passed.
-
-Resolved policy question: on 2026-11-13 the owner chose new commercial periods without rollover, retaining prior subscriptions and usage. This decision removes the commercial rollover-policy blocker. It does not authorize resetting accounting buckets in place or waiving idempotency/reconciliation.
+Still Missing/Partial: credentials and portal/ticket revocation; broader audit;
+idempotent commercial operations/receipts; full plan states/windows/speeds/archive;
+server-paged directory/detail; durable atomic voucher delivery/print/inventory;
+admin live sessions; PPPoE; migration apply/rollback; financial/reseller/outbox/report
+modules; staged setup/restore; whole-platform concurrency/load and physical tests.
+These are named in FEATURE-MATRIX and DEVELOPMENT-ROADMAP. No main promotion,
+payment gateway, deployment, router write or production cutover is authorized.

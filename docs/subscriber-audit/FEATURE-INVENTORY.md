@@ -26,3 +26,21 @@ The repository contains 2,278 tracked files. Inspection mapped all top-level run
 | N01 | NAS capability/config validation and read-only readiness | Partial | runtime.go: Config.Validate; readiness.go: Inspect; cmd/subscribercheck; internal/guard/subscriber* | runtime/proxy/login-routing and guard tests | No complete admin setup/site/backup workflow; flags cannot be enabled from CHR assumptions | P2 |
 
 Allowed states: Implemented & Verified; Implemented but Not Hardware Verified; Partial; Missing; Broken; Blocked; Not Applicable. No complete A-N axis is accepted solely from test-file presence.
+
+## Delivery delta from the inspected baseline
+
+P0 input validation is delivered through #77 (149123b7). Structured draft limits
+are delivered through #78 (b29ee7d6), with protected HTTP/SQLite persistence and
+immutable assignment proof added in this session. Paged status history is delivered
+through #80 (ca6d5e95) and #81 (4f1828c7), including readable stored batch fields,
+original evidence disclosure and a genuine HTTP/SQLite browser journey. These
+close narrow acceptance checkpoints, not full A/B/C axes. Import preview #79 is
+reviewed and awaiting final delivery gates. The current detailed states and test
+contracts are in FEATURE-MATRIX.md; exact tested heads and CI are in TEST-EVIDENCE.md.
+
+The owner selected fresh commercial periods without rollover, retaining all prior
+subscriptions and usage. Commercial idempotency/receipts, credential rotation,
+full account audit, full policy editing, server pagination, voucher delivery, PPPoE
+and transactional migration remain open. The status-history benchmark covers
+100/1k/10k/100k synthetic account populations only; it is not whole-platform load
+or physical NAS acceptance.

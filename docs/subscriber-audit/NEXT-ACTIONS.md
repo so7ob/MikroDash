@@ -1,13 +1,46 @@
-# Next actions and resume checkpoint
+# Resume checkpoint and next implementation
 
-Snapshot: 2026-11-13 (Asia/Aden). Baseline `ba39515f003484211afe3dfef783ade6dc39f813` on `develop`; `main` = `ca2b1d5284d2da98967a5bc482282ee85d02bc8e`. Issue #95, parent #38. Source inspection is not an executed test or physical-device acceptance.
+Work in /root/So7ob/MikroDash. Inspect status/remote/worktrees and fetch current
+develop before changing anything; preserve .vscode/, debug binaries, operator
+scratch/data and existing feature/checkpoint branches. Read CONTRIBUTING.md,
+PROGRESS and TEST-EVIDENCE. Issue #95 records this audit's own delivery SHA/CI.
+Do not repeat already passed gates without a new change or unresolved failure.
 
-1. Complete fresh focused baseline tests; finish official market sources and audit PR #95.
-2. Review existing #77 diff and regressions; update preserved numbered branch from current develop without force-push; run complete stable gates, resolve review threads, mark ready, require current-base test and squash merge; verify post-merge CI. Do not close umbrella #38.
-3. Repeat for #78 and #79, then #80 followed by retargeted #81. Keep original branches per their explicit retention instructions.
-4. Implement highest independent remaining P0: credential rotation/revocation, complete policy editor, exact idempotent commercial operations. Then P1 paged directory/detail, durable voucher batches, sessions, migration and PPPoE in dependency order.
-5. At each completed increment update PROGRESS, FEATURE-MATRIX, TEST-EVIDENCE, BLOCKERS and this file with exact SHAs, CI URLs and remaining acceptance. Do not stop solely because the first PR exists.
+Current integration: #77, #78, #80 and #81 merged; #79 final gates are running.
+Finish #79 current-base CI -> protected squash -> post-merge CI, then deliver the
+complete audit through its own protected PR. Keep #38/#76 open. No release or
+runtime activation is implied.
 
-Start from `/root/So7ob/MikroDash`; inspect dirty files/branch/remote before continuing. Do not reset operator files or enable subscriber runtime. Read CONTRIBUTING.md and this ledger on resume; no release or deployment requested.
+Next independent P0 is audited credential rotation. Search issues first, create
+or reuse a scoped issue and numbered branch from then-current develop. Deliver a
+reviewed administrator UI/API with modern authority, Origin/CSRF, explicit account
+and reason, stale credential-version fencing and scrypt using existing primitives.
+Commit new credential/version, audit and outstanding-ticket revocation atomically.
+Portal HTTP and WebSocket sessions must reject revoked epochs, including an
+in-flight login/reset race; RADIUS admission must not accept stale authentication
+after reset. Preserve commercial entitlement, usage and existing network session
+history. No secret readback/logging. Test old/new credentials, concurrent resets,
+login/admission races, audit/storage rollback, sessions/tickets, unauthorized calls,
+input retention/uncertain response and actual protected HTTP/SQLite browser UX.
+Define the credential epoch contract before editing network admission code.
 
-Current checkpoint: #77 merged at 149123b7; verify its post-merge run. Audit files include official comparison and are ready for #95 local/current-base gates and PR. Next implementation: #78 preserved branch, current-base reconciliation, plan browser checks plus HTTP/SQLite persistence coverage.
+Follow with broader account audit and P0 commercial operation idempotency. The
+owner-approved policy is a new period without rollover. Review must show previous
+remaining balance, transferred amount zero and new period credit; retain prior
+subscription and usage records. New request keys produce one immutable operation
+receipt; identical retries return it, conflicting retries refuse, and concurrent
+renewal/restart faults cannot duplicate entitlement. Reconcile active/uncertain
+accounting before renewal; distinguish network delegation from commercial credit.
+
+Then finish structured policy states/windows/speeds/copy/archive and P1 directory/
+detail with server pagination, recoverable voucher batches, live sessions,
+transactional import and independent PPPoE. For large vouchers, stage bounded
+chunks without making partial stock usable; publish the complete reviewed batch
+atomically, retain encrypted delivery until explicit acknowledgement and replay
+lost responses without reissuing. #94's one-time-response proposal is insufficient.
+Historical User Manager totals require explicit current-period conversion.
+
+Continue P2/P3 in the roadmap. Each scoped issue uses related checks, final full
+gate, source review, exact-head/current-base PR CI, squash to develop, post-merge CI
+and ledger update. Hardware remains Pending Hardware Verification until measured
+on the actual target. Do not close the full platform from these bounded increments.

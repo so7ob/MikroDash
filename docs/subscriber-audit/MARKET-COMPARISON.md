@@ -64,3 +64,13 @@ First integrate reviewed P0 input, plan and history work without duplicating #77
 The RouterOS RADIUS manual contains conflicting direction descriptions: its attribute text maps Input-Octets to traffic received from the client and Output-Octets to traffic sent to it, but another warning assigns output to client upload. Keep this unresolved until asymmetric physical-target captures qualify the protocol/device/firmware. Do not reverse production counters from documentation alone. Rate-limit Rx/Tx semantics are a separate question. [RouterOS RADIUS](https://manual.mikrotik.com/docs/authentication-authorization-accounting/radius/).
 
 No selected sources establish competitor exactly-once notification delivery, Powerlynx batch rollback guarantees or native PPPoE support. No live competitor tenant, payment gateway, router or benchmark was exercised. Next evidence must include fault-injected operation rollback, response-loss recovery, independent protocol integration and bounded 100/1,000/10,000/100,000 synthetic datasets where resources allow. Synthetic success remains separate from Issue #76 physical acceptance; no release, deployment or authentication cutover follows from this comparison.
+
+## MikroDash implementation delta
+
+The matrix above records the initial baseline. This execution delivered exact
+input validation (#77), the structured draft-limit increment (#78), and paged
+status history with readable batch evidence (#80/#81). Source preview #79 is
+under final delivery checks. Wider feature states remain Partial/Missing as
+recorded in FEATURE-MATRIX.md. No documented competitor capability is treated as
+MikroDash implementation or physical-device proof. The owner-approved commercial
+policy is a new period without rollover, with prior usage/subscriptions retained.

@@ -17,3 +17,13 @@ Snapshot: 2026-11-13 (Asia/Aden). Baseline `ba39515f003484211afe3dfef783ade6dc39
 | Physical verification | #76 open, no current L009/C evidence | Keep Pending Hardware Verification. Review target/version/scope, commands and rollback before separate live approval. |
 
 All other A-N gaps map to IDs in DEVELOPMENT-ROADMAP.md; no empty navigation items are accepted as delivery. #94 was closed `not_planned`, not implemented; its one-time-response scope cannot meet lost-delivery acceptance.
+
+## Current disposition
+
+#77 fixes decimal and complete-command input at 149123b7. #78 delivers the
+structured draft editor at b29ee7d6, with actual HTTP/SQLite version/FUP tests.
+#80/#81 deliver status API/UI at ca6d5e95/4f1828c7; broader audit remains open.
+#79 source review passed full current-base gates; migration apply/rollback remains
+missing. The owner approved fresh commercial periods without rollover, retaining
+history. Idempotent operations/receipts and credential epochs/revocation remain
+P0 work. Nothing here closes target acceptance #76 or the full platform #38.

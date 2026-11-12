@@ -90,8 +90,8 @@ Acceptance/test contract: Authenticated UDP/SQLite fault/retry/restart tests plu
 | C08 | Idle Timeout | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
 | C09 | MikroTik Rate Limit | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
 | C10 | Durable session tracking | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
-| C11 | NAS management | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
-| C12 | Protected shared secrets | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
+| C11 | NAS management | Partial | Existing config/single-account primitive is insufficient for the complete requested workflow; apply the axis contract. |
+| C12 | Protected shared secrets | Partial | Existing config/single-account primitive is insufficient for the complete requested workflow; apply the axis contract. |
 | C13 | Retries and duplicate handling | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
 | C14 | Session reconciliation | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
 | C15 | Network failure and recovery | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
@@ -113,14 +113,14 @@ Acceptance/test contract: Separate HotSpot and PPP fixtures/auth/counters/addres
 | Feature ID | Requested checkpoint | Current state | Evidence / remaining acceptance |
 |---|---|---|---|
 | D01 | Complete HotSpot administration | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D02 | Explicit PPP NAS/service setup | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D03 | PPP authentication | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D04 | PPP RADIUS profiles | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D05 | PPP static/dynamic IP | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D06 | PPP accounting | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D07 | PPP speeds and limits | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D08 | PPP disconnect | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D09 | PPP concurrent sessions | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
+| D02 | Explicit PPP NAS/service setup | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D03 | PPP authentication | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D04 | PPP RADIUS profiles | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D05 | PPP static/dynamic IP | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D06 | PPP accounting | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D07 | PPP speeds and limits | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D08 | PPP disconnect | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D09 | PPP concurrent sessions | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
 | D10 | Independent HotSpot/PPPoE acceptance | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 
 ## Axis E
@@ -137,7 +137,7 @@ Acceptance/test contract: Atomic accounts/subscriptions/audits, unique idempoten
 | E04 | Choose immutable plan | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | E05 | Voucher validity | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | E06 | Code length and generation method | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| E07 | Unique codes | Implemented & Verified | Scoped software/browser regression evidence in TEST-EVIDENCE; broader module remains open. |
+| E07 | Unique codes | Partial | Existing config/single-account primitive is insufficient for the complete requested workflow; apply the axis contract. |
 | E08 | Referenced batches | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
 | E09 | Print template | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
 | E10 | A4 printing | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |

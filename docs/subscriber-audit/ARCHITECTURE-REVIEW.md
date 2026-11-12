@@ -14,4 +14,4 @@ The current `Accounts` and `Plans` endpoints read entire collections. Separate b
 
 No migration can replace historical totals with current-period balances. Migration needs a reviewed source fingerprint, explicit mapping/conversion, per-chunk idempotency and rollback that never rewrites already-accounted network usage.
 
-Owner-confirmed commercial contract (2026-11-13): renewal and plan changes create a fresh period without carrying remaining time/data. Historical subscription versions and usage remain immutable. Review must show discarded remaining entitlement explicitly before confirmation; add request-key idempotency and a receipt before automating renewals. Network delegation renewal remains a distinct operation.
+Owner-confirmed commercial contract (2026-11-13): renewal and plan changes create a fresh period without carrying remaining time/data. Historical subscription versions and usage remain immutable. Review must show previous remaining balance, zero transferred credit and new-period entitlement before confirmation; add request-key idempotency and a receipt before automating renewals. Network delegation renewal remains a distinct operation.
