@@ -106,7 +106,12 @@ var All = []Page{
 	// The Security Scan (2026-09-19): no collector. It reads its menus once, on
 	// demand, through secscan:run (internal/server/secscan.go).
 	{Key: "security-scan", Title: "Security Scan"},
-	{Key: "subscribers", Title: "Subscriber Management"},
+	{Key: "subscribers", Title: "Subscribers"},
+	{Key: "subscriber-overview", Title: "Subscriber Overview"},
+	{Key: "subscriber-plans", Title: "Plans & Policies"},
+	{Key: "subscriber-simulator", Title: "Policy Simulator"},
+	{Key: "subscriber-history", Title: "Status History"},
+	{Key: "subscriber-reconciliation", Title: "Reconciliation"},
 	{Key: "firewall", Title: "Firewall", Collector: "firewall"},
 	{Key: "wifi-networks", Title: "Wifi Networks", Collector: "wifi"},
 	{Key: "capsman", Title: "CAPsMAN", Collector: "capsman"},
@@ -301,6 +306,16 @@ func Has(key string) bool {
 		if p.Key == key {
 			return true
 		}
+	}
+	return false
+}
+
+// IsSubscriber identifies the independent administrator module. All its pages
+// retain the existing global system:subscribers authority, independent of routers.
+func IsSubscriber(key string) bool {
+	switch key {
+	case "subscribers", "subscriber-overview", "subscriber-plans", "subscriber-simulator", "subscriber-history", "subscriber-reconciliation":
+		return true
 	}
 	return false
 }

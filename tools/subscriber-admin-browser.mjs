@@ -20,10 +20,14 @@ try {
  page.on('requestfinished',request=>{const entry=diagnosticByRequest.get(request);if(entry)entry.finishedAt=Date.now();});
  page.on('requestfailed',request=>{const entry=diagnosticByRequest.get(request);if(entry)entry.failure=request.failure()?.errorText;});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.setViewportSize({width:1280,height:1000});
+ const navigate=async key=>{await page.locator(`.nav-item[data-page="${key}"]`).evaluate(n=>n.click());await page.waitForURL('**/'+key);};
+ const discard=async()=>{const button=page.getByRole('button',{name:'Discard changes',exact:true});if(await button.isVisible())await button.click();};
  await page.goto(origin);
  await page.evaluate(()=>{window.syntheticReconciliationNotices=[];const notice=document.querySelector('#subReviewNotice');if(notice)new MutationObserver(()=>window.syntheticReconciliationNotices.push({at:Date.now(),text:notice.textContent})).observe(notice,{childList:true,subtree:true,characterData:true});});
  await page.getByText('Unicode fixture: اختبار',{exact:true}).waitFor();
- await page.locator('#subscriberRuntimeStatus').getByText('Disabled',{exact:true}).waitFor();
+ await page.locator('#subscriberRuntimeStatus').getByText('disabled',{exact:true}).waitFor();
+ await page.getByRole('button',{name:'+ Add Subscriber',exact:true}).click();
  await page.getByLabel('Username',{exact:true}).fill('synthetic-offline-browser');
  await page.getByLabel('Display name',{exact:true}).fill('Synthetic offline: تجربة');
  await page.getByLabel('Password',{exact:true}).fill('synthetic-password');
@@ -34,8 +38,8 @@ try {
  const createdAccount=(await createdResponse.json()).account;
  await page.getByRole('cell',{name:'Synthetic offline: تجربة',exact:true}).waitFor();
  await page.getByText('Subscriber created.',{exact:true}).waitFor();
- assert.match(await page.locator('#subscriberRuntimeStatus').innerText(),/portal and RADIUS are disabled/);
- for(const width of [375,1280]) {
+ await page.locator('#subscriberRuntimeStatus summary').click();assert.match(await page.locator('#subscriberRuntimeStatus').innerText(),/portal and RADIUS are disabled/);await page.locator('#subscriberRuntimeStatus summary').click();
+ for(const width of [375,768,1280,1920]) {
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.locator('html').getAttribute('dir'),'ltr');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'offline setup overflow');
@@ -50,9 +54,9 @@ try {
  await editButton().click();
  assert.equal(await page.locator('#subscriberCreateForm').isVisible(),false);
  await nameEditor.getByLabel('New display name',{exact:true}).fill('Discarded synthetic edit');
- await nameEditor.getByRole('button',{name:'Cancel',exact:true}).click();
+ await nameEditor.getByRole('button',{name:'Cancel',exact:true}).click();await discard();
  assert.equal(await nameEditor.isVisible(),false);
- assert.equal(await page.locator('#subscriberCreateForm').isVisible(),true);
+ assert.equal(await page.locator('#subscriberCreateForm').isVisible(),false);
  assert.equal(await editButton().evaluate(n=>n===document.activeElement),true,'cancel lost account focus');
  await editButton().click();
  await nameEditor.getByLabel('New display name',{exact:true}).fill('x'.repeat(257));
@@ -74,16 +78,17 @@ try {
  await page.getByText('Subscriber details changed. Refresh the list and open Edit name again before saving.',{exact:true}).waitFor();
  assert.equal(await nameEditor.getByLabel('New display name',{exact:true}).inputValue(),editedName,'stale edit cleared input');
  assert.equal(await nameEditor.getByLabel('Change reason',{exact:true}).inputValue(),'Synthetic name correction');
+ await nameEditor.getByRole('button',{name:'Cancel',exact:true}).click();await discard();
  const refreshed=page.waitForResponse(r=>r.url().endsWith('/api/subscribers')&&r.request().method()==='GET');
  await page.getByRole('button',{name:'Refresh',exact:true}).click();await refreshed;
  await page.getByRole('cell',{name:concurrentName,exact:true}).waitFor();
- await nameEditor.getByRole('button',{name:'Cancel',exact:true}).click();await editButton().click();
+ await editButton().click();
  assert.equal(await nameEditor.getByLabel('New display name',{exact:true}).inputValue(),concurrentName);
  await nameEditor.getByLabel('New display name',{exact:true}).fill(editedName);
  await nameEditor.getByLabel('Change reason',{exact:true}).fill('Synthetic reviewed name correction');
  for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
   await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
- for(const width of [375,1280]) {
+ for(const width of [375,768,1280,1920]) {
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'name editor overflow');
   const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
@@ -126,9 +131,9 @@ try {
  assert.equal(await apply.isDisabled(),true,'review sent a batch without confirmation');
  await page.getByRole('button',{name:'Back to selection',exact:true}).click();
  assert.equal(await reason.evaluate(node=>node===document.activeElement),true);
- await prepare.click();await search.fill('مشترك-no-match');
+ await prepare.click();await page.getByRole('button',{name:'Back to selection',exact:true}).click();await search.fill('مشترك-no-match');
  assert.equal(await page.locator('#subscriberBatchReview').isVisible(),false,'filter kept a hidden reviewed selection');
- assert.match(await page.locator('#subscriberSelectionCount').innerText(),/^0 selected/);
+ assert.match(await page.locator('#subscriberSelectionCount').textContent(),/^0 selected/);assert.equal(await page.locator('#subscriberBatchForm').isVisible(),false);
  await page.getByText('No subscribers match the current filters.',{exact:true}).waitFor();
  await search.fill('');
  await choose(createdAccount.id).check();await choose(otherAccount.id).check();
@@ -146,6 +151,7 @@ try {
  let stored=await currentAccounts();assert.equal(stored.accounts.find(account=>account.id===createdAccount.id).status,'active','stale batch partially updated its first account');
  assert.equal(stored.accounts.find(account=>account.id===otherAccount.id).status,'active');
  assert.notEqual(stored.accounts.find(account=>account.id===otherAccount.id).statusRevision,otherAccount.statusRevision,'ABA fixture did not advance the stored review identity');
+ await page.locator('#subscriberBatchModal [data-managed-close]').first().click();await discard();
  const reload=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='GET');
  await page.getByRole('button',{name:'Refresh',exact:true}).click();await reload;
  await page.waitForFunction(()=>document.querySelector('#subscriberBatchReview').hidden);
@@ -157,11 +163,11 @@ try {
  assert.equal(await choose(createdAccount.id).isDisabled(),true,'review selection was mutable');
  for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
   await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
-  for(const width of [375,1280]) {
+  for(const width of [375,768,1280,1920]) {
    await page.setViewportSize({width,height:1000});
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'status review overflow');
    const geometry=await page.evaluate(geometrySource);assert.ok(geometry.fields>0,'form geometry measured no fields');assert.equal(geometry.ok,true,JSON.stringify(geometry.issues));
-   if(appearance.theme==='dark'&&!appearance.palette&&width===375){await search.evaluate(node=>{node.style.height='50px';});const broken=await page.evaluate(geometrySource);assert.equal(broken.ok,false,'geometry gate accepted a deliberately broken new control');await search.evaluate(node=>{node.style.removeProperty('height');});const restored=await page.evaluate(geometrySource);assert.equal(restored.ok,true,JSON.stringify(restored.issues));}
+   if(appearance.theme==='dark'&&!appearance.palette&&width===375){await confirm.evaluate(node=>{node.closest('.ff-toggle').style.height='50px';});const broken=await page.evaluate(geometrySource);assert.equal(broken.ok,false,'geometry gate accepted a deliberately broken new control');await confirm.evaluate(node=>{node.closest('.ff-toggle').style.removeProperty('height');});const restored=await page.evaluate(geometrySource);assert.equal(restored.ok,true,JSON.stringify(restored.issues));}
    const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);
    await page.screenshot({path:`${out}/subscriber-status-review-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`,fullPage:true});
    await page.locator('#subscriberBatchReview').screenshot({path:`${out}/subscriber-status-review-controls-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`});
@@ -173,7 +179,7 @@ try {
  await confirm.check();const appliedBatch=page.waitForResponse(response=>response.url().endsWith('/api/subscribers')&&response.request().method()==='POST');
  await apply.click();await batchReady;
  assert.equal(await page.getByRole('button',{name:'Applying…',exact:true}).isDisabled(),true);
- assert.equal(await page.getByRole('button',{name:'Refresh',exact:true}).isDisabled(),true);
+ assert.equal(await page.locator('#subscribersRefresh').isDisabled(),true);
  assert.equal(await page.getByRole('button',{name:'Back to selection',exact:true}).isDisabled(),true);
  assert.ok(!(await page.locator('#subscriberAdminNotice').innerText()).includes('Status updated for'),'UI claimed commit success before receiving a response');
  releaseBatch();const applied=await appliedBatch;assert.equal(applied.status(),200);const appliedResult=await applied.json();assert.equal(appliedResult.changed.length,2);assert.ok(appliedResult.batchId);
@@ -214,7 +220,7 @@ try {
  assert.ok((await page.locator('#subscriberBatchResults li').last().innerText()).includes('Already had this status: active'));
  await page.waitForFunction(()=>document.querySelector('#subscriberBatchReview').hidden);
  stored=await currentAccounts();for(const id of [createdAccount.id,otherAccount.id])assert.equal(stored.accounts.find(account=>account.id===id).status,'active');
- for(const width of [375,1280]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'batch results overflow');const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);await page.screenshot({path:`${out}/subscriber-status-results-synthetic-${width}.png`,fullPage:true});}
+ for(const width of [375,768,1280,1920]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'batch results overflow');const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);await page.screenshot({path:`${out}/subscriber-status-results-synthetic-${width}.png`,fullPage:true});}
 
  // Read the committed batch audit through the actual protected SQLite API.
  const historyResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/subscribers/status-history');
@@ -224,11 +230,11 @@ try {
  assert.equal(JSON.parse(history.events[0].reason).batchId,secondResult.batchId);
  const historyPanel=page.locator('#subscriberStatusHistory');
  await historyPanel.getByText('2 events loaded.',{exact:true}).waitFor();
- assert.equal(await historyPanel.locator('li').count(),2);
+ assert.equal(await historyPanel.locator('tbody tr').count(),2);
  assert.equal(JSON.parse(history.events[1].reason).reason,batchReason);
  assert.ok((await historyPanel.innerText()).includes(batchReason),'reviewed reason is unreadable');
  assert.ok((await historyPanel.innerText()).includes('Before: active · After: suspended'));
- assert.equal(await page.getByRole('tab',{name:'Status history',exact:true}).evaluate(node=>node===document.activeElement),true);
+ assert.equal(new URL(page.url()).pathname,'/subscriber-history');
  const originalEvidence=historyPanel.locator('details').nth(1).locator('summary');
  await originalEvidence.focus();await page.keyboard.press('Enter');
  assert.equal(await originalEvidence.evaluate(node=>node===document.activeElement),true,'native evidence disclosure lost keyboard focus');
@@ -237,28 +243,27 @@ try {
  assert.equal(await historyPanel.locator('script').count(),0);
  for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
   await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
-  for(const width of [375,1280]) {
+  for(const width of [375,768,1280,1920]) {
    await page.setViewportSize({width,height:1000});
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'history overflow');
    const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);
    await page.screenshot({path:`${out}/subscriber-history-sqlite-${appearance.theme}-${appearance.palette||'default'}-${width}.png`,fullPage:true});
   }
  }
- await page.getByRole('tab',{name:'Subscribers',exact:true}).click();
+ await navigate('subscribers');
  const otherHistoryResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/subscribers/status-history');
  await page.locator(`[data-sub-history="${otherAccount.id}"]`).click();
  const otherHistory=await (await otherHistoryResponse).json();assert.equal(otherHistory.accountId,otherAccount.id);assert.equal(otherHistory.events.length,4);
  await historyPanel.getByText('4 events loaded.',{exact:true}).waitFor();
  assert.ok((await historyPanel.innerText()).includes('Synthetic concurrent administrator'));
- await page.getByRole('tab',{name:'Subscribers',exact:true}).click();
+ await navigate('subscribers');
  await page.evaluate(()=>{document.documentElement.dataset.theme='dark';document.documentElement.dataset.bsTheme='dark';delete document.documentElement.dataset.palette;});
 
- await page.locator(`[data-sub-inspect="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).click();
+ await page.locator(`[data-sub-inspect="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).first().click();
  await page.locator('#subscriberInspect').getByText('Accounting reconciliation required (1 pending). Last confirmed balances are shown. New Internet connections are blocked until the counters are settled.',{exact:true}).waitFor();
  assert.ok(!(await page.locator('#subscriberInspect').innerText()).includes('Unknown'),'pending accounting hid trusted limit cards');
- await page.getByRole('tab',{name:'Subscribers',exact:true}).focus();
- await page.keyboard.press('End');
- assert.equal(await page.getByRole('tab',{name:'Reconciliation'}).getAttribute('aria-selected'),'true');
+ await navigate('subscriber-reconciliation');
+ assert.equal(await page.locator('.nav-item[data-page="subscriber-reconciliation"]').getAttribute('class'),'nav-item active');
  const account=page.locator('#subReviewAccount');
  await account.selectOption(process.env.SUBSCRIBER_ACCOUNT_ID);
  // Delay the genuine first API response, change accounts, then release it.
@@ -273,24 +278,24 @@ try {
  await page.getByText('No reconciliation records for this subscriber.',{exact:true}).waitFor();
  await account.selectOption(process.env.SUBSCRIBER_ACCOUNT_ID);
  await page.getByRole('button',{name:'Load reconciliation'}).click();
- const form=page.locator('form[data-review="byte-gap"]');await form.waitFor();
  const receipt=page.locator('#subReviewRows > details').first();
  await receipt.locator('summary').first().click();
  await receipt.getByText('Not supplied or malformed',{exact:false}).waitFor();
  await receipt.getByText('Original accounting fields',{exact:true}).click();
  assert.match(await receipt.locator('pre').innerText(),/"Acct-Output-Octets": "101"/);
+ const form=page.locator('form[data-review="byte-gap"]');await page.locator('#subReviewRows section').filter({hasText:'Byte distribution'}).getByRole('button',{name:'Review settlement'}).click();await form.waitFor();
  const periods=form.locator('[data-reconcile-period]');assert.equal(await periods.count(),2);
  await periods.nth(0).fill('39');await periods.nth(1).fill('60');
  await form.getByLabel('Reason',{exact:true}).fill('Synthetic approved distribution');
  await form.getByLabel('Evidence reference',{exact:true}).fill('Synthetic browser fixture approval; distribution is not measured');
- page.once('dialog',d=>d.accept());
+ await form.getByLabel('I reviewed the evidence and approve this settlement.',{exact:true}).check();
  const rejected=page.waitForResponse(r=>r.url().endsWith('/api/subscribers/reconciliation')&&r.request().method()==='POST');
  await form.getByRole('button',{name:'Approve distribution'}).click();assert.equal((await rejected).status(),400);
  await page.waitForFunction(()=>document.querySelector('#subReviewNotice').textContent!=='Loading reconciliation records…');
  assert.equal(await periods.nth(0).inputValue(),'39','failed approval cleared evidence');
  for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
   await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
- for(const width of [375,1280]) {
+ for(const width of [375,768,1280,1920]) {
   await page.setViewportSize({width,height:1000});
   assert.equal(await page.locator('html').getAttribute('dir'),'ltr');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1);
@@ -299,16 +304,14 @@ try {
    await page.screenshot({path:`${out}/subscriber-admin-overflow-${width}.png`,fullPage:true});
   }
   assert.equal(overflow,false,`overflow at ${width}`);
-  for(const tab of await page.getByRole('tab').all()) {
-   const box=await tab.boundingBox();assert.ok(box&&box.x>=0&&box.x+box.width<=width+1,'a tab is clipped at '+width);
-  }
+  const dialogBox=await page.locator('[role=dialog]:visible').boundingBox();assert.ok(dialogBox&&dialogBox.width<=width,'settlement dialog is clipped');
   const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
   assert.deepEqual(result.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
   await page.screenshot({path:`${out}/subscriber-admin-reconciliation-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`,fullPage:true});
  }
  }
  await page.evaluate(()=>{document.documentElement.dataset.theme='dark';document.documentElement.dataset.bsTheme='dark';delete document.documentElement.dataset.palette;});
- await periods.nth(0).fill('40');page.once('dialog',d=>d.accept());
+ await periods.nth(0).fill('40');
  const approved=page.waitForResponse(r=>r.url().endsWith('/api/subscribers/reconciliation')&&r.request().method()==='POST');
  await form.getByRole('button',{name:'Approve distribution'}).click();assert.equal((await approved).status(),200);
  await page.getByText('Settlement approved and recorded.',{exact:true}).waitFor();
@@ -318,13 +321,14 @@ try {
  assert.equal(snapshot.lifetimeDownload,'100');assert.equal(snapshot.lifetimeSeconds,'20');
  assert.equal(snapshot.decision.limits[0].used,'40');assert.equal(snapshot.decision.limits[0].provisional,'0');
  assert.equal(snapshot.pendingAccounting,1);
+ await page.locator('#subReviewRows section').filter({hasText:'Final accounting'}).getByRole('button',{name:'Review settlement'}).click();
  const final=page.locator('form[data-review="missing-stop"]');
  await final.getByLabel('Final cumulative seconds',{exact:true}).fill('20');
  await final.getByLabel('Final cumulative download bytes',{exact:true}).fill('101');
  await final.getByLabel('Final cumulative upload bytes',{exact:true}).fill('0');
  await final.getByLabel('Reason',{exact:true}).fill('Synthetic correction of incomplete final accounting');
  await final.getByLabel('Evidence reference',{exact:true}).fill('Synthetic independent final byte reading');
- page.once('dialog',d=>d.accept());
+ await final.getByLabel('I reviewed the evidence and approve this settlement.',{exact:true}).check();
  let releaseFinal,finalFetched;const finalGate=new Promise(resolve=>{releaseFinal=resolve;}),finalReady=new Promise(resolve=>{finalFetched=resolve;});
  await page.route('**/api/subscribers/reconciliation',async route=>{const response=await route.fetch();finalFetched();await finalGate;await route.fulfill({response});},{times:1});
  const corrected=page.waitForResponse(r=>r.url().endsWith('/api/subscribers/reconciliation')&&r.request().method()==='POST');
@@ -336,9 +340,44 @@ try {
  const settled=await (await context.request.get(origin+'/api/subscribers/snapshot?account='+encodeURIComponent(process.env.SUBSCRIBER_ACCOUNT_ID))).json();
  assert.equal(settled.pendingAccounting,0);assert.equal(settled.lifetimeDownload,'101');assert.equal(settled.lifetimeSeconds,'20');
  assert.equal(await final.count(),0);
+ // Current read-only subscriber detail uses the real SQLite snapshot.
+ await navigate('subscribers');await page.locator(`[data-sub-view="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).first().click();
+ const details=page.locator('#subscriberDetailsModal');await details.getByText('Quotas & Usage',{exact:true}).waitFor();
+ for(const heading of ['Profile','Subscription','Sessions','Devices','Accounting','History & Audit'])await details.getByText(heading,{exact:true}).waitFor();
+ await page.keyboard.press('Tab');assert.equal(await details.evaluate(n=>n.contains(document.activeElement)),true,'detail focus escaped');await page.keyboard.press('Escape');assert.equal(await details.isVisible(),false);
+ // Complete module navigation and actual shared Network shells at all required widths.
+ for(const theme of ['dark','light'])for(const width of [375,768,1280,1920]){
+  await page.setViewportSize({width,height:1000});await page.evaluate(theme=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;},theme);
+  for(const key of ['subscriber-overview','subscribers','subscriber-plans','subscriber-simulator','subscriber-history','subscriber-reconciliation','interfaces','vlans','bridges']){
+   await navigate(key);
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,key+' page overflow '+width);
+   if(key.startsWith('subscriber')){const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[],key+' axe '+theme+' '+width);}
+   await page.screenshot({path:`${out}/unified-${key}-${theme}-${width}.png`,fullPage:true});
+  }
+ }
+ await page.setViewportSize({width:1280,height:1000});await navigate('subscriber-overview');
+ await page.reload();await page.locator('#subscriberOverviewStats').getByText('Total subscribers',{exact:true}).waitFor();
+ assert.equal(await page.locator('[data-cat="subscriber-management"].nav-group').getAttribute('class'),'nav-group is-open');
+ const group=page.locator('[data-cat="subscriber-management"].nav-group');const disclosure=group.locator('.nav-group-hdr');await disclosure.click();assert.equal(await disclosure.getAttribute('aria-expanded'),'false');await disclosure.click();assert.equal(await disclosure.getAttribute('aria-expanded'),'true');
+ await page.evaluate(()=>{document.documentElement.dataset.theme='dark';document.documentElement.dataset.bsTheme='dark';});await page.locator('#sidenav').hover();await page.screenshot({path:`${out}/sidebar-expanded-dark-1280.png`,fullPage:true});
+ await navigate('subscriber-plans');await page.goBack();assert.equal(new URL(page.url()).pathname,'/subscriber-overview');await page.goForward();assert.equal(new URL(page.url()).pathname,'/subscriber-plans');
+ await page.getByRole('button',{name:'+ Add Plan',exact:true}).click();
+ await page.locator('#subPlanID').fill('unsaved-synthetic');await page.keyboard.press('Escape');await page.getByRole('button',{name:'Keep editing',exact:true}).click();assert.equal(await page.locator('#subPlanID').inputValue(),'unsaved-synthetic');
+ await page.keyboard.press('Escape');await page.getByRole('button',{name:'Discard changes',exact:true}).click();assert.equal(await page.locator('#subscriberPlanModal').isVisible(),false);assert.equal(await page.getByRole('button',{name:'+ Add Plan',exact:true}).evaluate(n=>n===document.activeElement),true);
+ await navigate('subscribers');await page.setViewportSize({width:375,height:560});await page.locator('#burgerBtn').click();await disclosure.click();await disclosure.click();await page.screenshot({path:`${out}/sidebar-mobile-dark-375.png`});const navScroll=page.locator('.nav-items');assert.equal(await navScroll.evaluate(n=>{n.scrollTop=n.scrollHeight;return n.scrollTop>0;}),true,'short sidebar could not scroll');await navScroll.evaluate(n=>{n.scrollTop=0;});await group.locator('[data-page="subscriber-overview"]').click();assert.equal(await page.locator('#sidenav').evaluate(n=>n.classList.contains('mobile-open')),false);
+ // Dense directory DOM regression. Only this final GET is synthetic; all
+ // prior account/history/settlement persistence was through protected SQLite.
+ await page.setViewportSize({width:1280,height:1000});await navigate('subscribers');
+ const dense=Array.from({length:5001},(_,i)=>({id:'dense-'+i,username:'synthetic-dense-'+String(i).padStart(5,'0'),name:i===5000?'Dense Unicode مشترك':'Synthetic dense account',status:'active',statusRevision:'0'}));
+ await page.route('**/api/subscribers',route=>route.fulfill({json:{accounts:dense,plans:[],mode:'disabled'}}),{times:1});
+ await page.locator('#subscribersRefresh').click();await page.getByText('Page 1 of 101 · 5001 results · 50 rows per page',{exact:true}).waitFor();assert.equal(await page.locator('#subscriberAccountRows tr').count(),50);
+ await page.getByRole('button',{name:'Next',exact:true}).click();await page.getByText('Page 2 of 101 · 5001 results · 50 rows per page',{exact:true}).waitFor();assert.equal(await page.locator('#subscriberAccountRows tr').count(),50);
+ await page.getByLabel('Search subscribers',{exact:true}).fill('مشترك');await page.getByText('Page 1 of 1 · 1 results · 50 rows per page',{exact:true}).waitFor();assert.equal(await page.locator('#subscriberAccountRows tr').count(),1);
  assert.deepEqual(errors,[]);
+
+
  await context.close();
- console.log('Subscriber admin browser acceptance passed: protected SQLite history and approval, conservation refusal, retained evidence, account-race isolation, keyboard tabs, Unicode, 375/1280 and axe.');
+ console.log('Subscriber admin browser acceptance passed: protected SQLite history and approval, conservation refusal, retained evidence, account-race isolation, independent sidebar routes and dialogs, Unicode, 375/768/1280/1920 and axe.');
 } catch(error) {
  try {
   if(diagnosticPage&&!diagnosticPage.isClosed()){

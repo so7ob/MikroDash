@@ -32,3 +32,18 @@ Complete one scoped Issue -> numbered branch -> related checks -> full stable ga
 ## Approved commercial policy and child requirements
 
 On 2026-11-13 the owner selected fresh periods without rollover for renewal/plan changes, retaining historical subscriptions and usage. P1-ENTITLEMENT is no longer waiting on this policy choice. Implement explicit review, idempotent operation/receipt and concurrent failure handling with that rule. FEATURE-MATRIX.md names the individual A-N acceptance checkpoints covered by these roadmap groups. General credentials, detailed history, saved-plan windows/speeds/archive and all unresolved workflows remain in scope.
+
+
+## Mandatory UI acceptance alongside functional work (#97)
+
+Use [UI-UX-UNIFICATION.md](UI-UX-UNIFICATION.md) for every existing and future
+administrative page. Interfaces/VLANs/Bridges/Bridge Ports and DESIGN.md are the
+official reference. Shared sidebar routes, list-first data, compact real-data
+summaries, modal create/edit/review, exact quantities and browser accessibility
+are part of completion. No placeholder navigation for unfinished modules.
+
+#97 establishes the shared shell and removes existing permanent forms before
+P0-CREDENTIAL, so credential rotation can use the same audited dialog. It does
+not replace, close or postpone that P0, commercial idempotency, full policy editors,
+or any P1/P2/P3 checkpoint. Continue each functional increment with its matching
+UI acceptance, avoiding speculative forms for backend features still under design.

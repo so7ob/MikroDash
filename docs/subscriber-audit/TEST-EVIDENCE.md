@@ -49,3 +49,33 @@ Local artifacts: /tmp/mikrodash-77-clean-verify.log, -77-browser.log;
 -79-isolated-fuzz.log and -79-verify.log (passed).
 Remote PR and post-merge CI links are authoritative in PROGRESS. The audit PR's
 own exact head/full gate/CI is recorded in Issue #95 after finalization.
+
+
+## #97 UI/navigation foundation, 2026-11-13
+
+The final protected HTTP/SQLite browser passed in 286.528s; 12 plan and 8 history
+synthetic appearance/viewport cases passed with no axe findings. The six module
+pages were audited/captured at 375/768/1280/1920 in dark/light, with dialog Nord
+cases retained. Native required fields, failed/stale/repeated saves, original
+Unicode, batch atomicity, read-only snapshots, evidence conservation, internal
+modal scrolling, focus, active/deep links/back/forward/reload/short mobile drawer
+and a labelled 5,001-row synthetic DOM case are covered. Frontend typecheck and
+168 tests pass; focused RBAC/server/static contracts pass. Raw local artifacts:
+`/tmp/mikrodash-97-final-sqlite-browser.log`, `/tmp/mikrodash-97-final-sqlite-evidence`,
+`/tmp/mikrodash-97-plan-evidence`, `/tmp/mikrodash-97-history-evidence`.
+Committed representative images and exact effective-source hashes are in
+UI-UX-UNIFICATION.md and ui-evidence/manifest.json. Baseline source is 404622b3.
+
+Retained corrections: initial static gates caught catalogue/field/help/unit-ID
+wiring omissions; initial browser passes caught real muted secondary-action,
+field-label/table-header and light-warning-pill contrast. These were corrected
+in shared components/tokens. A geometry mutation was moved from the inert page
+to the visible review toggle. Navigation tests now focus the actual sidebar
+item and history targets its independent page. These are corrected failures,
+not tests removed or retries of unchanged failures. Existing operator scratch
+is preserved; the complete final gate runs in an isolated clean worktree.
+Final head/full gate/PR CI/merge/post-merge CI are recorded in Issue #97. No
+hardware/production activation is implied, and full platform/design dependencies
+remain open in the feature matrix.
+
+The first complete container gate also caught the exact no-settings-toggle census (14 -> 19 after adding five child pages) and a template-parser ambiguity from injecting required text. The census was updated for the new real pages and the existing toggleHtml inputAttrs argument is now used. Both targeted gates pass. Self-review replaced Number coercion in copied limit IDs with BigInt; the >2^53 non-reuse regression passes. The first full-gate failure is retained at /tmp/mikrodash-97-full-verify-initial.log.

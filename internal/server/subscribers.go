@@ -215,7 +215,16 @@ func (s *Server) subscribersSnapshot(w http.ResponseWriter, r *http.Request) {
 	if s.subscriberAdmin(w, r) == nil {
 		return
 	}
-	v, err := s.auditDB.Subscribers().Snapshot(r.Context(), r.URL.Query().Get("account"), time.Now())
+	at := time.Now()
+	if raw := r.URL.Query().Get("at"); raw != "" {
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil || parsed.Year() < 1970 || parsed.Year() > 9999 {
+			writeJSONErr(w, 400, "Use an RFC3339 simulation time")
+			return
+		}
+		at = parsed
+	}
+	v, err := s.auditDB.Subscribers().Snapshot(r.Context(), r.URL.Query().Get("account"), at)
 	if err != nil {
 		subscriberError(w, err)
 		return

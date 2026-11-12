@@ -43,3 +43,9 @@ Continue P2/P3 in the roadmap. Each scoped issue uses related checks, final full
 gate, source review, exact-head/current-base PR CI, squash to develop, post-merge CI
 and ledger update. Hardware remains Pending Hardware Verification until measured
 on the actual target. Do not close the full platform from these bounded increments.
+
+
+UI extension received 2026-11-13: deliver #97 shared sidebar/list/modal foundation
+and record browser evidence in UI-UX-UNIFICATION.md, then continue the unchanged
+P0 credential epoch/rotation work above using those same components. Do not claim
+UX closure for unresolved directory/detail/analytics/backend dependencies.

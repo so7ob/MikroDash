@@ -360,3 +360,23 @@ Acceptance/test contract: Protected staged setup, secrets never read back, versi
 | N15 | Command preview | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | N16 | Explicit rollback | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | N17 | Existing guard enforcement | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
+
+
+## UI and navigation acceptance extension (Issue #97)
+
+The original A-N checkpoints above remain in scope. Every new administrative feature
+also requires the shared list-first/modal/sidebar acceptance in
+[UI-UX-UNIFICATION.md](UI-UX-UNIFICATION.md). UI progress never closes an unfinished
+functional checkpoint or hardware task.
+
+| Feature ID | Requested checkpoint | Current state | Evidence / remaining acceptance |
+|---|---|---|---|
+| UX01 | Reuse Network tokens/cards/forms/tables/modals | Partial | Shared implementation and four-width dark/light/Nord browser/axe proof on #97; exact full-gate/PR delivery recorded on the issue. |
+| UX02 | Independent expandable sidebar pages and deep links | Partial | Six implemented routes; existing global authority; browser disclosure/mobile/short-scroll/reload/history plus RBAC/direct-route proof passed. |
+| UX03 | Subscriber list first; create/edit/assignment dialogs; selection-only batches | Partial | Bounded 50-row DOM; existing account CRUD/status contracts retained. Actual snapshot detail now shows profile/subscription/quotas/sessions/devices/accounting; full server directory, plan filter and general account audit remain P1-DIRECTORY/P0-HISTORY. |
+| UX04 | Immutable plans list first, exact units, grouped version editor | Partial | Clone preserves policy windows/speeds; richer saved-policy states/schedules/archive remain P0-PLAN. |
+| UX05 | Read-only interactive simulator with real accounting | Partial | Account/time scenario through existing evaluator; arbitrary draft scenario comparison remains pending. |
+| UX06 | Table history, filters, actor/reason/exact operation/details | Partial | Filters apply to loaded pages, explicitly labelled. Complete generalized audit remains P0-HISTORY. |
+| UX07 | Reconciliation case list, real scoped counts, confirmed modal approvals | Partial | Existing evidence, validation and reservation rules retained; protected HTTP/SQLite browser proof passed. |
+| UX08 | Four viewport/theme/keyboard/axe/Unicode/dense/permission gates | Partial | 375/768/1280/1920 dark/light, dialog Nord, keyboard/focus, empty/dense and zero axe findings passed for the foundation. Full server scale and remaining workflows retain their own gates. |
+| UX09 | Future administrative pages follow the same design and navigation | Missing | Target tree retained in UI-UX-UNIFICATION; add sidebar entries only with working protected workflows. |

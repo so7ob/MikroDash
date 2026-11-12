@@ -38,19 +38,20 @@ export function draftLimit(id: string, input: LimitInput): SubscriberLimit {
 // are detached from later edits, including nested calendar period fields.
 export class SubscriberLimitDraft {
   private limits: SubscriberLimit[] = [];
-  private sequence = 0;
+  private sequence = 0n;
   save(input: LimitInput, id?: string): void {
     const index = id === undefined ? -1 : this.limits.findIndex(limit => limit.id === id);
     if (id !== undefined && index < 0) throw new Error('That draft limit no longer exists.');
-    const limit = draftLimit(id ?? `limit-${this.sequence + 1}`, input);
+    const limit = draftLimit(id ?? `limit-${this.sequence + 1n}`, input);
     if (index < 0) { this.sequence++; this.limits.push(limit); }
     else this.limits[index] = limit;
   }
   remove(id: string): void { this.limits = this.limits.filter(limit => limit.id !== id); }
+  reset(limits: SubscriberLimit[]): void { this.limits = structuredClone(limits); this.sequence = limits.reduce((max,l) => { const n=/^limit-[0-9]+$/.test(l.id)?BigInt(l.id.slice(6)):0n;return n>max?n:max; },0n); }
   snapshot(): SubscriberLimit[] { return structuredClone(this.limits); }
 }
 
-export function initSubscriberPlanLimits(say: (message: string) => void, busy: () => boolean): () => SubscriberLimit[] {
+export function initSubscriberPlanLimits(say: (message: string) => void, busy: () => boolean) {
   const draft = new SubscriberLimitDraft();
   let editing: string | undefined;
   const fields = {
@@ -76,6 +77,9 @@ export function initSubscriberPlanLimits(say: (message: string) => void, busy: (
     if (busy()) return;
     try {
       const input = Object.fromEntries(Object.entries(fields).map(([key, id]) => [key, el<HTMLInputElement | HTMLSelectElement>(id)?.value || ''])) as LimitInput;
+      input.amount = toBaseUnits(input.amount, el<HTMLSelectElement>('subLimitAmountUnit')?.value || (input.kind === 'seconds' ? 'Seconds' : 'Bytes'));
+      input.down = toBaseUnits(input.down, el<HTMLSelectElement>('subLimitDownUnit')?.value || 'bit/s');
+      input.up = toBaseUnits(input.up, el<HTMLSelectElement>('subLimitUpUnit')?.value || 'bit/s');
       draft.save(input, editing);
       editing = undefined; render(); say('Draft limit saved. Save the plan version to persist it.');
       el('subLimitKind')?.focus();
@@ -101,11 +105,22 @@ export function initSubscriberPlanLimits(say: (message: string) => void, busy: (
       const field = el<HTMLInputElement | HTMLSelectElement>(id);
       if (field) field.value = values[key as keyof LimitInput];
     }
+    for (const id of ['subLimitAmountUnit','subLimitDownUnit','subLimitUpUnit']) { const unit = el<HTMLSelectElement>(id); if(unit) { if(id === 'subLimitAmountUnit') unit.innerHTML = (limit.kind === 'seconds' ? ['Seconds','Minutes','Hours','Days'] : ['Bytes','KB','MB','GB','TB']).map(v => `<option>${v}</option>`).join(''); unit.selectedIndex = 0; } }
     render(); rateFields(); el('subLimitAmount')?.focus();
   });
   render(); rateFields();
-  return () => {
+  return Object.assign(() => {
     if (editing !== undefined) throw new Error('Save or cancel the current limit edit before saving the plan.');
     return draft.snapshot();
-  };
+  }, {reset(limits: SubscriberLimit[]): void {draft.reset(limits); editing = undefined; render(); rateFields();}});
+}
+
+/** SI rates and IEC data units; reject any fractional base unit, never round. */
+export function toBaseUnits(value: string, unit: string): string {
+ const factors: Record<string,bigint> = {Seconds:1n,Minutes:60n,Hours:3600n,Days:86400n,Bytes:1n,KB:1024n,MB:1048576n,GB:1073741824n,TB:1099511627776n,'bit/s':1n,Kbps:1000n,Mbps:1000000n,Gbps:1000000000n};
+ const match = /^(\d+)(?:\.(\d+))?$/.exec(value);
+ if(!match || !factors[unit]) throw new Error('Enter a non-negative decimal amount and a supported unit.');
+ const scale = 10n ** BigInt(match[2]?.length || 0), raw = BigInt(match[1] + (match[2] || '')) * factors[unit];
+ if(raw % scale !== 0n) throw new Error('The amount must convert to whole seconds, bytes or bits per second.');
+ return quantity((raw / scale).toString());
 }

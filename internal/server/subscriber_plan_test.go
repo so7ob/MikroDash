@@ -82,3 +82,48 @@ func TestSubscriberPlanEditorPersistsConcurrentLimitsAndImmutableAssignment(t *t
 		t.Fatal("plan setup activated network runtime")
 	}
 }
+
+func TestSubscriberSimulationTimeIsReadOnlyAndValidated(t *testing.T) {
+	s, mux, id := reconciliationFixture(t)
+	ledger := s.auditDB.Subscribers()
+	before, err := ledger.Snapshot(t.Context(), id, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		at     string
+		status int
+	}{{"2099-01-01T00:00:00Z", 200}, {"broken", 400}, {"0001-01-01T00:00:00Z", 400}} {
+		r := httptest.NewRequest("GET", "/api/subscribers/snapshot?account="+id+"&at="+tc.at, nil)
+		r.Header.Set("Cookie", "mikrodash_sid=synthetic-token")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		if w.Code != tc.status {
+			t.Fatal(tc.at, w.Code, w.Body.String())
+		}
+	}
+	after, err := ledger.Snapshot(t.Context(), id, time.Now())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, _ := json.Marshal(before.Subscription)
+	b, _ := json.Marshal(after.Subscription)
+	if string(a) != string(b) || before.LifetimeDownload != after.LifetimeDownload || before.LifetimeSeconds != after.LifetimeSeconds {
+		t.Fatal("simulation mutated subscription or usage")
+	}
+}
+
+func TestSubscriberDirectPagesRecheckGlobalAuthority(t *testing.T) {
+	s, _, _ := reconciliationFixture(t)
+	s.auth = authFor("synthetic-token", &Session{AuthMode: "modern", Username: "synthetic-viewer"})
+	handler := s.Handler()
+	for _, key := range []string{"subscribers", "subscriber-overview", "subscriber-plans", "subscriber-history", "subscriber-simulator", "subscriber-reconciliation"} {
+		r := httptest.NewRequest("GET", "/"+key, nil)
+		r.Header.Set("Cookie", "mikrodash_sid=synthetic-token")
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != 403 {
+			t.Fatal(key, w.Code, w.Body.String())
+		}
+	}
+}
