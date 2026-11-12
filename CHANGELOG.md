@@ -2,6 +2,21 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [1.0.3] - So7ob subscriber portal
+
+### Subscriber portal
+
+- Adapt the supplied So7ob green-C design to the isolated subscriber portal: Arabic/RTL, original logo, local Tajawal fonts, responsive login and account screens, and accessible keyboard states. Subscriber administration remains English/LTR.
+- Support MikroDash account and voucher login, with local QR image/camera decoding that fills a voucher for explicit submission. No scanned URL is opened and no credentials are persisted in browser storage.
+- Display the actual plan, confirmed usage, remaining and reserved allowances, speed options and owned device sessions. Preserve focus and pending-action controls during live updates.
+- Retain protected HTTPS Internet handoff, truthful owned connection states, guarded device disconnect, and independent portal logout. The template's example prices, free-trial link and RouterOS/User Manager authentication are not imported.
+
+### Upgrade and verification
+
+- Keep existing data, schema 45, subscriber configuration and certificate paths compatible. The bundled design replaces the previous portal theme selector; an existing installation must update its container image to show it.
+- Verify native/trusted-proxy HTTP journeys, account/voucher login, QR decoding and permission cleanup, pending accounting, Arabic/RTL layouts at 375/1280, keyboard navigation and axe. Accepted/denied network handoff uses a synthetic NAS and does not establish physical-router acceptance.
+- Subscriber Management remains a development preview. This release does not enable RADIUS/HotSpot authentication or change capability flags; integration #38 and hardware pilot #76 remain incomplete.
+
 ## [1.0.2] - Faster Activity Analytics and opt-in subscriber administration
 
 ### Activity Analytics
