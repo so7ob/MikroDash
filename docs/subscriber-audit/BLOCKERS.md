@@ -10,3 +10,5 @@ Snapshot: 2026-11-13 (Asia/Aden). Baseline `ba39515f003484211afe3dfef783ade6dc39
 | COMMERCIAL-POLICY | Product contract | Reset/rollover/proration/import opening balances lack reviewed explicit rules | Implement reviewable explicit policy contract before granting credit; continue unrelated work |
 
 Prior notes mentioned a blocked SQLite download; that is historical and must be checked before reuse. Current test results will establish whether it remains a blocker. No network or dependency restrictions will be bypassed. No real payment gateway or production cutover authorized.
+
+Local gate isolation: ignored `.temp/activity-82-upgrade/check.go` is not gofmt-clean, so running the unmodified full gate in the operator checkout stops before Go tests. Use a clean detached worktree at the exact candidate SHA. This is a verification-environment constraint, not justification to edit scratch files or weaken gofmt. #77 clean-worktree gate passed.

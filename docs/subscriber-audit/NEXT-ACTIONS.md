@@ -9,3 +9,5 @@ Snapshot: 2026-11-13 (Asia/Aden). Baseline `ba39515f003484211afe3dfef783ade6dc39
 5. At each completed increment update PROGRESS, FEATURE-MATRIX, TEST-EVIDENCE, BLOCKERS and this file with exact SHAs, CI URLs and remaining acceptance. Do not stop solely because the first PR exists.
 
 Start from `/root/So7ob/MikroDash`; inspect dirty files/branch/remote before continuing. Do not reset operator files or enable subscriber runtime. Read CONTRIBUTING.md and this ledger on resume; no release or deployment requested.
+
+Current checkpoint: #77 merged at 149123b7; verify its post-merge run. Audit files include official comparison and are ready for #95 local/current-base gates and PR. Next implementation: #78 preserved branch, current-base reconciliation, plan browser checks plus HTTP/SQLite persistence coverage.

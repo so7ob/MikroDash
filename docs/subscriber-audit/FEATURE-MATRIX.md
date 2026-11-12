@@ -22,3 +22,5 @@ This matrix links every requested A-N axis to independent roadmap groups. A grou
 | N | P2-SETUP | Partial | None yet |
 
 Missing-only axes H/I/J/M remain Missing in FEATURE-INVENTORY. C hardware state is Implemented but Not Hardware Verified. No global completion ratio is asserted.
+
+Narrow accepted implementation: P0-INPUT (#77) preserves decimal strings and rejects incomplete commands. All existing source regressions/full local/current-base PR CI passed at bdc31ae3. Merged 149123b7; post-merge CI pending. This does not complete axis A/B/C.
