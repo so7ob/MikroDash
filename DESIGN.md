@@ -812,3 +812,17 @@ prices and RouterOS template expressions are absent. Connection, authorization,
 accounting uncertainty and portal sign-in retain separate text states. Data
 names are escaped and preserved; numbers use Latin digits. Keyboard focus,
 native modal containment, camera cleanup and live updates are tested at 375/1280.
+
+
+### Subscriber account status history
+
+The existing dense English/LTR console adds a fifth wrapping header tab using
+the shared roving keyboard focus, local fonts and semantic controls. History
+keeps exact audit IDs, escaped reasons and clear loading/error/empty states.
+Older-page errors retain loaded rows; account changes fence delayed responses.
+The plan draft editor and guarded submission behavior remain intact. No new
+palette, typography, asset source, decorative pattern or framework is introduced.
+
+Batch history uses labelled reason and before/after rows with native disclosure
+for original audit evidence. Unicode reason text is isolated with bdi. This
+reduces raw JSON in the reading path without hiding historical evidence.
