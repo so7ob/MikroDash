@@ -225,7 +225,8 @@ try {
  const historyPanel=page.locator('#subscriberStatusHistory');
  await historyPanel.getByText('2 events loaded.',{exact:true}).waitFor();
  assert.equal(await historyPanel.locator('li').count(),2);
- assert.ok((await historyPanel.innerText()).includes(batchReason));
+ assert.equal(JSON.parse(history.events[1].reason).reason,batchReason);
+ assert.ok((await historyPanel.innerText()).includes(history.events[1].reason),'stored JSON audit evidence changed in the view');
  assert.ok(!(await historyPanel.innerText()).includes('Synthetic concurrent administrator'),'other account history leaked');
  assert.equal(await historyPanel.locator('script').count(),0);
  assert.equal(await page.getByRole('tab',{name:'Status history',exact:true}).evaluate(node=>node===document.activeElement),true);
