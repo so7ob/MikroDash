@@ -1,4 +1,5 @@
-import { esc } from '../dom';
+import { managedModal } from '../modals';
+import { el, esc, pill } from '../dom';
 import { fmtTs } from '../timefmt';
 
 type Event = {id:string;actor:string;action:string;reason:string;createdAt:number};
@@ -62,23 +63,30 @@ function reasonMarkup(event:Event):string {
 
 export function historyMarkup(s:HistoryState):string {
   const message=s.busy?'Loading status history…':s.error?s.error:s.loaded?(s.events.length?`${s.events.length} events loaded.`:'No status changes recorded.'):'Choose Status history on a subscriber.';
-  return `<h4 tabindex="-1" data-history-heading>Status history${s.accountId?' - '+esc(s.label):''}</h4><p>Administrative changes only. These records do not confirm router application or disconnection.</p><p role="status" aria-live="polite">${esc(message)}</p>`+
+  return `<h4 tabindex="-1" data-history-heading>Status history${s.accountId?' - '+esc(s.label):''}</h4><p class="text-secondary">Administrative changes only. These records do not confirm router application or disconnection. Date and status filters apply to loaded events; load older changes to extend the range.</p><p role="status" aria-live="polite">${esc(message)}</p>`+
+    `<div class="wl-summary-row wl-summary-row-4">${[['Changes loaded',s.events.length],['Administrators',new Set(s.events.map(e=>e.actor)).size],['Activations',s.events.filter(e=>e.action==='account.active').length],['Reviewed batches',s.events.filter(e=>e.action==='account.status.batch').length]].map(([label,count])=>`<div class="wl-summary-card"><div class="wl-summary-title">${label}</div><div class="fa-stat-val">${count}</div></div>`).join('')}</div>`+
     (s.accountId?`<button type="button" class="sbtn sbtn-outline" data-history="refresh" ${s.busy?'disabled':''}>Refresh history</button>`:'')+
     (s.error?` <button type="button" class="sbtn sbtn-outline" data-history="retry" ${s.busy?'disabled':''}>Retry page</button>`:'')+
-    `<ol>${s.events.map(e=>`<li><p><strong>${esc(e.action==='account.active'?'Activated':e.action==='account.suspended'?'Suspended':'Reviewed status change')}</strong> · ${esc(fmtTs(e.createdAt*1000,true))}</p><p>Actor: ${esc(e.actor)} · Audit ID: ${esc(e.id)}</p>${reasonMarkup(e)}</li>`).join('')}</ol>`+
+    `<div class="data-scroll"><table class="table table-vcenter"><thead><tr><th>Date</th><th>Actor</th><th>Transition</th><th>Operation</th><th>Reason & evidence</th><th>Actions</th></tr></thead><tbody>${s.events.map(e=>`<tr data-history-date="${new Date(e.createdAt*1000).toISOString().slice(0,10)}" data-history-action="${esc(e.action)}"><td>${esc(fmtTs(e.createdAt*1000,true))}</td><td>${esc(e.actor)}</td><td>${pill(e.action==='account.active'?'Activated':e.action==='account.suspended'?'Suspended':'Reviewed status change',e.action==='account.active'?'ok':'warn')}</td><td>${esc(e.id)}</td><td>${reasonMarkup(e)}</td><td><button type="button" class="sbtn sbtn-outline" data-history-detail="${esc(e.id)}">View details</button></td></tr>`).join('')||'<tr><td colspan="6" class="tbl-empty">No status changes recorded.</td></tr>'}</tbody></table></div>`+
     (s.next?`<button type="button" class="sbtn sbtn-outline" data-history="more" ${s.busy?'disabled':''}>Load older changes</button>`:'');
 }
 
 export function initStatusHistory(root:HTMLElement|null,api:API) {
   let pendingFocus:string|undefined, lastAccount='';
+  let events:Event[]=[];
+  const content=root?document.createElement('div'):null;
+  const detail=content?managedModal('subscriberHistoryModal','Status Change Details',content):null;
+  const filters=root?document.createElement('div'):null;
+  if(filters){filters.className='subscriber-toolbar';filters.innerHTML='<label class="sform-label" for="historyFrom">From</label><input id="historyFrom" type="date" class="sform-input sform-sm"><label class="sform-label" for="historyUntil">Until</label><input id="historyUntil" type="date" class="sform-input sform-sm"><label class="sform-label" for="historyStatus">Status</label><select id="historyStatus" class="sform-input sform-sm"><option value="">All changes</option><option value="account.active">Activated</option><option value="account.suspended">Suspended</option><option value="account.status.batch">Reviewed batch</option></select>';root?.before(filters);filters.addEventListener('change',filter);}
+  function filter():void{const from=filters?.querySelector<HTMLInputElement>('#historyFrom')?.value||'',until=filters?.querySelector<HTMLInputElement>('#historyUntil')?.value||'',status=filters?.querySelector<HTMLSelectElement>('#historyStatus')?.value||'';root?.querySelectorAll<HTMLElement>('[data-history-date]').forEach(row=>{const date=row.dataset.historyDate||'';row.hidden=!!(from&&date<from||until&&date>until||status&&row.dataset.historyAction!==status);});}
   const controller=createStatusHistory(api,state=>{
     if(lastAccount!==state.accountId){pendingFocus=undefined;lastAccount=state.accountId;}
-    if(!root)return;
+    if(!root)return;events=state.events;const badge=el('subscriberHistoryCount');if(badge)badge.textContent=state.loaded?String(state.events.length):'—';
     const active=document.activeElement;
     const focus=active instanceof HTMLElement&&root.contains(active)?active.dataset.history:undefined;
     if(focus)pendingFocus=focus;
     root.innerHTML=historyMarkup(state);
-    root.setAttribute('aria-busy',String(state.busy));
+    filter();root.setAttribute('aria-busy',String(state.busy));
     if(pendingFocus&&!state.busy&&(document.activeElement===document.body||root.contains(document.activeElement))){
       (root.querySelector<HTMLButtonElement>(`[data-history="${pendingFocus}"]`)||root.querySelector<HTMLElement>('[data-history-heading]'))?.focus();
       pendingFocus=undefined;
@@ -89,6 +97,7 @@ export function initStatusHistory(root:HTMLElement|null,api:API) {
     root.addEventListener('click',event=>{
       const target=event.target;
       if(!(target instanceof HTMLButtonElement)||target.disabled)return;
+      if(target.dataset.historyDetail&&content){const event=events.find(e=>e.id===target.dataset.historyDetail);if(event){content.innerHTML=`<p>Actor: ${esc(event.actor)} · Audit ID: ${esc(event.id)}</p>${reasonMarkup(event)}`;detail?.open();}}
       if(target.dataset.history==='more')controller.more();
       if(target.dataset.history==='retry')controller.retry();
       if(target.dataset.history==='refresh')controller.refresh();

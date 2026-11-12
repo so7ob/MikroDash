@@ -43,3 +43,10 @@ test('editing, removing and adding concurrent limits preserves identity and deta
   draft.remove('limit-2'); draft.remove('limit-3');
   assert.deepEqual(draft.snapshot(), []);
 });
+
+
+test('human units preserve exact quantities and reject rounding and overflow', async () => {
+ const {toBaseUnits}=await import('../src/pages/subscriber-plan-limits');
+ for(const [raw,unit,want] of [['1.5','Hours','5400'],['0.125','GB','134217728'],['2.5','Mbps','2500000'],['9007199254740993','Bytes','9007199254740993'],['9223372036854775807','bit/s','9223372036854775807']])assert.equal(toBaseUnits(raw,unit),want);
+ for(const [raw,unit] of [['0.1','Seconds'],['0.01','Bytes'],['9223372036854775808','Bytes'],['1e3','MB'],['-1','GB'],['1','bogus']])assert.throws(()=>toBaseUnits(raw,unit));
+});

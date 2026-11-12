@@ -14,11 +14,13 @@ const {buildSync}=createRequire(path.join(root,'web/package.json'))('esbuild');
 const out=process.env.SUBSCRIBER_EVIDENCE_DIR;
 assert.ok(out,'Set SUBSCRIBER_EVIDENCE_DIR');mkdirSync(out,{recursive:true});
 const bundle=buildSync({entryPoints:[path.join(root,'web/test/browser/subscriber-admin-entry.ts')],bundle:true,write:false,format:'iife'}).outputFiles[0].contents;
-const markup=readFileSync(path.join(root,'web/src/ui/page-subscribers.html'),'utf8').replace('class="page-view"','class="page-view active"');
+const shell=readFileSync(path.join(root,'web/src/ui/shell.html'),'utf8');
+const markup=shell.slice(shell.indexOf('<nav id='),shell.indexOf('</nav>')+6)+['subscribers','subscriber-overview','subscriber-plans','subscriber-simulator','subscriber-history','subscriber-reconciliation'].map(key=>readFileSync(path.join(root,`web/src/ui/page-${key}.html`),'utf8')).join('');
 let pending, posts=0;const submitted=[],plans=[];
 const server=createServer(async(req,res)=>{
  try {
   const url=new URL(req.url,'http://localhost');
+  if(url.pathname==='/api/nav-prefs'){res.setHeader('Content-Type','application/json');res.end('{"grouped":true}');return;}
   if(url.pathname==='/api/subscribers') {
    res.setHeader('Content-Type','application/json');
    if(req.method==='GET'){res.end(JSON.stringify({accounts:[],plans,mode:'disabled'}));return;}
@@ -39,7 +41,7 @@ const context=await browser.newContext();const page=await context.newPage();cons
 const waitPending=async()=>{for(let n=0;!pending&&n<100;n++)await new Promise(resolve=>setTimeout(resolve,10));assert.ok(pending,'plan request missing');};
 try {
  await page.goto(`http://127.0.0.1:${server.address().port}`);
- await page.locator('#subTab-plans').click();
+ await page.locator('.nav-item[data-page="subscriber-plans"]').evaluate(n=>n.click());await page.getByRole('button',{name:'+ Add Plan',exact:true}).click();
  for(const [id,value] of Object.entries({subPlanID:'synthetic-plan',subPlanName:'Synthetic خطة <script>',subPlanReason:'Synthetic editor verification'}))await page.locator('#'+id).fill(value);
  await page.locator('#subscriberAddLimit').click();
  await page.getByRole('button',{name:'Edit limit-1',exact:true}).click();
@@ -82,11 +84,12 @@ try {
  assert.deepEqual(submitted[2].plan.policies[0].limits.map(limit=>limit.id),['limit-2','limit-3']);
  pending('success');await page.getByText('Plan version saved. Existing subscriptions keep their assigned version.',{exact:true}).waitFor();
  assert.match(await page.locator('#subscriberPlanList').textContent(),/Synthetic خطة <script>/);
+ await page.getByRole('button',{name:'New version',exact:true}).click();
  // Escape data, keyboard focus and the existing three palettes at phone/desktop widths.
  await page.getByRole('button',{name:'Edit limit-2',exact:true}).click();
  assert.equal(await page.locator('#subLimitAmount').evaluate(node=>document.activeElement===node),true);
  const checks=[];
- for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}])for(const width of [375,1280]) {
+ for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}])for(const width of [375,768,1280,1920]) {
   await page.setViewportSize({width,height:1000});
   await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
   const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
@@ -98,5 +101,5 @@ try {
   await page.screenshot({path:path.join(out,name+'-controls.png')});checks.push({name,violations:result.violations.length});
  }
  assert.deepEqual(errors,[]);writeFileSync(path.join(out,'result.json'),JSON.stringify({syntheticAPI:true,posts,checks},null,2));
- console.log('PASS: plan draft add/edit/cancel/remove, exact quantities, pending/interrupted/repeated saves, 6 theme/viewport axe checks');
+ console.log('PASS: plan draft add/edit/cancel/remove, exact quantities, pending/interrupted/repeated saves, 12 theme/viewport axe checks');
 }finally {await browser.close();await new Promise(resolve=>server.close(resolve));}

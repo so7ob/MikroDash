@@ -826,3 +826,22 @@ palette, typography, asset source, decorative pattern or framework is introduced
 Batch history uses labelled reason and before/after rows with native disclosure
 for original audit evidence. Unicode reason text is isolated with bdi. This
 reduces raw JSON in the reading path without hiding historical evidence.
+
+
+## Subscriber administrative surfaces (2026-11-13, #97)
+
+Subscriber Management follows Network's existing dense, calm, data-first console
+system. It reuses the palette/font/control/table tokens, VLAN/Bridge summary
+cards, sortable lists and shared modal shell. Keep page-level functions in the
+existing sidebar category with independent URLs; retain tabs only inside details
+or a genuinely related editor. List first; create/edit/review forms in dialogs.
+Long plan editors use titled field groups and internal vertical scrolling.
+Configured runtime state uses a compact expandable explanation.
+
+The shared managed modal lifecycle owns dirty/busy close, keyboard focus and
+background inertness. Footer actions retain native form submission. Never add
+placeholder charts: unavailable online/usage/assignment measurements are labelled.
+Read docs/subscriber-audit/UI-UX-UNIFICATION.md for per-page and future acceptance.
+Aesthetic audit: existing dark glass, Oxanium/mono, blue interaction and semantic
+state roles retained; no new palette, font, component library or decorative chart.
+Rendered foundation review passed four widths, dark/light and dialog Nord with shared geometry, keyboard/focus and axe checks; representative images and remaining functional scope are in that document.

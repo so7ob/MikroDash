@@ -1,4 +1,5 @@
 import { el, esc, pill } from '../dom';
+import { managedModal } from '../modals';
 import { fieldHtml, toggleHtml } from '../form';
 
 export type SubscriberAdminAccount = { id: string; username: string; name: string; status: string; statusRevision: string };
@@ -18,17 +19,20 @@ export function initSubscriberAccountActions(api: API, redraw: () => void, commi
   let review: { accounts: SubscriberAdminAccount[]; status: string; reason: string } | null = null;
   const host = el('subscriberAccountTools');
   const field = (id: string, label: string, control: string, help = '') => fieldHtml({ id, label, help }, control);
-  if (host) host.innerHTML = `<form id="subscriberAccountFilter"><div class="ff-grid">${field('subscriberAccountSearch', 'Search subscribers', '<input id="subscriberAccountSearch" class="sform-input" type="search">', 'Match the original username or display name.')}${field('subscriberAccountStatus', 'Account status', '<select id="subscriberAccountStatus" class="sform-input"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></select>')}</div></form>
+  if (host) host.innerHTML = `<form id="subscriberAccountFilter"><div class="subscriber-toolbar">${field('subscriberAccountSearch', 'Search subscribers', '<input id="subscriberAccountSearch" class="sform-input sform-sm" type="search">', 'Match the original username or display name.')}${field('subscriberAccountStatus', 'Account status', '<select id="subscriberAccountStatus" class="sform-input sform-sm"><option value="all">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></select>')}</div></form>
 <p id="subscriberAccountFilterCount" class="text-secondary"></p><p id="subscriberSelectionCount" class="text-secondary" role="status" aria-live="polite"></p>
-<form id="subscriberBatchForm"><div class="ff-grid">${field('subscriberBatchStatus', 'New account status', '<select id="subscriberBatchStatus" class="sform-input"><option value="suspended">Suspended</option><option value="active">Active</option></select>', 'Suspension blocks new Internet admission and is processed by background enforcement. Portal sign-in remains available.')}${field('subscriberBatchReason', 'Batch change reason', '<input id="subscriberBatchReason" class="sform-input" required>', 'Required. At most 2048 UTF-8 bytes. Usage and subscriptions are preserved.')}</div><button id="subscriberBatchPrepare" type="submit" class="sbtn sbtn-outline" disabled>Review selected subscribers</button> <button id="subscriberBatchClear" type="button" class="sbtn sbtn-outline" disabled>Clear selection</button></form>
+<form id="subscriberBatchForm" hidden><div class="ff-grid">${field('subscriberBatchStatus', 'New account status', '<select id="subscriberBatchStatus" class="sform-input"><option value="suspended">Suspended</option><option value="active">Active</option></select>', 'Suspension blocks new Internet admission and is processed by background enforcement. Portal sign-in remains available.')}${field('subscriberBatchReason', 'Batch change reason', '<input id="subscriberBatchReason" class="sform-input" required>', 'Required. At most 2048 UTF-8 bytes. Usage and subscriptions are preserved.')}</div><button id="subscriberBatchPrepare" type="submit" class="sbtn sbtn-outline" disabled>Review selected subscribers</button> <button id="subscriberBatchClear" type="button" class="sbtn sbtn-outline" disabled>Clear selection</button></form>
 <section id="subscriberBatchReview" class="mt-3" aria-labelledby="subscriberBatchHeading" hidden><h4 id="subscriberBatchHeading">Review account status</h4><ul id="subscriberBatchAccounts" class="text-break"></ul><p id="subscriberBatchReviewedReason" class="text-break"></p><div class="ff-grid ff-one">${field('subscriberBatchConfirm', 'I reviewed these subscribers and their new status.', toggleHtml('subscriberBatchConfirm', false), 'Required before applying the frozen selection.')}</div><div class="mt-2"><button id="subscriberBatchApply" class="sbtn sbtn-primary" type="button" disabled>Apply reviewed status change</button> <button id="subscriberBatchBack" class="sbtn sbtn-outline" type="button">Back to selection</button></div></section><ul id="subscriberBatchResults" class="mt-3 text-break" aria-label="Latest account status results" hidden></ul>`;
+  const reviewNode = el('subscriberBatchReview');
+  const reviewModal = reviewNode ? managedModal('subscriberBatchModal', 'Review Account Status', reviewNode) : null;
   const value = (id: string) => el<HTMLInputElement>(id)?.value || '';
   const query = () => value('subscriberAccountSearch');
   const status = () => value('subscriberAccountStatus') || 'all';
   const validReason = () => value('subscriberBatchReason').trim() !== '' && new TextEncoder().encode(value('subscriberBatchReason')).length <= 2048;
   function controls(): void {
+    const form = el('subscriberBatchForm'); if(form)form.hidden = selected.size === 0;
     const count = el('subscriberSelectionCount');
-    if (count) count.textContent = `${selected.size} selected. Maximum 50. Changing filters or refreshing clears the selection.`;
+    if (count) { count.hidden = selected.size === 0; count.textContent = `${selected.size} selected. Maximum 50. Changing filters or refreshing clears the selection.`; }
     const prepare = el<HTMLButtonElement>('subscriberBatchPrepare');
     if (prepare) prepare.disabled = busy || needsRefresh || !!review || selected.size === 0 || !validReason();
     const clear = el<HTMLButtonElement>('subscriberBatchClear');
@@ -50,7 +54,7 @@ export function initSubscriberAccountActions(api: API, redraw: () => void, commi
     document.querySelectorAll<HTMLButtonElement>('#subscriberAccountRows button').forEach(control => { control.disabled = busy; });
   }
   function clearReview(): void {
-    review = null;
+    reviewModal?.close(true); review = null;
     const section = el('subscriberBatchReview'); if (section) section.hidden = true;
     const confirm = el<HTMLInputElement>('subscriberBatchConfirm'); if (confirm) confirm.checked = false;
   }
@@ -85,28 +89,29 @@ export function initSubscriberAccountActions(api: API, redraw: () => void, commi
     if (list) list.innerHTML = review.accounts.map(account => `<li><bdi>${esc(account.username)}</bdi>: ${pill(account.status, account.status === 'active' ? 'ok' : 'warn')} to ${pill(review!.status, review!.status === 'active' ? 'ok' : 'warn')}</li>`).join('');
     const reason = el('subscriberBatchReviewedReason'); if (reason) reason.textContent = 'Reason: ' + review.reason;
     const section = el('subscriberBatchReview'); if (section) section.hidden = false;
-    redraw(); controls(); el('subscriberBatchConfirm')?.focus();
+    redraw(); controls(); reviewModal?.open(); el('subscriberBatchConfirm')?.focus();
   });
   el('subscriberBatchApply')?.addEventListener('click', async () => {
     if (busy || needsRefresh || !review || !el<HTMLInputElement>('subscriberBatchConfirm')?.checked) return;
     const intent = review;
-    busy = true; controls(); showResults([]); say('Applying reviewed status change…');
+    busy = true; reviewModal?.busy(true); controls(); showResults([]); say('Applying reviewed status change…');
     try {
       const result = await api<BatchResult>('/api/subscribers', { action: 'status-batch', status: intent.status, reason: intent.reason, items: intent.accounts.map(account => ({ accountId: account.id, expectedStatus: account.status, expectedRevision: account.statusRevision })) });
-      selected.clear(); clearReview();
+      reviewModal?.busy(false); selected.clear(); clearReview();
       committed(result.changed);
       showResults(result.results);
       say(`Status updated for ${result.changed.length} subscribers. ${result.skipped} already had that status.`);
       el('subscriberAccountSearch')?.focus();
     } catch (error) {
-      needsRefresh = true;
+      reviewModal?.error((error instanceof Error ? error.message : 'Unconfirmed change') + ' Close this review and refresh before retrying.'); needsRefresh = true;
       showResults(intent.accounts.map(account => ({ account, outcome: 'unconfirmed' })));
       say((error instanceof Error ? error.message : 'Status change was not confirmed.') + ' Refresh the list before reviewing another batch.');
     } finally {
-      busy = false; controls();
+      busy = false; reviewModal?.busy(false); controls();
       if (!needsRefresh) el('subscriberAccountSearch')?.focus();
     }
   });
+  reviewModal?.onClose(()=>{review=null;if(reviewNode)reviewNode.hidden=true;controls();});
   controls();
   return {
     filtered(accounts: SubscriberAdminAccount[]): SubscriberAdminAccount[] {
@@ -129,7 +134,7 @@ export function initSubscriberAccountActions(api: API, redraw: () => void, commi
     },
     reviewOne(account: SubscriberAdminAccount, next: string): void {
       if (busy) return;
-      selected.clear(); clearReview(); selected.set(account.id, { ...account });
+      reviewModal?.busy(false); selected.clear(); clearReview(); selected.set(account.id, { ...account });
       const target = el<HTMLSelectElement>('subscriberBatchStatus'); if (target) target.value = next;
       redraw(); controls(); el('subscriberBatchReason')?.focus();
       say('Enter a change reason and review this subscriber before applying the new status.');

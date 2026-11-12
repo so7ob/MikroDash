@@ -40,3 +40,16 @@ operator data, owner debugger and unrelated worktrees remain preserved. Own clea
 verification worktrees isolate the ignored scratch formatting issue; they do not
 change the tested source or weaken gates. Issue #95 records the audit PR's own
 final SHA and CI, avoiding a self-referencing source commit.
+
+
+## UI/navigation foundation (#97)
+
+Added an independent expandable Subscriber Management sidebar category and six
+implemented pages; shared list-first cards/tables, guarded form/review dialogs,
+real snapshot detail and time simulation, exact units and genuine scoped counts.
+The protected HTTP/SQLite browser passed (286.528s), plan/history browser matrices
+passed, TypeScript and 167 frontend tests passed. Representative before/after
+images and per-page partial status are in UI-UX-UNIFICATION.md. This is an additive
+foundation: #38, #76 and the full #97 design acceptance remain open. Continue
+P0-CREDENTIAL and the retained commercial/policy/directory roadmap. The final
+source SHA and local/PR/post-merge gate evidence are recorded on #97 after delivery.
