@@ -40,7 +40,7 @@ export function initSubscriberQR(apply: (code: string) => void): { close: () => 
   dialog.addEventListener('keydown', event => {
     if (event.key !== 'Tab') return;
     const controls = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled)')).filter(control => !control.hidden);
-    const first = controls[0], last = controls.at(-1);
+    const first = controls[0], last = controls[controls.length - 1];
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   });
