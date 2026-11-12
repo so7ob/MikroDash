@@ -200,10 +200,12 @@ func TestThePageCatalogueIsComplete(t *testing.T) {
 	// work out why a page is not there.
 	// Subscribers has an explicit service flag and global administration permission.
 	// A visibility preference must not start or stop network accounting.
-	if noToggle != 14 {
-		t.Errorf("%d hand-built pages have no settings toggle, want 14 (dashboard, reports, "+
+	// Its five new child routes retain that same global authority and add no collector load.
+	if noToggle != 19 {
+		t.Errorf("%d hand-built pages have no settings toggle, want 19 (dashboard, reports, "+
 			"settings, ai-agent, security-scan, config-management, terminal, tools-ping, "+
-			"tools-traceroute, tools-torch, tools-btest, tools-sniffer, activity, subscribers)", noToggle)
+			"tools-traceroute, tools-torch, tools-btest, tools-sniffer, activity, subscribers, subscriber-overview, subscriber-plans, "+
+			"subscriber-simulator, subscriber-history, subscriber-reconciliation)", noToggle)
 	}
 	// And every page the projection can grant WRITE on must be in the catalogue.
 	for _, page := range rbac.WriteCapablePages() {

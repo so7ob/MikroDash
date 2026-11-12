@@ -145,7 +145,7 @@ Shared accessibility corrections also retain the established design: secondary b
 | Plan editor | `tools/subscriber-plan-browser.mjs` with the same external module and `/tmp/mikrodash-97-plan-evidence` — PASS, 12 appearance/viewport axe cases | Synthetic HTTP; add/edit/cancel/remove draft limits, exact >2^53 amounts, pending/repeated/disconnected/refused save, retained draft, immutable New version copy; dark/light/Nord at 375/768/1280/1920 |
 | History controller/browser | `tools/subscriber-history-browser.mjs` with `/tmp/mikrodash-97-history-evidence` — PASS, 8 appearance/viewport axe cases | Synthetic HTTP; 401/403, stale success/rejection isolation, account-switch race, partial JSON/retry, exact cursors, escaped data, final-page keyboard focus |
 | Contracts | Focused server/RBAC tests — PASS | Direct page denial, existing global authority with zero routers, no page-grant escalation, validated read-only simulation time and unchanged durable subscription/usage |
-| Frontend | `npm run typecheck`, `npm test` — PASS, 167 tests | Current TypeScript source and existing regressions retained |
+| Frontend | `npm run typecheck`, `npm test` — PASS, 168 tests | Current TypeScript source and existing regressions retained |
 | Shared visual rules | Existing form/icon/nav/selector/native-widget static gates — PASS | No weakened static check or duplicate component system |
 
 The protected browser audits all six module pages in dark/light at all four

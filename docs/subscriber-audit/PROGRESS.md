@@ -48,7 +48,7 @@ Added an independent expandable Subscriber Management sidebar category and six
 implemented pages; shared list-first cards/tables, guarded form/review dialogs,
 real snapshot detail and time simulation, exact units and genuine scoped counts.
 The protected HTTP/SQLite browser passed (286.528s), plan/history browser matrices
-passed, TypeScript and 167 frontend tests passed. Representative before/after
+passed, TypeScript and 168 frontend tests passed. Representative before/after
 images and per-page partial status are in UI-UX-UNIFICATION.md. This is an additive
 foundation: #38, #76 and the full #97 design acceptance remain open. Continue
 P0-CREDENTIAL and the retained commercial/policy/directory roadmap. The final

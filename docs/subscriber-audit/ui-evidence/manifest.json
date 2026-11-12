@@ -20,7 +20,7 @@
     "web/src/modals.ts": "2555f4d710f1cf13ccc6f35d45379598fab673f530cc32ac93e350af52c98a9d",
     "web/src/pages/subscriber-account-actions.ts": "b3a6b505c4bcca972cae84c0cbf9ddcd02fc2bb8e0b4e2737e3661fa3325bc47",
     "web/src/pages/subscriber-plan-limits.ts": "c9bf0a9afa6350e0ea6808807818bb8cf413c25683c1e348b7b84c22ec7ccb2e",
-    "web/src/pages/subscriber-reconciliation.ts": "a3c248d185b301eb84a5fe859deb42e646f9a601fbc6e6f9db7f1f7935758620",
+    "web/src/pages/subscriber-reconciliation.ts": "bc2722ee709c736c571285af0bed5ea2ef032ce879ef8dc80766824febc0f197",
     "web/src/pages/subscriber-status-history.ts": "2debff932e34636466f023cfc3c1a9249393d2044073af90b39e30bac930ef5f",
     "web/src/pages/subscribers.ts": "7196b7fa4b7f193bceba7cc84d2830ce122d9831ac92fd0791bd287cc5663dfa",
     "web/src/ui/page-subscriber-history.html": "ff3a3db9e3251c9c0c10a0a627eba39cc7c1ac5ed428a1540e21f22660ab91e0",
@@ -31,7 +31,8 @@
     "web/src/ui/page-subscribers.html": "ae714f59ccd4b59be66d316093a7ab66b72fb75275a430106e3eb9c2de1b1097",
     "web/src/ui/shell.html": "eedb23d23fc30ff027488110e37c36c00955a412041051877a62713edb42848f",
     "web/test/browser/subscriber-admin-entry.ts": "844700db4b56159c4c3ac716e7c91d4b94de85d3eeff28e73dfd4bd533f46b70",
-    "web/test/subscriber-plan-limits.test.ts": "85a271be2bacac4c29122ce323e889dbd9ed67b7e936237e663b559946ba7ff0"
+    "web/test/subscriber-plan-limits.test.ts": "85a271be2bacac4c29122ce323e889dbd9ed67b7e936237e663b559946ba7ff0",
+    "internal/server/principals_api_test.go": "32f29250353c6ce69b2f4e76b8528b9031ff982f4f4fd4f814259c72beb28a56"
   },
   "images": [
     {

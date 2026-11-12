@@ -45,7 +45,7 @@ export function initSubscriberReconciliation(api:API):(accounts:{id:string;usern
    rows.prepend(metrics);
    rows.querySelectorAll<HTMLFormElement>('form[data-review]').forEach(form=>{
     const button=document.createElement('button');button.type='button';button.className='sbtn sbtn-outline is-sm';button.textContent='Review settlement';form.before(button);
-    form.insertAdjacentHTML('beforeend',`<div class="ff-grid ff-one">${fieldHtml({id:form.dataset.fields+'-confirm',label:'I reviewed the evidence and approve this settlement.'},toggleHtml(form.dataset.fields+'-confirm',false).replace('<input','<input required'))}</div>`);
+    form.insertAdjacentHTML('beforeend',`<div class="ff-grid ff-one">${fieldHtml({id:form.dataset.fields+'-confirm',label:'I reviewed the evidence and approve this settlement.'},toggleHtml(form.dataset.fields+'-confirm',false,'required'))}</div>`);
     const dialog=managedModal('subscriberSettlement-'+form.dataset.fields,'Review Accounting Settlement',form);dialogs.push(dialog);
     form.addEventListener('submit',event=>{event.preventDefault();void settle(form,dialog);});button.addEventListener('click',()=>dialog.open());
    });

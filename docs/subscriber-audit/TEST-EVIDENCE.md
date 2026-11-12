@@ -60,7 +60,7 @@ cases retained. Native required fields, failed/stale/repeated saves, original
 Unicode, batch atomicity, read-only snapshots, evidence conservation, internal
 modal scrolling, focus, active/deep links/back/forward/reload/short mobile drawer
 and a labelled 5,001-row synthetic DOM case are covered. Frontend typecheck and
-167 tests pass; focused RBAC/server/static contracts pass. Raw local artifacts:
+168 tests pass; focused RBAC/server/static contracts pass. Raw local artifacts:
 `/tmp/mikrodash-97-final-sqlite-browser.log`, `/tmp/mikrodash-97-final-sqlite-evidence`,
 `/tmp/mikrodash-97-plan-evidence`, `/tmp/mikrodash-97-history-evidence`.
 Committed representative images and exact effective-source hashes are in
@@ -77,3 +77,5 @@ is preserved; the complete final gate runs in an isolated clean worktree.
 Final head/full gate/PR CI/merge/post-merge CI are recorded in Issue #97. No
 hardware/production activation is implied, and full platform/design dependencies
 remain open in the feature matrix.
+
+The first complete container gate also caught the exact no-settings-toggle census (14 -> 19 after adding five child pages) and a template-parser ambiguity from injecting required text. The census was updated for the new real pages and the existing toggleHtml inputAttrs argument is now used. Both targeted gates pass. Self-review replaced Number coercion in copied limit IDs with BigInt; the >2^53 non-reuse regression passes. The first full-gate failure is retained at /tmp/mikrodash-97-full-verify-initial.log.
