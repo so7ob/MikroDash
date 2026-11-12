@@ -24,15 +24,50 @@ accounts and malformed cursors are rejected. Cursors never change account scope.
 Only `account.active`, `account.suspended`, and `account.status.batch` actions are
 returned, using the existing account status index. No migration or new writes are
 introduced. Unrelated audit actions, credentials, balances and other accounts are
-excluded. The API and status-history view address part of #38's administration gap;
-general audit/usage screens and full device history remain pending.
+excluded. This API increment addresses part of #38's administration gap; a browser
+history view, general audit/usage screens and full device history remain pending.
 Actual L009/C acceptance under #76 remains untested.
 
 Regression tests use isolated SQLite fixtures for account/action isolation,
 50+3 pagination, inserts between pages, repeated cursors, IDs above 2^53, batch
 reason preservation, empty/invalid requests, authorization and disabled-runtime
-reads. Local full-package execution remains blocked by the pinned SQLite archive
-restriction; final-head GitHub CI is required before delivery.
+reads. Fresh local focused Go/SQLite and HTTP tests pass; the earlier SQLite
+download restriction no longer applies here. Current-head full repository gates
+and required GitHub CI remain separate delivery requirements.
+
+
+## Synthetic scale measurement (2026-11-13)
+
+`BenchmarkStatusHistoryScale` creates and asserts 100, 1,000, 10,000 and 100,000
+synthetic accounts, one status audit per account and 100 extra entries on the
+selected account. Each measured read calls the production Store.StatusHistory
+and asserts a bounded 50-event page with a next cursor. Setup and password
+hashing are excluded from per-operation timings. Authentication, HTTP, concurrent
+load, network sessions and routers are not exercised.
+
+Measured at source `02848d93c28473834f0d4d70fa7ab27f652258a3`, Go 1.27.3,
+Linux/amd64, Intel Xeon E-2176M 2.70 GHz, benchmark concurrency setting 4:
+
+| Synthetic subscribers | ns/op | allocated bytes/op | allocations/op |
+|---|---:|---:|---:|
+| 100 | 727262 | 21663 | 491 |
+| 1000 | 666440 | 22093 | 543 |
+| 10000 | 612502 | 22082 | 543 |
+| 100000 | 776563 | 22096 | 543 |
+
+The complete benchmark process, including all database setup, used 6.11s user
+CPU and 2.41s system CPU in 7.25s wall time with peak RSS 29,912 KiB. These are
+one-run local measurements, not latency percentiles, SLA, server memory usage or
+proof of 100,000 concurrent subscribers. No RouterOS connection is opened.
+Raw local output: `/tmp/mikrodash-80-scale.log`.
+
+Reproduce independently of ordinary tests:
+
+```sh
+go test -c -o /tmp/mikrodash-history-bench.test ./internal/subscriber
+/usr/bin/time -v /tmp/mikrodash-history-bench.test -test.run '^$' \
+  -test.bench '^BenchmarkStatusHistoryScale$' -test.benchtime=250ms -test.benchmem
+```
 
 ## Administrator view
 

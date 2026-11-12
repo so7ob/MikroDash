@@ -81,17 +81,24 @@ func (d *DB) SetActivitySettings(router string, v activity.Settings) error {
 // PersistActivity is atomic: retries can replay identified rows safely and
 // counters/coverage cannot claim an event was stored before its transaction.
 func (d *DB) PersistActivity(events []activity.Event, statuses map[string]activity.Status, coverage map[string]activity.Coverage, checkpoints map[string]activity.Checkpoint) error {
+	d.activityMu.Lock()
+	defer d.activityMu.Unlock()
 	tx, err := d.sql.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	indexer, err := newActivityIndexer(tx)
+	if err != nil {
+		return err
+	}
+	defer indexer.close()
 	stmt, err := tx.Prepare(`INSERT INTO activity_events(router_id,source_key,at,received,kind,payload) VALUES(?,?,?,?,?,?) ON CONFLICT(router_id,source_key) DO NOTHING`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	enrich, err := tx.Prepare(`UPDATE activity_events SET payload=json_patch(payload,?) WHERE router_id=? AND source_key=? AND kind='dns'`)
+	enrich, err := tx.Prepare(`UPDATE activity_events SET payload=json_patch(payload,?) WHERE router_id=? AND source_key=? AND kind='dns' RETURNING id,payload`)
 	if err != nil {
 		return err
 	}
@@ -118,7 +125,21 @@ func (d *DB) PersistActivity(events []activity.Event, statuses map[string]activi
 				if err != nil {
 					return err
 				}
-				if _, err = enrich.Exec(string(body), e.RouterID, e.SourceKey); err != nil {
+				var id int64
+				var stored string
+				err = enrich.QueryRow(string(body), e.RouterID, e.SourceKey).Scan(&id, &stored)
+				if err == sql.ErrNoRows {
+					continue
+				}
+				if err != nil {
+					return err
+				}
+				var original activity.Event
+				if err = json.Unmarshal([]byte(stored), &original); err != nil {
+					return err
+				}
+				original.RouterID = e.RouterID
+				if err = indexer.add(id, original); err != nil {
 					return err
 				}
 			}
@@ -132,8 +153,22 @@ func (d *DB) PersistActivity(events []activity.Event, statuses map[string]activi
 		if e.SourceKey != "" {
 			key = e.SourceKey
 		}
-		if _, err = stmt.Exec(e.RouterID, key, e.At, e.Received, e.Kind, string(b)); err != nil {
+		result, insertErr := stmt.Exec(e.RouterID, key, e.At, e.Received, e.Kind, string(b))
+		if insertErr != nil {
+			return insertErr
+		}
+		n, err := result.RowsAffected()
+		if err != nil {
 			return err
+		}
+		if n > 0 {
+			id, err := result.LastInsertId()
+			if err != nil {
+				return err
+			}
+			if err = indexer.add(id, e); err != nil {
+				return err
+			}
 		}
 	}
 	for id, s := range statuses {
@@ -249,6 +284,8 @@ func (d *DB) DeleteActivityRule(router, domain string) error {
 // This sweep touches only activity's own event/counter/coverage data. Event
 // retention uses reception so an uncertain router clock cannot retain forever.
 func (d *DB) PruneActivity(now int64) error {
+	d.activityMu.Lock()
+	defer d.activityMu.Unlock()
 	cutoff := now - int64(activity.Retention/time.Millisecond)
 	tx, err := d.sql.Begin()
 	if err != nil {
@@ -259,6 +296,9 @@ func (d *DB) PruneActivity(now int64) error {
 		if _, err = tx.Exec(q, cutoff); err != nil {
 			return err
 		}
+	}
+	if _, err = tx.Exec(`DELETE FROM activity_shapes WHERE NOT EXISTS(SELECT 1 FROM activity_facts a WHERE a.router_id=activity_shapes.router_id AND a.shape_id=activity_shapes.id)`); err != nil {
+		return err
 	}
 	return tx.Commit()
 }

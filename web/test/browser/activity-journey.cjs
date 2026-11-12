@@ -6,7 +6,7 @@ const assert=require('node:assert/strict');
  const context=await browser.newContext({viewport:{width:1280,height:1000},acceptDownloads:true,hasTouch:true,timezoneId:'UTC'});
  await context.addCookies([{name:'mikrodash_sid',value:'activity-test-token',url:process.argv[2]}]);
  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto(process.argv[2]+'/journey');await page.waitForFunction(()=>document.querySelector('#activityState')?.textContent?.includes('disabled'));
+ await page.goto(process.argv[2]+'/journey');await page.waitForFunction(()=>document.querySelector('#page-activity')?.getAttribute('aria-busy')==='false');
  const settled=()=>page.waitForFunction(()=>document.querySelector('#page-activity')?.getAttribute('aria-busy')==='false');
  for(const tab of ['summary','domains','clients','events','rules']){
   await page.locator(`[data-view="${tab}"]`).click();await settled();
@@ -37,11 +37,12 @@ const assert=require('node:assert/strict');
  await page.locator('#activityEnabled').check();await page.locator('#activityTimezone').fill('UTC');await page.locator('#activitySaveSettings').click();
  await page.waitForTimeout(1200);
  await Promise.all([page.waitForResponse(r=>new URL(r.url()).pathname==='/api/activity/query'&&r.status()===200),page.evaluate(()=>window.dispatchEvent(new Event('fixture-invalidate')))]);
- await page.waitForFunction(()=>document.querySelector('#activityCount')?.textContent==='130');
+ await page.waitForFunction(()=>document.querySelector('#activityState')?.textContent?.includes('131 stored events'));
  await page.locator('#activityDays').selectOption('1');await settled();
  await page.locator('[data-view="summary"]').click();await settled();
  assert.equal(await page.locator('#activityState').isVisible(),false,'source save exposed status outside sync tab');
  await require('./activity-copy-journey.cjs')(page,context,settled);
+ await require('./activity-live-journey.cjs')(page,settled);
  await page.screenshot({path:'/tmp/mikrodash-activity-desktop.png',fullPage:true});
  // Every overview chart/ranking filters in place; only Ctrl opens Events.
  const resetOverview=async()=>{
@@ -353,5 +354,17 @@ const assert=require('node:assert/strict');
  assert.equal(await page.locator('#activityState').isVisible(),false);
  await page.keyboard.press('Tab');assert.ok(await page.evaluate(()=>document.activeElement!==document.body));
  assert.deepEqual(errors,[]);console.log('journey: source enable, archive import, user drilldown, CSV, rules, reclassification, URL reload, country/day/hour groups, seven doughnuts, 375/1280, dark/light and keyboard passed');
+ // Real committed arrivals refresh the first page and keep later pages anchored.
+ await page.goto(process.argv[2]+'/journey?routerId=r1&tab=events');await settled();
+ await page.locator('#activityNext').click();await settled();
+ const reference=await page.locator('#activityTableBody tr').first().getAttribute('data-event-id');
+ await page.request.post(process.argv[2]+'/fixture/append');
+ await page.evaluate(()=>window.dispatchEvent(new Event('fixture-invalidate')));await page.waitForTimeout(1100);await settled();
+ assert.equal(await page.locator('#activityTableBody tr').first().getAttribute('data-event-id'),reference,'new arrival moved a later page');
+ await page.locator('#activityPrev').click();await settled();
+ await page.request.post(process.argv[2]+'/fixture/append');
+ await page.evaluate(()=>window.dispatchEvent(new Event('fixture-invalidate')));await page.waitForTimeout(1100);await settled();
+ assert.match(await page.locator('#activityTableBody tr').first().innerText(),/new-live.example/,'first page did not automatically show newest arrival');
+ console.log('real HTTP arrival: first page updates, later page anchor retained');
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

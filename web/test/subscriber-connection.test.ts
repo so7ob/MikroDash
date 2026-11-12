@@ -65,3 +65,10 @@ test('HotSpot returns accept only one owned root reference after a single decode
   assert.throws(()=>hotspotDestination('login',origin,'https://foreign.example.test/','',''));
   assert.throws(()=>hotspotDestination('success','http://portal.example.test',origin,'',''));
 });
+
+test('Arabic connection labels preserve owned-device freshness and constraint identity', () => {
+  assert.equal(connectionView(status, observed, 'ar').label, 'متصل بالإنترنت');
+  assert.equal(connectionView(status, observed + 5001, 'ar').connected, false);
+  assert.equal(connectionReason('exhausted:باقة <A>', 'ar'), 'نفد الرصيد: باقة <A>');
+  assert.match(connectionView({ ...status, stage: 'authorized' }, observed, 'ar').label, /بانتظار تأكيد/);
+});

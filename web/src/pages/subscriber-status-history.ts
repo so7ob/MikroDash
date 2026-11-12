@@ -45,7 +45,7 @@ export function createStatusHistory(api:API, changed:(state:HistoryState)=>void)
 
 export function historyMarkup(s:HistoryState):string {
   const message=s.busy?'Loading status history…':s.error?s.error:s.loaded?(s.events.length?`${s.events.length} events loaded.`:'No status changes recorded.'):'Choose Status history on a subscriber.';
-  return `<h4 tabindex="-1" data-history-heading>Status history${s.accountId?' — '+esc(s.label):''}</h4><p>Administrative changes only. These records do not confirm router application or disconnection.</p><p role="status" aria-live="polite">${esc(message)}</p>`+
+  return `<h4 tabindex="-1" data-history-heading>Status history${s.accountId?' - '+esc(s.label):''}</h4><p>Administrative changes only. These records do not confirm router application or disconnection.</p><p role="status" aria-live="polite">${esc(message)}</p>`+
     (s.accountId?`<button type="button" class="sbtn sbtn-outline" data-history="refresh" ${s.busy?'disabled':''}>Refresh history</button>`:'')+
     (s.error?` <button type="button" class="sbtn sbtn-outline" data-history="retry" ${s.busy?'disabled':''}>Retry page</button>`:'')+
     `<ol>${s.events.map(e=>`<li><p><strong>${esc(e.action==='account.active'?'Activated':e.action==='account.suspended'?'Suspended':'Reviewed status change')}</strong> · ${esc(fmtTs(e.createdAt*1000,true))}</p><p>Actor: ${esc(e.actor)} · Audit ID: ${esc(e.id)}</p><p class="text-break">${esc(e.reason)}</p></li>`).join('')}</ol>`+

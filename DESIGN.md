@@ -767,3 +767,58 @@ visual consistency audit: 8/10, with zero new decorative patterns. Complete
 HotSpot handoff, live connected-state browser proof and manual screen-reader
 acceptance remain pending; the automated checks do not establish all WCAG 2.2
 criteria or target-router acceptance.
+
+### Draft subscriber plan limits
+
+The existing dense plan form now includes a calendar-zone field and conditional
+throttle ceilings using the shared grid, inputs and semantic buttons. Each draft
+limit has inline Edit/Remove actions; editing retains its ID and exposes Cancel.
+No modal, palette, font or new card system is introduced. Pending plan saves freeze
+the controls; failure preserves the draft and explains that the save is unconfirmed.
+
+Synthetic Chromium checks cover edit/cancel/remove, keyboard focus, repeated and
+interrupted saves, escaped Unicode and dark/light/Nord at 375/1280 with zero axe
+findings under the existing tags. Scrolled mobile control screenshots supplement
+the app's main-panel viewport captures. Checklist: zero new decorative patterns.
+
+### Activity query scope and live pages
+
+Retain the existing dense technical console, fonts, palette, tabs and controls.
+The header badge names the selected period and appears on analysis tabs; the
+Synchronization status separately names all retained events and initial index
+progress. No additional chart, dialog or navigation mode is introduced.
+
+Automatic Events updates preserve the later page's reference row, scroll and
+keyboard focus. Only the visible tab renders its data. A reference removed by
+retention moves to the nearest retained page with an accurate final-page boundary.
+Status-only updates change synchronization text without repainting analytics.
+The existing 375/1280, keyboard, Ctrl-copy, dark/light/Nord and axe browser journey
+covers these changes; no new decorative patterns or design system are introduced.
+
+### So7ob subscriber portal (Issue #88)
+
+At the operator's explicit request, the isolated subscriber listener now uses
+its existing So7ob green-C identity: Arabic/RTL, local Tajawal, the supplied
+white logo, a light mint field, green hero, 24px surface corners and spacious
+credential controls. This supersedes the English/LTR shared-console portal
+choice above for this listener only. Administration and the generated NAS
+handoff keep their existing styling and language. `subscriber-portal.css` owns
+the standalone palette and a bounded shape exception; console tokens and
+shape checks remain unchanged elsewhere.
+
+Voucher/account choices and local QR scanning lead to MikroDash authentication.
+The account uses real plan limits, speeds and owned sessions; static example
+prices and RouterOS template expressions are absent. Connection, authorization,
+accounting uncertainty and portal sign-in retain separate text states. Data
+names are escaped and preserved; numbers use Latin digits. Keyboard focus,
+native modal containment, camera cleanup and live updates are tested at 375/1280.
+
+
+### Subscriber account status history
+
+The existing dense English/LTR console adds a fifth wrapping header tab using
+the shared roving keyboard focus, local fonts and semantic controls. History
+keeps exact audit IDs, escaped reasons and clear loading/error/empty states.
+Older-page errors retain loaded rows; account changes fence delayed responses.
+The plan draft editor and guarded submission behavior remain intact. No new
+palette, typography, asset source, decorative pattern or framework is introduced.

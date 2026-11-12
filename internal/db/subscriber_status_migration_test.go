@@ -33,7 +33,7 @@ func TestStatusRevisionIndexMigrationPreservesAccountsCredentialsAndAudit(t *tes
 	if _, err = d.sql.Exec(`DROP INDEX subscriber_status_revision; DELETE FROM schema_version WHERE version>43;`); err != nil {
 		t.Fatal(err)
 	}
-	if count, err := d.Migrate(); err != nil || count != 1 {
+	if count, err := d.Migrate(); err != nil || count != schemaVersion-43 {
 		t.Fatal("v43 status-index migration failed", count, err)
 	}
 	after, err := store.Accounts(t.Context())
