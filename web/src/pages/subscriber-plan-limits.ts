@@ -38,16 +38,16 @@ export function draftLimit(id: string, input: LimitInput): SubscriberLimit {
 // are detached from later edits, including nested calendar period fields.
 export class SubscriberLimitDraft {
   private limits: SubscriberLimit[] = [];
-  private sequence = 0;
+  private sequence = 0n;
   save(input: LimitInput, id?: string): void {
     const index = id === undefined ? -1 : this.limits.findIndex(limit => limit.id === id);
     if (id !== undefined && index < 0) throw new Error('That draft limit no longer exists.');
-    const limit = draftLimit(id ?? `limit-${this.sequence + 1}`, input);
+    const limit = draftLimit(id ?? `limit-${this.sequence + 1n}`, input);
     if (index < 0) { this.sequence++; this.limits.push(limit); }
     else this.limits[index] = limit;
   }
   remove(id: string): void { this.limits = this.limits.filter(limit => limit.id !== id); }
-  reset(limits: SubscriberLimit[]): void { this.limits = structuredClone(limits); this.sequence = Math.max(0, ...limits.map(l => /^limit-[0-9]+$/.test(l.id) ? Number(l.id.slice(6)) : 0)); }
+  reset(limits: SubscriberLimit[]): void { this.limits = structuredClone(limits); this.sequence = limits.reduce((max,l) => { const n=/^limit-[0-9]+$/.test(l.id)?BigInt(l.id.slice(6)):0n;return n>max?n:max; },0n); }
   snapshot(): SubscriberLimit[] { return structuredClone(this.limits); }
 }
 
