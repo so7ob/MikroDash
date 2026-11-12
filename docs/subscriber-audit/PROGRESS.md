@@ -16,3 +16,5 @@ Initial audit created under #95. Source and branch inspection is complete enough
 | #94 | Closed `not_planned`; remote/local branch not found | No implementation to reuse found; durable delivery needs new scoped issue |
 
 Preserved unrelated local `.vscode/` and two `cmd/mikrodash/__debug_bin*` files. No runtime/service restart, operator data mutation, router write, main promotion or release performed. Existing checkpoint/feature refs and worktrees retained.
+
+2026-11-13 implementation pass: #77 updated without force-push to `bdc31ae39378ea2eceaa6ec777a1714a96956339`; only verification-document append conflict required resolution. Source self-review and all existing review conversations checked (none). Full visible-checkout gate failed on ignored `.temp/activity-82-upgrade/check.go` formatting; 156 frontend and 32 tooling tests passed. Clean detached worktree at the same SHA is running full checks; no user scratch file changed.
