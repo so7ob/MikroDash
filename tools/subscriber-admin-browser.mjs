@@ -216,6 +216,43 @@ try {
  stored=await currentAccounts();for(const id of [createdAccount.id,otherAccount.id])assert.equal(stored.accounts.find(account=>account.id===id).status,'active');
  for(const width of [375,1280]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'batch results overflow');const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);await page.screenshot({path:`${out}/subscriber-status-results-synthetic-${width}.png`,fullPage:true});}
 
+ // Read the committed batch audit through the actual protected SQLite API.
+ const historyResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/subscribers/status-history');
+ await page.locator(`[data-sub-history="${createdAccount.id}"]`).click();
+ const history=await (await historyResponse).json();assert.equal(history.accountId,createdAccount.id);assert.equal(history.events.length,2);
+ assert.equal(JSON.parse(history.events[1].reason).batchId,appliedResult.batchId);
+ assert.equal(JSON.parse(history.events[0].reason).batchId,secondResult.batchId);
+ const historyPanel=page.locator('#subscriberStatusHistory');
+ await historyPanel.getByText('2 events loaded.',{exact:true}).waitFor();
+ assert.equal(await historyPanel.locator('li').count(),2);
+ assert.equal(JSON.parse(history.events[1].reason).reason,batchReason);
+ assert.ok((await historyPanel.innerText()).includes(batchReason),'reviewed reason is unreadable');
+ assert.ok((await historyPanel.innerText()).includes('Before: active · After: suspended'));
+ assert.equal(await page.getByRole('tab',{name:'Status history',exact:true}).evaluate(node=>node===document.activeElement),true);
+ const originalEvidence=historyPanel.locator('details').nth(1).locator('summary');
+ await originalEvidence.focus();await page.keyboard.press('Enter');
+ assert.equal(await originalEvidence.evaluate(node=>node===document.activeElement),true,'native evidence disclosure lost keyboard focus');
+ assert.ok((await historyPanel.innerText()).includes(history.events[1].reason),'stored JSON audit evidence changed in the view');
+ assert.ok(!(await historyPanel.innerText()).includes('Synthetic concurrent administrator'),'other account history leaked');
+ assert.equal(await historyPanel.locator('script').count(),0);
+ for(const appearance of [{theme:'dark',palette:''},{theme:'light',palette:''},{theme:'dark',palette:'nord'}]) {
+  await page.evaluate(({theme,palette})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.bsTheme=theme;if(palette)document.documentElement.dataset.palette=palette;else delete document.documentElement.dataset.palette;},appearance);
+  for(const width of [375,1280]) {
+   await page.setViewportSize({width,height:1000});
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'history overflow');
+   const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);
+   await page.screenshot({path:`${out}/subscriber-history-sqlite-${appearance.theme}-${appearance.palette||'default'}-${width}.png`,fullPage:true});
+  }
+ }
+ await page.getByRole('tab',{name:'Subscribers',exact:true}).click();
+ const otherHistoryResponse=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/subscribers/status-history');
+ await page.locator(`[data-sub-history="${otherAccount.id}"]`).click();
+ const otherHistory=await (await otherHistoryResponse).json();assert.equal(otherHistory.accountId,otherAccount.id);assert.equal(otherHistory.events.length,4);
+ await historyPanel.getByText('4 events loaded.',{exact:true}).waitFor();
+ assert.ok((await historyPanel.innerText()).includes('Synthetic concurrent administrator'));
+ await page.getByRole('tab',{name:'Subscribers',exact:true}).click();
+ await page.evaluate(()=>{document.documentElement.dataset.theme='dark';document.documentElement.dataset.bsTheme='dark';delete document.documentElement.dataset.palette;});
+
  await page.locator(`[data-sub-inspect="${process.env.SUBSCRIBER_ACCOUNT_ID}"]`).click();
  await page.locator('#subscriberInspect').getByText('Accounting reconciliation required (1 pending). Last confirmed balances are shown. New Internet connections are blocked until the counters are settled.',{exact:true}).waitFor();
  assert.ok(!(await page.locator('#subscriberInspect').innerText()).includes('Unknown'),'pending accounting hid trusted limit cards');
@@ -301,7 +338,7 @@ try {
  assert.equal(await final.count(),0);
  assert.deepEqual(errors,[]);
  await context.close();
- console.log('Subscriber admin browser acceptance passed: protected SQLite approval, conservation refusal, retained evidence, account-race isolation, keyboard tabs, Unicode, 375/1280 and axe.');
+ console.log('Subscriber admin browser acceptance passed: protected SQLite history and approval, conservation refusal, retained evidence, account-race isolation, keyboard tabs, Unicode, 375/1280 and axe.');
 } catch(error) {
  try {
   if(diagnosticPage&&!diagnosticPage.isClosed()){

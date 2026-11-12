@@ -68,3 +68,34 @@ go test -c -o /tmp/mikrodash-history-bench.test ./internal/subscriber
 /usr/bin/time -v /tmp/mikrodash-history-bench.test -test.run '^$' \
   -test.bench '^BenchmarkStatusHistoryScale$' -test.benchtime=250ms -test.benchmem
 ```
+
+## Administrator view
+
+Choose **Status history** on a subscriber row to open the history tab for that
+account. The view clears old rows immediately on account selection and ignores
+late responses from previous selections. It displays loading, empty and error
+states; **Retry page** retains already loaded entries after an interrupted older
+page. **Load older changes** passes the exact decimal cursor. **Refresh history**
+starts again from the latest page. Repeated clicks during a pending request do
+not issue another request. Source text is escaped and dates use the installation's
+shared timezone formatter. Historical batch reasons remain the original evidence
+string. No historical before-state or successful NAS application is inferred.
+
+The view uses the same administrator API; it does not change authorization,
+configuration or router state. It is an incremental status-audit view, not a
+complete usage/device/general-audit screen. Local browser checks use synthetic
+HTTP responses, the actual administrator page and vendored assets. They cover
+account switching with delayed results, empty/loading states, a truncated older
+page and retry, exact cursors, keyboard focus, refresh, and dark/light layouts at
+375/1280px with axe accessibility checks. They are not live-router acceptance.
+
+Review regressions also cover stale history rejection, initial-page failure and
+retry, synthetic HTTP401/403 responses through the real fetch helper, and leaving
+a tab while history loads. A reproduced inherited Inspect race was fixed:
+Inspect responses and errors now respect newer Inspect/tab selections and leaving
+the Subscribers page, so they cannot replace a newer history view or its notice.
+
+Validated batch evidence displays its stored reason, before/after status and batch
+ID as labelled text. Original audit record opens the unchanged source string.
+Legacy, malformed or incomplete envelopes remain escaped literal text; no
+transition is inferred. Stored status records never prove network application.
