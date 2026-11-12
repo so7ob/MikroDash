@@ -13,3 +13,5 @@ Extend through scoped store methods and existing protected handlers, declared We
 The current `Accounts` and `Plans` endpoints read entire collections. Separate bounded directory/session queries and aggregate metrics from individual account snapshots. Add query-plan/scale evidence before claiming 100,000-account readiness. New detail routes must retain current page permission keys and navigation event vocabulary.
 
 No migration can replace historical totals with current-period balances. Migration needs a reviewed source fingerprint, explicit mapping/conversion, per-chunk idempotency and rollback that never rewrites already-accounted network usage.
+
+Owner-confirmed commercial contract (2026-11-13): renewal and plan changes create a fresh period without carrying remaining time/data. Historical subscription versions and usage remain immutable. Review must show discarded remaining entitlement explicitly before confirmation; add request-key idempotency and a receipt before automating renewals. Network delegation renewal remains a distinct operation.

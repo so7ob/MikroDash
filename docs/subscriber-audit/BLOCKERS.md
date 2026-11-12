@@ -12,3 +12,5 @@ Snapshot: 2026-11-13 (Asia/Aden). Baseline `ba39515f003484211afe3dfef783ade6dc39
 Prior notes mentioned a blocked SQLite download; that is historical and must be checked before reuse. Current test results will establish whether it remains a blocker. No network or dependency restrictions will be bypassed. No real payment gateway or production cutover authorized.
 
 Local gate isolation: ignored `.temp/activity-82-upgrade/check.go` is not gofmt-clean, so running the unmodified full gate in the operator checkout stops before Go tests. Use a clean detached worktree at the exact candidate SHA. This is a verification-environment constraint, not justification to edit scratch files or weaken gofmt. #77 clean-worktree gate passed.
+
+Resolved policy question: on 2026-11-13 the owner chose new commercial periods without rollover, retaining prior subscriptions and usage. This decision removes the commercial rollover-policy blocker. It does not authorize resetting accounting buckets in place or waiving idempotency/reconciliation.

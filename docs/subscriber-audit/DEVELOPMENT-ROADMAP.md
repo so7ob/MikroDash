@@ -26,3 +26,7 @@ Each row is an independently testable feature group, not a claim that every chil
 | P3-LOAD | Scale and failure performance evidence / Missing | No measured 100k directory/session report / all | P3 | DIRECTORY,SESSIONS,REPORTS | synthetic benchmark harness | 100/1k/10k/100k where possible, duration/RSS/CPU/connections, concurrent renew/retry/Stop/restart faults; raw results + environment | No measurements yet |
 
 Complete one scoped Issue -> numbered branch -> related checks -> full stable gate -> protected PR -> successful current-base CI -> squash to develop -> post-merge CI -> ledger refresh, then next available feature. Blocked hardware never blocks independent software work. Do not close #38 or #76 on partial increments.
+
+## Approved commercial policy and child requirements
+
+On 2026-11-13 the owner selected fresh periods without rollover for renewal/plan changes, retaining historical subscriptions and usage. P1-ENTITLEMENT is no longer waiting on this policy choice. Implement explicit review, idempotent operation/receipt and concurrent failure handling with that rule. FEATURE-MATRIX.md names the individual A-N acceptance checkpoints covered by these roadmap groups. General credentials, detailed history, saved-plan windows/speeds/archive and all unresolved workflows remain in scope.
