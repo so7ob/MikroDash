@@ -49,8 +49,10 @@ try {
  await page.locator('#portalQR').click();await page.locator('#portalQRCamera').click();await page.evaluate(()=>window.__cameraResolve());
  await page.locator('#portalQRVideo').waitFor({state:'visible'});await page.keyboard.press('Escape');
  await page.waitForFunction(()=>window.__cameraStops===2);assert.equal(await page.locator('#portalQRVideo').isHidden(),true);
- // Image path: actual local QR decoding fills a voucher and never submits it.
+ // Image path: a mobile system picker may hide the page before returning a file.
  await page.locator('#portalQR').click();
+ await page.evaluate(()=>{Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'));delete document.hidden;document.dispatchEvent(new Event('visibilitychange'));});
+ assert.equal(await page.locator('#portalQRDialog').isVisible(),true,'system image picker closed the QR dialog');
  await page.locator('#portalQRFile').setInputFiles({name:'voucher.png',mimeType:'image/png',buffer:await QRCode.toBuffer(process.env.SUBSCRIBER_TEST_VOUCHER)});
  await page.locator('#portalQRDialog').waitFor({state:'hidden'});
  assert.equal(await page.locator('#subscriberUsername').inputValue(),process.env.SUBSCRIBER_TEST_VOUCHER);

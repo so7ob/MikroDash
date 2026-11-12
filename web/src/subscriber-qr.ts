@@ -46,7 +46,9 @@ export function initSubscriberQR(apply: (code: string) => void): { close: () => 
   });
   dialog.addEventListener('cancel', stop);
   dialog.addEventListener('close', stop);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) close(); });
+  // A system image picker can hide the page. Release the camera without
+  // closing the dialog, so its eventual file selection can still be decoded.
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); });
   window.addEventListener('pagehide', close);
   file.addEventListener('change', async () => {
     const image = file.files?.[0]; if (!image) return;
