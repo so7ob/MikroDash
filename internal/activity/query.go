@@ -8,31 +8,35 @@ import (
 )
 
 type Filter struct {
-	DNSCountry string `json:"dnsCountry"`
-	Canonical  string `json:"canonical"`
-	DeviceName string `json:"deviceName"`
-	DNSIP      string `json:"dnsIP"`
-	IPBasis    string `json:"ipBasis"`
-	Server     string `json:"server"`
-	QType      string `json:"qtype"`
-	Match      string `json:"match"`
-	Country    string `json:"country"`
-	Day        string `json:"day"`
-	Hour       string `json:"hour"`
-	From       int64  `json:"from"`
-	To         int64  `json:"to"`
-	Search     string `json:"search"`
-	Client     string `json:"client"`
-	Domain     string `json:"domain"`
-	Service    string `json:"service"`
-	Category   string `json:"category"`
-	Kind       string `json:"kind"`
-	View       string `json:"view"`
-	Group      string `json:"group"`
-	Sort       string `json:"sort"`
-	Desc       bool   `json:"desc"`
-	Page       int    `json:"page"`
-	Limit      int    `json:"limit"`
+	Parts       string `json:"parts,omitempty"`
+	Cursor      string `json:"cursor,omitempty"`
+	Anchor      string `json:"anchor,omitempty"`
+	RollingDays int    `json:"rollingDays,omitempty"`
+	DNSCountry  string `json:"dnsCountry"`
+	Canonical   string `json:"canonical"`
+	DeviceName  string `json:"deviceName"`
+	DNSIP       string `json:"dnsIP"`
+	IPBasis     string `json:"ipBasis"`
+	Server      string `json:"server"`
+	QType       string `json:"qtype"`
+	Match       string `json:"match"`
+	Country     string `json:"country"`
+	Day         string `json:"day"`
+	Hour        string `json:"hour"`
+	From        int64  `json:"from"`
+	To          int64  `json:"to"`
+	Search      string `json:"search"`
+	Client      string `json:"client"`
+	Domain      string `json:"domain"`
+	Service     string `json:"service"`
+	Category    string `json:"category"`
+	Kind        string `json:"kind"`
+	View        string `json:"view"`
+	Group       string `json:"group"`
+	Sort        string `json:"sort"`
+	Desc        bool   `json:"desc"`
+	Page        int    `json:"page"`
+	Limit       int    `json:"limit"`
 }
 
 type Totals struct {
@@ -75,30 +79,41 @@ type Heat struct {
 // Result is the generated REST response. The invalidation event carries only
 // RouterID, so large query results never fan out.
 type Result struct {
-	DNSCountries []Ranking  `json:"dnsCountries"`
-	QueryTypes   []Ranking  `json:"queryTypes"`
-	MatchMethods []Ranking  `json:"matchMethods"`
-	IPBases      []Ranking  `json:"ipBases"`
-	Countries    []Ranking  `json:"countries"`
-	GeoAvailable bool       `json:"geoAvailable"`
-	RouterID     string     `json:"routerId"`
-	Filter       Filter     `json:"filter"`
-	Totals       Totals     `json:"totals"`
-	Rows         []Ranking  `json:"rows"`
-	Events       []Event    `json:"events"`
-	Services     []Ranking  `json:"services"`
-	Clients      []Ranking  `json:"clients"`
-	Categories   []Ranking  `json:"categories"`
-	Series       []Point    `json:"series"`
-	Heatmap      []Heat     `json:"heatmap"`
-	Coverage     []Coverage `json:"coverage"`
-	Rules        []Rule     `json:"rules"`
-	TotalRows    int        `json:"totalRows"`
-	Previous     int        `json:"previous"`
-	Comparison   bool       `json:"comparison"`
-	CanWrite     bool       `json:"canWrite"`
-	Status       Status     `json:"status"`
-	Settings     Settings   `json:"settings"`
+	ResultVersion string     `json:"resultVersion"`
+	HasNext       bool       `json:"hasNext"`
+	HasPrevious   bool       `json:"hasPrevious"`
+	RefreshAt     int64      `json:"refreshAt"`
+	ComputedAt    int64      `json:"computedAt"`
+	DataRevision  int64      `json:"dataRevision"`
+	TotalStored   int64      `json:"totalStored"`
+	IndexPending  int64      `json:"indexPending"`
+	NextCursor    string     `json:"nextCursor"`
+	PrevCursor    string     `json:"prevCursor"`
+	Anchor        string     `json:"anchor"`
+	DNSCountries  []Ranking  `json:"dnsCountries"`
+	QueryTypes    []Ranking  `json:"queryTypes"`
+	MatchMethods  []Ranking  `json:"matchMethods"`
+	IPBases       []Ranking  `json:"ipBases"`
+	Countries     []Ranking  `json:"countries"`
+	GeoAvailable  bool       `json:"geoAvailable"`
+	RouterID      string     `json:"routerId"`
+	Filter        Filter     `json:"filter"`
+	Totals        Totals     `json:"totals"`
+	Rows          []Ranking  `json:"rows"`
+	Events        []Event    `json:"events"`
+	Services      []Ranking  `json:"services"`
+	Clients       []Ranking  `json:"clients"`
+	Categories    []Ranking  `json:"categories"`
+	Series        []Point    `json:"series"`
+	Heatmap       []Heat     `json:"heatmap"`
+	Coverage      []Coverage `json:"coverage"`
+	Rules         []Rule     `json:"rules"`
+	TotalRows     int        `json:"totalRows"`
+	Previous      int        `json:"previous"`
+	Comparison    bool       `json:"comparison"`
+	CanWrite      bool       `json:"canWrite"`
+	Status        Status     `json:"status"`
+	Settings      Settings   `json:"settings"`
 }
 
 func Matches(e Event, f Filter) bool {
@@ -142,7 +157,7 @@ func Matches(e Event, f Filter) bool {
 		return false
 	}
 	if f.Search != "" {
-		hay := strings.ToLower(strings.Join([]string{e.Domain, e.Service, e.Category, e.User, e.IP, e.MAC, e.Server, e.Destination, e.Protocol, e.Canonical, e.DeviceName, e.IPBasis, e.QType, e.Match, strings.Join(e.DNSIPs, " ")}, " "))
+		hay := SearchText(e)
 		if !strings.Contains(hay, strings.ToLower(f.Search)) {
 			return false
 		}
@@ -269,12 +284,11 @@ func Analyze(f Filter, rules []Rule, zone string, walk func(int64, int64, func(E
 	if f.To-f.From > 7*24*bucket {
 		bucket *= 6
 	}
+	evaluator := NewEvaluator(zone, rules, lookup)
 	previousFrom := f.From - (f.To - f.From)
 	err = walk(previousFrom, f.To, func(e Event) error {
-		if e.Kind == "dns" {
-			e.Service, e.Category = Classify(e.Domain, rules)
-		}
-		Enrich(&e, zone, lookup)
+		evaluator.Classify(&e)
+		evaluator.Enrich(&e)
 		if !Matches(e, f) {
 			return nil
 		}

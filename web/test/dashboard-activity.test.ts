@@ -93,3 +93,27 @@ test('country card prefers labelled DNS answer evidence and preserves Firewall f
   assert.match(node.innerHTML,/Firewall destination/);
  } finally {globalThis.document=saved;}
 });
+
+test('status notifications update only card status and rolling expiry refreshes analytics', async () => {
+ const handlers:Record<string,Function[]>={},listeners:Record<string,Function[]>={},nodes=new Map<string,any>();
+ const state={textContent:'',classList:{toggle() {},remove(){},add(){}}};let redraws=0;
+ const node=()=>({style:{display:''},classList:{contains:()=>true,add(){},remove(){},toggle(){}},querySelector:(selector:string)=>selector==='.dc-activity-status'?state:null,addEventListener(){},setAttribute(){},removeAttribute(){},set innerHTML(_value:string){redraws++}});
+ for(const kind of ACTIVITY_CARDS){nodes.set('dc-card-activity-'+kind,node());nodes.set('dc-activity-'+kind,node())}
+ nodes.set('dash-grid-root',node());nodes.set('page-dashboard',node());
+ const doc:any={hidden:false,getElementById:(id:string)=>nodes.get(id)||null,addEventListener:(event:string,fn:Function)=>(listeners[event]??=[]).push(fn)};
+ const saved={document:globalThis.document,fetch:globalThis.fetch};const calls:string[]=[];
+ globalThis.document=doc;
+ globalThis.fetch=(async(url:string)=>{calls.push(url);const data=result('r1');data.refreshAt=Date.now()+50;data.status={enabled:true,lastSync:123,error:''};return {ok:true,json:async()=>data}}) as any;
+ const emit=(event:string,value:any)=>handlers[event]?.forEach(fn=>fn(value));
+ try{
+  initActivityCards({on:(event:string,fn:Function)=>(handlers[event]??=[]).push(fn)} as any);
+  emit('router:active',{activeId:'r1'});await pause();const rendered=redraws;
+  emit('activity:status',{routerId:'r1'});await pause();
+  assert.equal(new URL(calls[1]!, 'http://example.test').searchParams.get('parts'),'status');
+  assert.equal(redraws,rendered,'status-only notification redrew analytics');
+  assert.match(state.textContent,/Last sync/);
+  await pause(1050);assert.ok(calls.some((url,index)=>index>1&&!url.includes('parts=status')),'rolling result never expired');
+  doc.hidden=true;listeners.visibilitychange?.forEach(fn=>fn({}));const count=calls.length;
+  await pause(550);assert.equal(calls.length,count,'hidden cards kept expiry requests running');
+ }finally{doc.hidden=true;listeners.visibilitychange?.forEach(fn=>fn({}));globalThis.document=saved.document;globalThis.fetch=saved.fetch}
+});

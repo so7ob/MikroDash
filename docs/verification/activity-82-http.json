@@ -1,0 +1,268 @@
+[
+  {
+    "Size": 135000,
+    "Case": "overview",
+    "Cache": "cold",
+    "P95ms": 377.848,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "overview",
+    "Cache": "warm",
+    "P95ms": 2.604,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "search",
+    "Cache": "cold",
+    "P95ms": 180.33,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "search",
+    "Cache": "warm",
+    "P95ms": 4.363,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "filter",
+    "Cache": "warm",
+    "P95ms": 3.453,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "filter",
+    "Cache": "cold",
+    "P95ms": 21.915,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "combined",
+    "Cache": "cold",
+    "P95ms": 15.371,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "combined",
+    "Cache": "warm",
+    "P95ms": 2.943,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "sort",
+    "Cache": "cold",
+    "P95ms": 16.95,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "sort",
+    "Cache": "warm",
+    "P95ms": 3.563,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "sort-label",
+    "Cache": "cold",
+    "P95ms": 46.809,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "sort-label",
+    "Cache": "warm",
+    "P95ms": 4.005,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "sort-user",
+    "Cache": "warm",
+    "P95ms": 2.444,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "sort-user",
+    "Cache": "cold",
+    "P95ms": 53.95,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "cursor",
+    "Cache": "cold",
+    "P95ms": 23.516,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "cursor",
+    "Cache": "warm",
+    "P95ms": 3.652,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "deep-page",
+    "Cache": "cold",
+    "P95ms": 45.889,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "deep-page",
+    "Cache": "warm",
+    "P95ms": 3.164,
+    "Samples": 20
+  },
+  {
+    "Size": 135000,
+    "Case": "during-import",
+    "Cache": "cold",
+    "P95ms": 147.623,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "overview",
+    "Cache": "cold",
+    "P95ms": 722.152,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "overview",
+    "Cache": "warm",
+    "P95ms": 2.222,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "search",
+    "Cache": "cold",
+    "P95ms": 611.732,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "search",
+    "Cache": "warm",
+    "P95ms": 1.74,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "filter",
+    "Cache": "cold",
+    "P95ms": 13.711,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "filter",
+    "Cache": "warm",
+    "P95ms": 2.126,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "combined",
+    "Cache": "cold",
+    "P95ms": 16.454,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "combined",
+    "Cache": "warm",
+    "P95ms": 1.933,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "sort",
+    "Cache": "cold",
+    "P95ms": 13.991,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "sort",
+    "Cache": "warm",
+    "P95ms": 2.261,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "sort-label",
+    "Cache": "cold",
+    "P95ms": 167.875,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "sort-label",
+    "Cache": "warm",
+    "P95ms": 2.193,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "sort-user",
+    "Cache": "cold",
+    "P95ms": 176.76,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "sort-user",
+    "Cache": "warm",
+    "P95ms": 2.237,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "cursor",
+    "Cache": "cold",
+    "P95ms": 13.254,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "cursor",
+    "Cache": "warm",
+    "P95ms": 2.352,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "deep-page",
+    "Cache": "cold",
+    "P95ms": 22.217,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "deep-page",
+    "Cache": "warm",
+    "P95ms": 2.639,
+    "Samples": 20
+  },
+  {
+    "Size": 1000000,
+    "Case": "during-import",
+    "Cache": "cold",
+    "P95ms": 126.143,
+    "Samples": 20
+  }
+]

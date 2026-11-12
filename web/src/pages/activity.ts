@@ -57,7 +57,7 @@ export function dnsEvidenceMarkup(e: ActivityEvent): string {
 
 export function eventMarkup(e: ActivityEvent): string {
   const clientLabel = e.user || e.mac || e.ip;
-  return `<tr><td class="activity-mono">${eventCell(fmtTs(e.at))}${e.timeCertain ? '' : `<span class="pill pill-warn"${copyAttrs('Uncertain time')}>Uncertain time</span>`}</td><td>${eventPill(e.kind === 'dns' ? 'DNSUSER' : 'Firewall')}</td><td><button type="button" class="sbtn sbtn-ghost" data-filter="client" data-value="${esc(e.client)}"${copyAttrs(clientLabel)}>${cell(clientLabel)}</button>${!e.user ? `<span class="pill pill-warn"${copyAttrs('Unmapped')}>Unmapped</span>` : ''}<div class="activity-muted">Server: ${eventCell(e.server)} · IP: ${eventCell(e.ip)} · MAC: ${eventCell(e.mac)}</div></td><td>${e.domain ? `<button type="button" class="sbtn sbtn-ghost" data-filter="domain" data-value="${esc(e.domain)}"${copyAttrs(e.domain)}>${cell(e.domain)}</button><div>${eventCell(e.service)}</div>` : eventCell(e.destination)}</td><td>${e.kind === 'dns' ? `${eventPill(e.qtype || '?')} Match: ${eventCell(e.match)} ${eventPill(e.category)}${dnsEvidenceMarkup(e)}` : `<span${copyAttrs(e.protocol)}>${protoPill(e.protocol)}</span> ${eventPill(e.country)} ${eventCell(e.city)} ${eventCell(e.in)} → ${eventCell(e.out)}<div class="activity-muted">Packet length: ${eventCell(e.length || '?')} bytes</div>`}</td><td class="activity-number">${eventCell(n(e.count))}</td></tr>`;
+  return `<tr data-event-id="${e.id}"><td class="activity-mono">${eventCell(fmtTs(e.at))}${e.timeCertain ? '' : `<span class="pill pill-warn"${copyAttrs('Uncertain time')}>Uncertain time</span>`}</td><td>${eventPill(e.kind === 'dns' ? 'DNSUSER' : 'Firewall')}</td><td><button type="button" class="sbtn sbtn-ghost" data-filter="client" data-value="${esc(e.client)}"${copyAttrs(clientLabel)}>${cell(clientLabel)}</button>${!e.user ? `<span class="pill pill-warn"${copyAttrs('Unmapped')}>Unmapped</span>` : ''}<div class="activity-muted">Server: ${eventCell(e.server)} · IP: ${eventCell(e.ip)} · MAC: ${eventCell(e.mac)}</div></td><td>${e.domain ? `<button type="button" class="sbtn sbtn-ghost" data-filter="domain" data-value="${esc(e.domain)}"${copyAttrs(e.domain)}>${cell(e.domain)}</button><div>${eventCell(e.service)}</div>` : eventCell(e.destination)}</td><td>${e.kind === 'dns' ? `${eventPill(e.qtype || '?')} Match: ${eventCell(e.match)} ${eventPill(e.category)}${dnsEvidenceMarkup(e)}` : `<span${copyAttrs(e.protocol)}>${protoPill(e.protocol)}</span> ${eventPill(e.country)} ${eventCell(e.city)} ${eventCell(e.in)} → ${eventCell(e.out)}<div class="activity-muted">Packet length: ${eventCell(e.length || '?')} bytes</div>`}</td><td class="activity-number">${eventCell(n(e.count))}</td></tr>`;
 }
 
 async function json<T>(url: string, init?: RequestInit): Promise<T> {
@@ -80,6 +80,10 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   let timer: ReturnType<typeof setTimeout> | undefined;
   let controller: AbortController | undefined;
   let busy = false;
+  let loading = false, dirty = false;
+  let expiry: ReturnType<typeof setTimeout> | undefined;
+  let lastIntent = '';
+  let statusController: AbortController | undefined;
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
   let copyRequest = 0;
   function clearCopyNotice(): void {
@@ -106,6 +110,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   function params(): URLSearchParams {
     const p = new URLSearchParams(state); p.set('routerId', select('activityRouter').value); p.set('view', view());
     if (!p.has('sort')) p.set('sort', view() === 'events' ? 'last' : 'count');
+    p.set('parts', view() === 'sync' ? 'status' : view() === 'rules' ? 'rules' : view() === 'summary' ? 'overview' : 'table');
     return p;
   }
   function countryBasis(): string { return state.get('countryBasis') === 'firewall' || (!state.has('countryBasis') && (state.has('country') || state.get('kind') === 'firewall')) ? 'firewall' : 'dns'; }
@@ -123,7 +128,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     if (key === 'country' && !value) clearFilter(key);
     if (key === 'kind') state.delete('countrySource');
     if (value) state.set(key, value); else state.delete(key);
-    if (key !== 'page') state.delete('page');
+    if (key !== 'page') { state.delete('page'); state.delete('cursor'); state.delete('anchor'); }
     if (key === 'tab') { state.delete('sort'); state.delete('dir'); }
     saveURL(); void load();
   }
@@ -136,6 +141,8 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   function syncControls(): void {
     const v = view();
     el('activityCopyHint')!.hidden = v !== 'events';
+    el('activityCount')!.hidden = ['rules','sync'].includes(v);
+    el('activityPeriodCaption')!.hidden = ['rules','sync'].includes(v);
     if (v !== 'events') clearCopyNotice();
     root!.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b => { const on = b.dataset.view === v; b.classList.toggle('active', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
     select('activityDays').value = state.has('from') ? 'custom' : state.get('days') || '1';
@@ -160,20 +167,22 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   }
   function render(): void {
     if (!data) return; const d = data; syncControls();
-    el('activityCount')!.textContent = n(d.totals.dns);
-    el('activityMetrics')!.innerHTML = [[d.totals.dns, 'DNSUSER events'], [d.totals.domains, 'Unique domains'], [d.totals.users, 'Known users'], [d.totals.unmapped, 'Unmapped sources']].map(([value, label]) => `<div class="activity-metric"><span>${label}</span><strong>${n(Number(value))}</strong></div>`).join('');
-    const s = d.status;
-    el('activityState')!.textContent = `${s.enabled ? (s.error ? 'Sync needs attention' : s.syncing ? 'Synchronizing archive' : 'Archive sync enabled') : 'Archive sync disabled'} · ${s.files} files · Last sync: ${fmtTs(s.lastSync)} · Invalid DNSUSER: ${n(s.invalid)}${s.dropped ? ' · Lost: ' + n(s.dropped) : ''}${s.error ? ' · ' + s.error : ''}`;
-    el('activityState')!.classList.toggle('activity-attention', !!s.error);
-    if (!busy && !el('activityConfig')!.contains(document.activeElement)) {
-      input('activityEnabled').checked = d.settings.enabled;
-      input('activityFolder').value = d.settings.folder || 'usb1-part1/Log';
-      input('activityTimezone').value = d.settings.timezone || getDisplayTimezone() || browserTimezone();
-    }
+    if (!['rules','sync'].includes(view())) el('activityCount')!.textContent = n(d.totals.dns);
+    el('activityCount')!.title = 'DNSUSER events in the selected period';
+    if (view() === 'summary') el('activityMetrics')!.innerHTML = [[d.totals.dns, 'DNSUSER events'], [d.totals.domains, 'Unique domains'], [d.totals.users, 'Known users'], [d.totals.unmapped, 'Unmapped sources']].map(([value, label]) => `<div class="activity-metric"><span>${label}</span><strong>${n(Number(value))}</strong></div>`).join('');
+    if (view() === 'sync') renderSync();
     ['activityEnabled', 'activityFolder', 'activityTimezone', 'activitySaveSettings', 'activityRuleDomain', 'activityRuleService', 'activityRuleCategory', 'activityRuleSubdomains', 'activitySaveRule'].forEach(id => { (el<HTMLInputElement | HTMLButtonElement>(id))!.disabled = !d.canWrite || busy; });
     const cat = select('activityCategory'); const selected = state.get('category') || '';
     const cats = [...new Set([...d.rules.map(r => r.category), ...d.categories.map(c => c.key), selected].filter(Boolean))].sort();
     cat.innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join(''); cat.value = selected;
+    const countryRows = countryBasis() === 'dns' ? d.dnsCountries : d.countries;
+    const csel = select('activityCountry');
+    const previousOptions = Array.from(csel.options).map(o => o.value);
+    csel.innerHTML = '<option value="">All countries</option>' + [...new Set([...countryRows.map(c => c.key), ...previousOptions, state.get(countryKey()) || ''].filter(Boolean))].map(c=>`<option value="${esc(c)}">${esc(countryName(c))}</option>`).join('');
+    csel.value = state.get(countryKey()) || '';
+    if (view() === 'rules') { renderRules(); return; }
+    if (view() === 'sync') { void setup.refresh(d.routerId, d.settings.folder); return; }
+    if (view() !== 'summary') { renderTable(); void setup.refresh(d.routerId, d.settings.folder); return; }
     el('activityServices')!.innerHTML = rankMarkup(d.services, 'service', state.get('service') || '');
     el('activityClients')!.innerHTML = rankMarkup(d.clients, 'client', state.get('client') || '');
     el('activityCategories')!.innerHTML = donutMarkup(d.categories, 'category', 'Category distribution', undefined, state.get('category') || '');
@@ -188,9 +197,6 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     el('activityIPBases')!.innerHTML = donutMarkup(d.ipBases, 'ipBasis', 'DNS address evidence', d.totals.dns, state.get('ipBasis') || '');
     el('activityGeoNote')!.textContent = (d.geoAvailable ? 'Approximate location from local GeoIP. ' : 'Local GeoIP database unavailable; recorded IPs remain Unknown. ') + (dnsCountries ? 'All recorded DNS answers in matching events; one event can contain several addresses. These are not confirmed connections.' : 'Counts Firewall events by their explicit destination IP.');
     el('activityGeoSetup')!.hidden = d.geoAvailable;
-    const csel = select('activityCountry');
-    csel.innerHTML = '<option value="">All countries</option>' + [...new Set([...countries.map(c=>c.key), state.get(countryKey()) || ''].filter(Boolean))].map(c=>`<option value="${esc(c)}">${esc(countryName(c))}</option>`).join('');
-    csel.value = state.get(countryKey()) || '';
     const timeSelected = state.has('timeRange');
     // A selected six-hour bucket remains one selectable range after re-querying,
     // even though the API returns hourly points for its narrower window.
@@ -207,15 +213,25 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     el('activityHeat')!.innerHTML = '<span></span>' + Array.from({ length: 24 }, (_, h) => `<span class="activity-hour">${h % 3 === 0 ? h : ''}</span>`).join('') + days.map((day, i) => `<span class="activity-day">${day}</span>` + d.heatmap.filter(h => h.day === i).map(h => `<span class="activity-heat-cell" role="img" style="--activity-intensity:${h.count ? Math.max(.15, h.count / peak) : 0}" title="${day} ${h.hour}:00: ${n(h.count)} events" aria-label="${day} ${h.hour}:00: ${n(h.count)} events"></span>`).join('')).join('');
     el('activityHeatZone')!.textContent = d.settings.timezone || 'UTC (router zone not set)';
-    if (view() === 'summary') renderEvidenceTable(); else renderTable();
-    renderRules();
+    renderEvidenceTable();
     void setup.refresh(d.routerId, d.settings.folder);
+  }
+  function renderSync(): void {
+    if (!data) return; const d = data;
+    const s = d.status;
+    el('activityState')!.textContent = `${s.enabled ? (s.error ? 'Sync needs attention' : s.syncing ? 'Synchronizing archive' : 'Archive sync enabled') : 'Archive sync disabled'} · ${n(d.totalStored || 0)} stored events (all retained periods)${d.indexPending ? ' · Preparing local index: ' + n(d.indexPending) + ' remaining' : ''} · ${s.files} files · Last sync: ${fmtTs(s.lastSync)} · Invalid DNSUSER: ${n(s.invalid)}${s.dropped ? ' · Lost: ' + n(s.dropped) : ''}${s.error ? ' · ' + s.error : ''}`;
+    el('activityState')!.classList.toggle('activity-attention', !!s.error);
+    if (!busy && !el('activityConfig')!.contains(document.activeElement)) {
+      input('activityEnabled').checked = d.settings.enabled;
+      input('activityFolder').value = d.settings.folder || 'usb1-part1/Log';
+      input('activityTimezone').value = d.settings.timezone || getDisplayTimezone() || browserTimezone();
+    }
   }
   function renderEvidenceTable(): void {
     if (!data) return;
     const d = data, kind = d.filter.group;
     const sort: SortState = { col: state.get('sort') || 'count', dir: state.get('dir') === 'asc' ? 'asc' : 'desc' };
-    renderSortHeader('activityEvidenceHead', [{key:'label',label:evidenceGroups[kind] || 'Value'}, {key:'count',label:'Events'}, {key:'domains',label:'Domains'}, {key:'devices',label:'Devices'}, {key:'last',label:'Last recorded'}], sort, () => { state.set('sort', sort.col); state.set('dir', sort.dir); state.delete('page'); saveURL(); void load(); });
+    renderSortHeader('activityEvidenceHead', [{key:'label',label:evidenceGroups[kind] || 'Value'}, {key:'count',label:'Events'}, {key:'domains',label:'Domains'}, {key:'devices',label:'Devices'}, {key:'last',label:'Last recorded'}], sort, () => { state.set('sort', sort.col); state.set('dir', sort.dir); state.delete('page'); state.delete('cursor'); state.delete('anchor'); saveURL(); void load(); });
     keyboardSort('activityEvidenceHead');
     el('activityEvidenceBody')!.innerHTML = d.rows.map(r => `<tr><td><button type="button" class="sbtn sbtn-ghost is-sm" data-filter="${kind}" data-value="${esc(r.key)}" aria-pressed="${state.get(kind) === r.key}"><bdi>${esc(r.label)}</bdi></button>${kind === 'dnsIP' ? pill(r.key.includes(':') ? 'IPv6' : 'IPv4') : ''}</td><td class="activity-number">${n(r.count)}</td><td class="activity-number">${n(r.domains)}</td><td class="activity-number">${n(r.devices)}</td><td class="activity-mono">${esc(fmtTs(r.last))}</td></tr>`).join('') || '<tr><td colspan="5" class="activity-empty">No recorded values for this group. Older DNSUSER messages may not contain these fields.</td></tr>';
     const page = Number(state.get('page') || 1), pages = Math.max(1, Math.ceil(d.totalRows / d.filter.limit));
@@ -231,14 +247,14 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     let cols: SortCol[];
     if (v === 'events') cols = [{ key: 'last', label: 'When' }, { key: 'kind', label: 'Source' }, { key: 'user', label: 'User / device' }, { key: 'label', label: 'Domain / destination' }, { label: 'Details' }, { key: 'count', label: 'Count' }];
     else cols = [{ key: 'label', label: v === 'clients' ? 'User / device' : groupTitle[group] || evidenceGroups[group] || ({ qtype: 'Query type', match: 'User matching method', ipBasis: 'Address evidence' } as Record<string, string>)[group] || 'Service' }, { key: 'category', label: v === 'clients' ? 'Identity' : 'Category' }, { key: 'count', label: group === 'dnsCountry' && v === 'domains' ? 'DNS answers' : 'Events' }, { key: 'domains', label: 'Domains' }, { key: 'devices', label: 'Devices' }, { key: 'last', label: 'Last activity' }];
-    renderSortHeader('activityTableHead', cols, sort, () => { state.set('sort', sort.col); state.set('dir', sort.dir); state.delete('page'); saveURL(); void load(); });
+    renderSortHeader('activityTableHead', cols, sort, () => { state.set('sort', sort.col); state.set('dir', sort.dir); state.delete('page'); state.delete('cursor'); state.delete('anchor'); saveURL(); void load(); });
     keyboardSort('activityTableHead');
     const rows = v === 'events' ? d.events.map(eventMarkup) : d.rows.map(r => `<tr><td><button type="button" class="sbtn sbtn-ghost" data-filter="${v === 'clients' ? 'client' : group}" data-value="${esc(r.key)}">${cell(r.label)}</button>${v === 'clients' ? `<div class="activity-muted">${cell(r.server)} · ${cell(r.ip)}</div>` : ''}</td><td>${v === 'clients' ? (r.user ? pill('Named user') : '<span class="pill pill-warn">Unmapped</span>') : pill(r.category)}</td><td class="activity-number">${n(r.count)}</td><td class="activity-number">${n(r.domains)}</td><td class="activity-number">${n(r.devices)}</td><td class="activity-mono">${esc(fmtTs(r.last))}</td></tr>`);
     el('activityTableBody')!.innerHTML = rows.join('') || '<tr><td colspan="6" class="activity-empty">No matching activity. Enable archive sync or adjust the filters.</td></tr>';
     const page = Number(state.get('page') || 1); const pages = Math.max(1, Math.ceil(d.totalRows / d.filter.limit));
     el('activityPageLabel')!.textContent = `${page} / ${pages} · ${n(d.totalRows)} ${v === 'events' ? 'event groups' : 'rows'}`;
-    el<HTMLButtonElement>('activityPrev')!.disabled = page <= 1;
-    el<HTMLButtonElement>('activityNext')!.disabled = page >= pages;
+    el<HTMLButtonElement>('activityPrev')!.disabled = v === 'events' && d.anchor ? !d.hasPrevious : page <= 1;
+    el<HTMLButtonElement>('activityNext')!.disabled = v === 'events' && d.anchor ? !d.hasNext : page >= pages;
   }
   function keyboardSort(id: string): void {
     el(id)!.querySelectorAll<HTMLElement>('.th-sort').forEach(th => { th.tabIndex = 0; th.setAttribute('role', 'button'); th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); th.click(); } }); });
@@ -250,27 +266,83 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   }
   function clearData(): void {
     data=null; setup.stop(); clearCopyNotice();
+    el('activityCount')!.textContent='—';el('activityState')!.textContent='';
+    select('activityCountry').innerHTML='<option value="">All countries</option>';
     ['activityMetrics','activityServices','activityClients','activityCategories','activityServiceDonut','activityUserDonut','activityCountryDonut','activityTimeline','activityHeat','activityTableBody','activityRulesBody','activityDNSMetrics','activityQueryTypes','activityMatchMethods','activityIPBases','activityEvidenceBody','activityEvidencePage'].forEach(id=>{el(id)!.innerHTML='';});
     ['activityEnabled','activityFolder','activityTimezone','activitySaveSettings','activityRuleDomain','activityRuleService','activityRuleCategory','activityRuleSubdomains','activitySaveRule'].forEach(id=>{el<HTMLInputElement | HTMLButtonElement>(id)!.disabled=true;});
     el<HTMLButtonElement>('activityEvidencePrev')!.disabled = true; el<HTMLButtonElement>('activityEvidenceNext')!.disabled = true;
   }
-  async function load(): Promise<void> {
+  function scheduleRefresh(): void {
+    dirty = true;
+    if (loading || busy || timer !== undefined || !visible('activity')) return;
+    timer = setTimeout(() => { timer = undefined; void load(true); }, 500);
+  }
+  async function loadStatus(): Promise<void> {
+    if (!visible('activity') || view() !== 'sync' || loading || statusController) return;
+    const id = select('activityRouter').value, current = request;
+    statusController = new AbortController();
+    try {
+      const p = params(); p.set('parts','status');
+      const result = await json<ActivityResult>(API + 'query?' + p, {signal:statusController.signal});
+      if (current !== request || view() !== 'sync' || select('activityRouter').value !== id) return;
+      data = result; renderSync();
+    } catch (e) { if(current===request && !(e instanceof DOMException && e.name==='AbortError')) { clearData();showError(e instanceof Error?e.message:'Activity could not be loaded'); } }
+    finally { statusController = undefined; }
+  }
+  async function load(background = false): Promise<void> {
     if (!visible('activity')) return;
+    if (background && (loading || busy)) {dirty=true;return;}
+    if (timer !== undefined) clearTimeout(timer); timer=undefined;
+    if (expiry !== undefined) clearTimeout(expiry); expiry=undefined;
+    statusController?.abort();
     fillRouters(); if(data && data.routerId!==select('activityRouter').value)clearData(); syncControls();
     if (!select('activityRouter').value) { showError('No accessible router selected.'); return; }
-    const current = ++request; controller?.abort(); controller = new AbortController();
+    const p = params(), intent = new URLSearchParams(p);
+    ['page','cursor','anchor'].forEach(k => intent.delete(k));
+    if (lastIntent && lastIntent !== intent.toString()) {
+      ['cursor','anchor'].forEach(k => {state.delete(k);p.delete(k);});
+      saveURL();
+    }
+    lastIntent=intent.toString();
+    if (background && view()==='events' && Number(state.get('page') || 1)>1 && data?.anchor) {
+      p.delete('cursor');p.set('anchor',data.anchor);
+    }
+    const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const row = active?.closest<HTMLElement>('[data-event-id]');
+    const focusIndex = row && active ? Array.from(row.querySelectorAll<HTMLElement>('button,[tabindex]')).indexOf(active) : -1;
+    const rowID = row?.dataset.eventId;
+    const scrolls: [Element,number,number][]=[];
+    if(background) for(let node:Element|null=el('activityTableBody');node;node=node.parentElement)scrolls.push([node,node.scrollTop,node.scrollLeft]);
+    const current = ++request; controller?.abort(); controller = new AbortController();loading=true;dirty=false;
     root!.setAttribute('aria-busy', 'true');
     try {
-      const result = await json<ActivityResult>(API + 'query?' + params(), { signal: controller.signal });
-      if (current !== request) return; data = result; showError(''); render();
+      const result = await json<ActivityResult>(API + 'query?' + p, { signal: controller.signal });
+      if (current !== request) return; data = result;
+      if(background && p.has('anchor') && result.filter.page!==Number(state.get('page') || 1)){state.set('page',String(result.filter.page));saveURL();}
+      showError(''); render();
+      if (background) {
+        if (rowID && focusIndex>=0) {
+          const restored=root!.querySelector<HTMLElement>(`[data-event-id="${rowID}"]`) || el('activityTableBody')?.querySelector<HTMLElement>('[data-event-id]');
+          restored?.querySelectorAll<HTMLElement>('button,[tabindex]')[focusIndex]?.focus({preventScroll:true});
+        } else if(active?.id) el(active.id)?.focus({preventScroll:true});
+        scrolls.forEach(([node,top,left])=>{node.scrollTop=top;node.scrollLeft=left;});
+      }
+      if(result.refreshAt && !['sync','rules'].includes(view())) expiry=setTimeout(scheduleRefresh,Math.max(500,result.refreshAt-Date.now()));
     } catch (e) { if (current === request && !(e instanceof DOMException && e.name === 'AbortError')) { clearData();showError(e instanceof Error ? e.message : 'Activity could not be loaded'); } }
-    finally { if (current === request) root!.setAttribute('aria-busy', 'false'); }
+    finally { if (current === request) {controller=undefined;loading=false;root!.setAttribute('aria-busy', 'false');if(dirty)scheduleRefresh();} }
+  }
+  function navigate(delta:number):void {
+    const page=Math.max(1,Number(state.get('page') || 1)+delta);
+    state.delete('anchor');state.delete('cursor');
+    const cursor=delta>0?data?.nextCursor:data?.prevCursor;
+    if(view()==='events' && cursor && page>1)state.set('cursor',cursor);
+    update('page',String(page));
   }
   async function mutate(endpoint: string, method: string, body?: unknown): Promise<void> {
     if (busy || !data?.canWrite) return; busy = true; render();
     try { await json<{ ok: boolean }>(API + endpoint + (endpoint.includes('?') ? '&' : '?') + 'routerId=' + encodeURIComponent(select('activityRouter').value), { method, headers: { 'Content-Type': 'application/json' }, ...(body ? { body: JSON.stringify(body) } : {}) }); showError(''); await load(); }
     catch (e) { showError(e instanceof Error ? e.message : 'Change failed'); }
-    finally { busy = false; if (data) render(); }
+    finally { busy = false; if (data) render(); if(dirty)scheduleRefresh(); }
   }
   root.addEventListener('click', e => {
     if (e.ctrlKey && view() === 'events' && e.target instanceof Element && e.target.closest('#activityTableBody')) {
@@ -295,9 +367,9 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
         state.set(key, value);
       }
       if (e.ctrlKey || !overview) state.set('tab', 'events');
-      state.delete('page'); state.delete('sort'); saveURL(); void load();
+      state.delete('page'); state.delete('cursor'); state.delete('anchor'); state.delete('sort'); saveURL(); void load();
     }
-    if (target.dataset.clear) { if (target.dataset.clear === 'all') filterKeys.forEach(clearFilter); else clearFilter(target.dataset.clear); state.delete('page'); saveURL(); void load(); }
+    if (target.dataset.clear) { if (target.dataset.clear === 'all') filterKeys.forEach(clearFilter); else clearFilter(target.dataset.clear); state.delete('page'); state.delete('cursor'); state.delete('anchor'); saveURL(); void load(); }
     if (target.dataset.bucket && data) {
       const index = Number(target.dataset.bucket), p = data.series[index];
       if (p) {
@@ -313,7 +385,7 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
           state.set('to', String(data.series[index + 1]?.at || data.filter.to));
         }
         if (e.ctrlKey) state.set('tab', 'events');
-        state.delete('page'); saveURL(); void load();
+        state.delete('page'); state.delete('cursor'); state.delete('anchor'); saveURL(); void load();
       }
     }
     if (target.dataset.editRule && data) { const r = data.rules.find(r => r.domain === target.dataset.editRule && r.custom === (target.dataset.custom === 'true')); if (r) { input('activityRuleDomain').value = r.domain; input('activityRuleService').value = r.service; input('activityRuleCategory').value = r.category; input('activityRuleSubdomains').checked = r.subdomains; input('activityRuleDomain').focus(); } }
@@ -342,13 +414,14 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
   el('activityEvidenceNext')!.addEventListener('click', () => update('page', String(Number(state.get('page') || 1) + 1)));
   select('activityGroup').addEventListener('change', () => update('group', select('activityGroup').value));
   el('activityRefresh')!.addEventListener('click', () => { if (data) void setup.refresh(data.routerId, data.settings.folder, true); void load(); });
-  el('activityPrev')!.addEventListener('click', () => update('page', String(Math.max(1, Number(state.get('page') || 1) - 1))));
-  el('activityNext')!.addEventListener('click', () => update('page', String(Number(state.get('page') || 1) + 1)));
+  el('activityPrev')!.addEventListener('click', () => navigate(-1));
+  el('activityNext')!.addEventListener('click', () => navigate(1));
   el('activitySaveSettings')!.addEventListener('click', () => { void mutate('settings', 'PUT', { enabled: input('activityEnabled').checked, folder: input('activityFolder').value.trim(), timezone: input('activityTimezone').value.trim() }); });
   el('activityRuleForm')!.addEventListener('submit', e => { e.preventDefault(); const rule: ActivityRule = { domain: input('activityRuleDomain').value, service: input('activityRuleService').value, category: input('activityRuleCategory').value, subdomains: input('activityRuleSubdomains').checked, custom: true }; void mutate('rules', 'PUT', rule); });
-  document.addEventListener('mikrodash:pagechange', () => { if (visible('activity')) void load(); else { clearCopyNotice(); setup.stop(); controller?.abort(); request++; if (timer) clearTimeout(timer); } });
+  document.addEventListener('mikrodash:pagechange', () => { if (visible('activity')) void load(); else { clearCopyNotice(); setup.stop(); controller?.abort(); controller=undefined; statusController?.abort(); request++; loading=false; if (timer) clearTimeout(timer);timer=undefined; if(expiry)clearTimeout(expiry);expiry=undefined; } });
   window.addEventListener('popstate', () => { state = new URLSearchParams(location.search); if (view() !== 'events') clearCopyNotice(); void load(); });
-  socket.on('activity:changed', d => { if (!visible('activity') || d.routerId !== select('activityRouter').value || busy || timer) return; timer = setTimeout(() => { timer = undefined; void load(); }, 500); });
+  socket.on('activity:changed', d => { if (visible('activity') && d.routerId === select('activityRouter').value) scheduleRefresh(); });
+  socket.on('activity:status', d => { if (d.routerId === select('activityRouter').value) void loadStatus(); });
   socket.on('connect', () => { setup.stop(); void load(); });
   socket.on('routers:update', () => { void load(); });
   socket.on('perms:changed', () => { clearData(); void load(); });
