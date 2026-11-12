@@ -58,7 +58,12 @@ Local Go 1.27.3 evidence for this increment: all focused preview tests passed,
 compiling mutants (unfiltered rows, suppressed duplicate diagnostics and the old
 flattened fingerprint) were killed by behavioral assertions, then source bytes
 were restored. Full package/SQLite and real-router acceptance are separate gates;
-the local pinned SQLite archive remains unavailable under the environment policy.
+the earlier pinned SQLite archive restriction is historical and no longer blocks
+this local checkout. Fresh focused preview tests and vet pass. A fixed-SHA
+isolated-worktree fuzz run passed 16,597 cases in 5.066 seconds (two workers,
+five-second fuzz budget). The first fuzz build in the changing operator checkout
+was invalidated by an agent branch switch; it is retained as a setup failure and
+is not counted as successful evidence. Full current-base gates/CI remain required.
 
 Independent review reproduced a collision between retained source names containing
 raw FF and FE bytes: ordinary JSON strings replaced both with U+FFFD. A red-to-green
