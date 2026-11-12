@@ -842,3 +842,40 @@ serialized jobs; no operator cache/data/volume was removed. Native Go/runtime
 source remains byte-identical to the fully checked product source above when
 only the diagnostic harness and delivery notes change. Static and harness checks
 must cover those changed inputs, and CI still runs the complete final PR tree.
+
+
+## So7ob portal design integration (Issue #88)
+
+The isolated subscriber UI now ports the operator-supplied Arabic/RTL green-C
+visual identity. Administration and generated NAS handoff remain unchanged.
+The previous English/three-theme portal browser assertions are deliberately
+replaced with Arabic/green assertions; authentication, ownership, accounting,
+CSRF, shadow refusal and guarded network actions remain under test.
+
+Reproduce the protected browser journeys after building `web/dist`:
+
+```sh
+# Install this external harness separately from production dependencies.
+npm install --prefix /tmp/mikrodash-portal-browser playwright @axe-core/playwright qrcode
+/tmp/mikrodash-portal-browser/node_modules/.bin/playwright install chromium
+go run ./cmd/webbuild -dir web
+SUBSCRIBER_BROWSER_MODULE=/tmp/mikrodash-portal-browser \
+SUBSCRIBER_EVIDENCE_DIR=/tmp/mikrodash-portal-evidence \
+go test -tags=subscriberbrowser ./internal/server \
+  -run '^TestSubscriber(BrowserAcceptance|HandoffBrowser)$' -count=1 -v
+```
+
+The first journey uses real TLS (native and trusted proxy), isolated SQLite,
+password and generated voucher authentication, shipped local QR image decoding,
+synthetic delayed camera permissions, account/receipt displays, held speed writes
+with incoming WebSocket snapshots, preserved keyboard focus, 375/1280 renders,
+axe and portal-only routing. QR image text never submits a login by itself.
+
+The second uses real browser HTTPS form POST/return and protected portal APIs
+with a **synthetic NAS**. It checks one credential submission, bound tickets,
+accepted/denied outcomes, fresh versus stale owned observations, cancellation and
+guarded refusal of device disconnect, cookie-only visits without automatic
+admission, and independent logout. It is not a live C or RouterOS acceptance
+claim. Existing protocol/UDP tests cover the enabled disconnect implementation.
+The owned CHR browser script has matching Arabic selectors; this design delivery
+does not itself rerun the hardware pilot or change router configuration.
