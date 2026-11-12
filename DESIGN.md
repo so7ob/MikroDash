@@ -768,6 +768,18 @@ HotSpot handoff, live connected-state browser proof and manual screen-reader
 acceptance remain pending; the automated checks do not establish all WCAG 2.2
 criteria or target-router acceptance.
 
+### Draft subscriber plan limits
+
+The existing dense plan form now includes a calendar-zone field and conditional
+throttle ceilings using the shared grid, inputs and semantic buttons. Each draft
+limit has inline Edit/Remove actions; editing retains its ID and exposes Cancel.
+No modal, palette, font or new card system is introduced. Pending plan saves freeze
+the controls; failure preserves the draft and explains that the save is unconfirmed.
+
+Synthetic Chromium checks cover edit/cancel/remove, keyboard focus, repeated and
+interrupted saves, escaped Unicode and dark/light/Nord at 375/1280 with zero axe
+findings under the existing tags. Scrolled mobile control screenshots supplement
+the app's main-panel viewport captures. Checklist: zero new decorative patterns.
 
 ### Activity query scope and live pages
 
