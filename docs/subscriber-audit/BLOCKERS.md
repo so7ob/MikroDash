@@ -13,8 +13,8 @@ physical acceptance awaits its external requirements.
 Resolved: the old SQLite dependency restriction no longer blocks this environment.
 Fresh store/HTTP tests execute. The owner explicitly selected fresh periods without
 rollover, preserving historical usage/subscriptions; commercial fulfillment no
-longer awaits that choice. Final CI waits for #79 and the audit are delivery gates,
-not completed acceptance. Original #77-#81 branches are preserved.
+longer awaits that choice. All five original software increments passed full local/PR/post-merge CI.
+The audit uses its own full gate and protected PR tracked in #95. Original #77-#81 branches are preserved.
 
 Still Missing/Partial: credentials and portal/ticket revocation; broader audit;
 idempotent commercial operations/receipts; full plan states/windows/speeds/archive;

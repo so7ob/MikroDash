@@ -23,7 +23,7 @@ All other A-N gaps map to IDs in DEVELOPMENT-ROADMAP.md; no empty navigation ite
 #77 fixes decimal and complete-command input at 149123b7. #78 delivers the
 structured draft editor at b29ee7d6, with actual HTTP/SQLite version/FUP tests.
 #80/#81 deliver status API/UI at ca6d5e95/4f1828c7; broader audit remains open.
-#79 source review passed full current-base gates; migration apply/rollback remains
+#79 source review is delivered at 4a000c0c with full current-base and post-merge CI; migration apply/rollback remains
 missing. The owner approved fresh commercial periods without rollover, retaining
 history. Idempotent operations/receipts and credential epochs/revocation remain
 P0 work. Nothing here closes target acceptance #76 or the full platform #38.

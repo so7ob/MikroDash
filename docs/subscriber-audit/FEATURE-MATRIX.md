@@ -2,13 +2,13 @@
 
 Snapshot: 2026-11-13 (Asia/Aden). Initial code baseline ba39515f; delivered changes and exact test/CI evidence are in PROGRESS.md and TEST-EVIDENCE.md. This decomposes the requested A-N axes into named acceptance checkpoints; rows are not equal-sized work units and are not a completion percentage. A Partial row can have tested backend primitives while its requested complete workflow remains absent. Paths without a prefix below are under internal/subscriber/. The detailed original evidence and remaining gap for each module are in FEATURE-INVENTORY.md.
 
-States: Implemented & Verified; Implemented but Not Hardware Verified; Partial; Missing; Broken; Blocked; Not Applicable. Network-dependent code never earns physical acceptance from synthetic or CHR results. The current #81/#79 revisions remain under delivery checks until PROGRESS records their merge and post-merge CI.
+States: Implemented & Verified; Implemented but Not Hardware Verified; Partial; Missing; Broken; Blocked; Not Applicable. Network-dependent code never earns physical acceptance from synthetic or CHR results. The #77-#81 narrow increments are delivered with successful PR and post-merge CI in PROGRESS; the complete platform remains unfinished.
 
 Owner policy confirmed 2026-11-13: renewal/plan change starts a new period without carryover, retaining historical subscriptions and usage. Carryover is therefore Not Applicable under the selected policy. Existing running sessions and unresolved accounting still need reconciliation; a financial payment or UI confirmation cannot independently establish applied network state.
 
 ## Axis A
 
-Roadmap: P0-CREDENTIAL, P0-HISTORY, P1-DIRECTORY, P1-ENTITLEMENT. Priority: P0/P1. Code evidence: `storage.go; account_name.go; account_status_batch.go; server/subscribers.go; web/src/pages/subscribers.ts`.
+Roadmap: P0-CREDENTIAL, P0-HISTORY, P1-DIRECTORY, P1-ENTITLEMENT. Priority: P0/P1. Code evidence: `storage.go; account_name.go; account_status_batch.go; internal/server/subscribers.go; web/src/pages/subscribers.ts`.
 
 Acceptance/test contract: Protected admin UI/API/SQLite round trip, selected identity/revision, Unicode, rollback, no unrelated account/usage changes; credential reset also revokes old credentials and portal/ticket sessions.
 
@@ -41,7 +41,7 @@ Acceptance/test contract: Protected admin UI/API/SQLite round trip, selected ide
 
 ## Axis B
 
-Roadmap: P0-PLAN. Priority: P0. Code evidence: `policy.go; storage.go:SavePlan; web/src/pages/subscriber-plan-limits.ts; server/subscriber_plan_test.go`.
+Roadmap: P0-PLAN. Priority: P0. Code evidence: `policy.go; storage.go:SavePlan; web/src/pages/subscriber-plan-limits.ts; internal/server/subscriber_plan_test.go`.
 
 Acceptance/test contract: Draft UI to immutable SQLite plan and evaluated limits; exact decimal/period boundaries; existing subscription version retained; NAS application requires separate target proof.
 
@@ -113,19 +113,19 @@ Acceptance/test contract: Separate HotSpot and PPP fixtures/auth/counters/addres
 | Feature ID | Requested checkpoint | Current state | Evidence / remaining acceptance |
 |---|---|---|---|
 | D01 | Complete HotSpot administration | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| D02 | Explicit PPP NAS/service setup | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
-| D03 | PPP authentication | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
-| D04 | PPP RADIUS profiles | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
-| D05 | PPP static/dynamic IP | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
-| D06 | PPP accounting | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
-| D07 | PPP speeds and limits | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
-| D08 | PPP disconnect | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
-| D09 | PPP concurrent sessions | Missing | No independent PPP service/observer/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D02 | Explicit PPP NAS/service setup | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D03 | PPP authentication | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D04 | PPP RADIUS profiles | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D05 | PPP static/dynamic IP | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D06 | PPP accounting | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D07 | PPP speeds and limits | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D08 | PPP disconnect | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
+| D09 | PPP concurrent sessions | Missing | No independent PPP service/obinternal/server/addressing and acceptance workflow exists in the cited HotSpot implementation. |
 | D10 | Independent HotSpot/PPPoE acceptance | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 
 ## Axis E
 
-Roadmap: P1-VOUCHER. Priority: P1. Code evidence: `storage.go:CreateAccount; server/subscribers.go:create; no batch/inventory/delivery tables in current Schema`.
+Roadmap: P1-VOUCHER. Priority: P1. Code evidence: `storage.go:CreateAccount; internal/server/subscribers.go:create; no batch/inventory/delivery tables in current Schema`.
 
 Acceptance/test contract: Atomic accounts/subscriptions/audits, unique idempotent issuance, encrypted response-loss recovery until delivery ACK; authorized export/print/inventory; no secrets in ordinary reads/logs.
 
@@ -157,7 +157,7 @@ Acceptance/test contract: Atomic accounts/subscriptions/audits, unique idempoten
 
 ## Axis F
 
-Roadmap: P1-SESSIONS. Priority: P1. Code evidence: `storage.go:Snapshot; observations.go; connections.go; server/subscriber_socket.go; coa.go`.
+Roadmap: P1-SESSIONS. Priority: P1. Code evidence: `storage.go:Snapshot; observations.go; connections.go; internal/server/subscriber_socket.go; coa.go`.
 
 Acceptance/test contract: Scoped bounded session query/push and control at use, exact device ownership, timestamp/quality and applied-state evidence; no synthetic rate labelled live.
 
@@ -205,7 +205,7 @@ Acceptance/test contract: Confirmed explicit fresh-period/no-rollover review; ex
 
 ## Axis H
 
-Roadmap: P2-BILLING. Priority: P2. Code evidence: `storage.go:Schema; server/subscribers.go action list; no subscriber financial schema/API`.
+Roadmap: P2-BILLING. Priority: P2. Code evidence: `storage.go:Schema; internal/server/subscribers.go action list; no subscriber financial schema/API`.
 
 Acceptance/test contract: Exact currency minor units, immutable documents/reversals, idempotent references and server authority; keep financial and network usage ledgers logically distinct in same SQLite.
 
@@ -266,7 +266,7 @@ Acceptance/test contract: Transactional event outbox, unique recipient/event key
 
 ## Axis K
 
-Roadmap: P2-PORTAL. Priority: P2. Code evidence: `server/subscriber_portal.go; web/src/subscriber-view.ts; subscriber-login.ts; subscriber-qr.ts; local subscriber-portal.css/Tajawal`.
+Roadmap: P2-PORTAL. Priority: P2. Code evidence: `internal/server/subscriber_portal.go; web/src/subscriber-view.ts; subscriber-login.ts; subscriber-qr.ts; local subscriber-portal.css/Tajawal`.
 
 Acceptance/test contract: Actual protected portal HTTP/SQLite browser journey, owned data/CSRF/revocation, Arabic RTL/Latin digits/local fonts, mobile/keyboard/axe; network state separately verified.
 

@@ -18,8 +18,9 @@ exercised. CLI builds and synthetic readers do not contact a real router.
 | #81 e738a3f8 | Complete clean-worktree verify and diff check | PASS: 64 Go packages/govulncheck/generators/tsc, 166 web, 32 tooling; production app source build passed |
 | #81 e738a3f8 | Tagged TestSubscriberAdminReconciliationBrowserAcceptance | PASS 101.811s: actual protected HTTP/SQLite, committed batch history, parsed/original evidence, native Enter/focus, account isolation, retained name/bulk/reconciliation flows; six history appearance/viewport axe cases zero findings; screenshots inspected |
 | #81 unchanged controller/editor source | tools/subscriber-history-browser.mjs | PASS: four dark/light 375/1280 axe cases, exact cursors, delayed results/rejections, interrupted retry, synthetic HTTP 401/403 and navigation |
+| #79 952f79a8 | Complete clean-worktree sh tools/verify.sh and diff check | PASS: 64 Go packages/format/vet/govulncheck/generators/tsc, 166 web/32 tooling; PR CI 43314958884 and post-merge 43316199013 PASS |
 | #79 implementation unchanged at final candidate | Focused Preview/Import tests; go vet ./internal/subscriber ./cmd/subscribercheck; CLI build | PASS; no router contacted |
-| #79 implementation at isolated e5fa2f53 | go test ./internal/subscriber -run '^$' -fuzz '^FuzzImportPreviewIgnoresUnrequestedFields$' -fuzztime=5s -parallel=2 | PASS 16,597 executions in 5.066s; complete final-head repository gate remains pending |
+| #79 implementation at isolated e5fa2f53 | go test ./internal/subscriber -run '^$' -fuzz '^FuzzImportPreviewIgnoresUnrequestedFields$' -fuzztime=5s -parallel=2 | PASS 16,597 executions in 5.066s; complete final-head repository gate also passes |
 
 The benchmark measures one selected store page, not HTTP authentication, latency
 percentiles, a running service's RSS, concurrent sessions, router resources or
@@ -45,6 +46,6 @@ Retained failures and corrections:
 Local artifacts: /tmp/mikrodash-77-clean-verify.log, -77-browser.log;
 -78-final-verify.log, -78-editor-evidence/; -80-verify.log, -80-scale.log;
 -81-final-verify.log, -81-final-browser.log, -81-final-browser-evidence/;
--79-isolated-fuzz.log and -79-verify.log (the latter is pending).
+-79-isolated-fuzz.log and -79-verify.log (passed).
 Remote PR and post-merge CI links are authoritative in PROGRESS. The audit PR's
 own exact head/full gate/CI is recorded in Issue #95 after finalization.

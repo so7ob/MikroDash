@@ -34,8 +34,8 @@ are delivered through #78 (b29ee7d6), with protected HTTP/SQLite persistence and
 immutable assignment proof added in this session. Paged status history is delivered
 through #80 (ca6d5e95) and #81 (4f1828c7), including readable stored batch fields,
 original evidence disclosure and a genuine HTTP/SQLite browser journey. These
-close narrow acceptance checkpoints, not full A/B/C axes. Import preview #79 is
-reviewed and awaiting final delivery gates. The current detailed states and test
+close narrow acceptance checkpoints, not full A/B/C axes. Import source preview #79 is
+delivered at 4a000c0c with successful full local, PR and post-merge CI. The current detailed states and test
 contracts are in FEATURE-MATRIX.md; exact tested heads and CI are in TEST-EVIDENCE.md.
 
 The owner selected fresh commercial periods without rollover, retaining all prior

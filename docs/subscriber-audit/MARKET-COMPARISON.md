@@ -70,7 +70,7 @@ No selected sources establish competitor exactly-once notification delivery, Pow
 The matrix above records the initial baseline. This execution delivered exact
 input validation (#77), the structured draft-limit increment (#78), and paged
 status history with readable batch evidence (#80/#81). Source preview #79 is
-under final delivery checks. Wider feature states remain Partial/Missing as
+delivered at 4a000c0c after full local and PR/post-merge checks. Wider feature states remain Partial/Missing as
 recorded in FEATURE-MATRIX.md. No documented competitor capability is treated as
 MikroDash implementation or physical-device proof. The owner-approved commercial
 policy is a new period without rollover, with prior usage/subscriptions retained.

@@ -15,3 +15,23 @@ The current `Accounts` and `Plans` endpoints read entire collections. Separate b
 No migration can replace historical totals with current-period balances. Migration needs a reviewed source fingerprint, explicit mapping/conversion, per-chunk idempotency and rollback that never rewrites already-accounted network usage.
 
 Owner-confirmed commercial contract (2026-11-13): renewal and plan changes create a fresh period without carrying remaining time/data. Historical subscription versions and usage remain immutable. Review must show previous remaining balance, zero transferred credit and new-period entitlement before confirmation; add request-key idempotency and a receipt before automating renewals. Network delegation renewal remains a distinct operation.
+
+
+```mermaid
+flowchart LR
+    Account[Subscriber account] --> Subscription
+    Subscription --> Plan[Immutable plan version]
+    Plan --> Policy
+    Subscription --> Lease[Bounded session lease]
+    NAS --> Receipt[Authenticated accounting receipt]
+    Receipt --> Usage[Single usage ledger]
+    Lease --> Usage
+    Usage --> Reconciliation
+    Policy --> Worker[Background enforcement]
+    Usage --> Worker
+    Worker --> Guard[Authority and capability guards]
+    Guard --> NAS
+```
+
+The diagram describes the implemented authority chain. It does not attest to
+unperformed target-device acceptance or introduce a financial consumption ledger.

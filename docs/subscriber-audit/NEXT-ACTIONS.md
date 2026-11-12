@@ -6,10 +6,9 @@ scratch/data and existing feature/checkpoint branches. Read CONTRIBUTING.md,
 PROGRESS and TEST-EVIDENCE. Issue #95 records this audit's own delivery SHA/CI.
 Do not repeat already passed gates without a new change or unresolved failure.
 
-Current integration: #77, #78, #80 and #81 merged; #79 final gates are running.
-Finish #79 current-base CI -> protected squash -> post-merge CI, then deliver the
-complete audit through its own protected PR. Keep #38/#76 open. No release or
-runtime activation is implied.
+Current integration: #77, #78, #80, #81 and #79 are delivered, with successful
+full local and PR/post-merge CI. Issue #95 tracks the audit PR and its own exact
+head/CI. Keep #38/#76 open; no release or runtime activation is implied.
 
 Next independent P0 is audited credential rotation. Search issues first, create
 or reuse a scoped issue and numbered branch from then-current develop. Deliver a
