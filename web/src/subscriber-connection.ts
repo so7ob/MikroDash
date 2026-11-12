@@ -1,3 +1,4 @@
+import { subscriberText, type SubscriberLanguage } from './subscriber-ar';
 import type { SubscriberConnectionStatus } from './gen/payloads';
 import type { PillTone } from './palette';
 
@@ -12,9 +13,9 @@ export function portalEntry(search: string): { network: string; flowId: string; 
   return { flowId, network: !flowId && network.length <= 128 ? network : '', failed: query.get('hotspot') === 'failed' };
 }
 
-export function connectionReason(reason: string): string {
+export function connectionReason(reason: string, language: SubscriberLanguage = 'en'): string {
   for (const [prefix, label] of [['exhausted:', 'Allowance exhausted'], ['unknown:', 'Allowance data unavailable'], ['schedule:', 'Outside allowed hours'], ['insufficient-shared-budget:', 'Insufficient shared allowance']] as const) {
-    if (reason.startsWith(prefix)) return `${label}: ${reason.slice(prefix.length)}`;
+    if (reason.startsWith(prefix)) return `${subscriberText(label, language)}: ${reason.slice(prefix.length)}`;
   }
   const labels: Record<string, string> = {
     'accounting-reconciliation-required': 'Accounting reconciliation is required before another connection.',
@@ -45,25 +46,26 @@ export function connectionReason(reason: string): string {
     'ticket-expired': 'This connection request expired. Select Connect to internet to try again.',
     'session-ended': 'This Internet session has ended. Your remaining allowance is preserved.',
   };
-  return labels[reason] || reason;
+  return subscriberText(labels[reason] || reason, language);
 }
 
-export function connectionView(status: SubscriberConnectionStatus | null, now: number): { label: string; tone: PillTone; message: string; connected: boolean } {
-  if (!status) return { label: 'Internet connection not checked', tone: 'muted', message: 'Select Connect to internet to authenticate this device. Other devices are listed separately.', connected: false };
+export function connectionView(status: SubscriberConnectionStatus | null, now: number, language: SubscriberLanguage = 'en'): { label: string; tone: PillTone; message: string; connected: boolean } {
+  const t = (text: string) => subscriberText(text, language);
+  if (!status) return { label: t('Internet connection not checked'), tone: 'muted', message: t('Select Connect to internet to authenticate this device. Other devices are listed separately.'), connected: false };
   const observed = Date.parse(status.observedAt);
   const fresh = Number.isFinite(observed) && now - observed <= 5000 && observed - now <= 1000;
-  if (status.stage === 'connected' && fresh) return { label: 'Internet connected', tone: 'ok', message: `This device is confirmed on ${status.network}.`, connected: true };
-  if (status.stage === 'connected') return { label: 'Internet connection unconfirmed', tone: 'warn', message: 'The router observation is stale. Last confirmed balances remain available.', connected: false };
+  if (status.stage === 'connected' && fresh) return { label: t('Internet connected'), tone: 'ok', message: language === 'ar' ? `تم تأكيد اتصال هذا الجهاز على ${status.network}.` : `This device is confirmed on ${status.network}.`, connected: true };
+  if (status.stage === 'connected') return { label: t('Internet connection unconfirmed'), tone: 'warn', message: t('The router observation is stale. Last confirmed balances remain available.'), connected: false };
   const stages: Record<string, { label: string; tone: PillTone; message: string }> = {
-    requested: { label: 'Waiting for HotSpot', tone: 'warn', message: 'Complete the secure HotSpot sign-in for this device.' },
-    authorizing: { label: 'HotSpot authentication in progress', tone: 'warn', message: 'Waiting for the network authorization decision.' },
-    authorized: { label: 'Internet authorized; awaiting confirmation', tone: 'warn', message: 'Authorization was accepted. The router has not yet confirmed this device.' },
-    rejected: { label: 'Internet connection denied', tone: 'err', message: 'Your portal account remains available.' },
-    expired: { label: 'Connection request expired', tone: 'warn', message: 'Select Connect to internet to request a new connection.' },
-    disconnected: { label: 'Internet disconnected', tone: 'muted', message: 'This session ended. Your remaining allowance is preserved.' },
-    unconfirmed: { label: 'Internet connection unconfirmed', tone: 'warn', message: 'The router has not confirmed this device.' },
+    requested: { label: t('Waiting for HotSpot'), tone: 'warn', message: t('Complete the secure HotSpot sign-in for this device.') },
+    authorizing: { label: t('HotSpot authentication in progress'), tone: 'warn', message: t('Waiting for the network authorization decision.') },
+    authorized: { label: t('Internet authorized; awaiting confirmation'), tone: 'warn', message: t('Authorization was accepted. The router has not yet confirmed this device.') },
+    rejected: { label: t('Internet connection denied'), tone: 'err', message: t('Your portal account remains available.') },
+    expired: { label: t('Connection request expired'), tone: 'warn', message: t('Select Connect to internet to request a new connection.') },
+    disconnected: { label: t('Internet disconnected'), tone: 'muted', message: t('This session ended. Your remaining allowance is preserved.') },
+    unconfirmed: { label: t('Internet connection unconfirmed'), tone: 'warn', message: t('The router has not confirmed this device.') },
   };
   const view = stages[status.stage] || stages.unconfirmed!;
-  const reasons = status.reasons.map(connectionReason).join(' ');
+  const reasons = status.reasons.map(reason => connectionReason(reason, language)).join(' ');
   return { ...view, message: reasons ? `${view.message} ${reasons}` : view.message, connected: false };
 }

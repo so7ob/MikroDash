@@ -14,6 +14,28 @@ assignment), Plans and policies, and Policy simulator. The page retains the exis
 `subscribers` permission key and the backend `system:subscribers` authorization check.
 The subscriber portal remains on its isolated listener.
 
+The subscriber listener uses the operator-requested So7ob green-C design in
+Arabic/RTL, with local Tajawal and the original So7ob logo. Administration stays
+English/LTR. Choose **بطاقة / قسيمة** for a MikroDash-issued voucher or
+**حساب مستخدم** for username/password. Voucher entry sends an empty username
+and the voucher as the credential; it does not reuse RouterOS CHAP or User Manager.
+**مسح رمز QR** reads a camera frame or image locally, fills the voucher and waits
+for explicit submission. It never opens a scanned URL or stores credentials.
+
+The account shows its actual immutable plan, independent quotas, confirmed
+usage, reserved/uncertain balances, speed choices and owned device sessions.
+The old template's example price table and free-trial link have no MikroDash
+backend and are therefore not displayed. Portal logout leaves Internet sessions
+running; device disconnect keeps its confirmation and server capability guards.
+The old blue/green/purple portal selector is replaced by the supplied green brand.
+
+The design files are bundled in the production image. Delivering this source to
+`develop` does not update an installed container: publish a separately requested
+release/image and update that installation to deploy it. The existing subscriber
+configuration, certificates, account data and RADIUS capability requirements are
+unchanged. The generated NAS handoff is still a separate, reviewed installation.
+
+
 With no runtime configuration, the page shows **Network runtime: Disabled** and
 allows authorized account/voucher creation, immutable plan definitions, assignment,
 policy inspection and reconciliation. These actions update the durable ledger and
