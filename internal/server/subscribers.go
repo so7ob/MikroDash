@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"log"
 	"net"
@@ -290,15 +289,6 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, result)
-}
-func subscriberBody(w http.ResponseWriter, r *http.Request, v any) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
-		writeJSONErr(w, 400, "Invalid request")
-		return false
-	}
-	return true
 }
 func subscriberError(w http.ResponseWriter, err error) {
 	writeJSONErr(w, 400, safe.Message(err.Error()))
