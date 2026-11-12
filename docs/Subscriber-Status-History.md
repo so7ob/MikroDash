@@ -94,3 +94,8 @@ retry, synthetic HTTP401/403 responses through the real fetch helper, and leavin
 a tab while history loads. A reproduced inherited Inspect race was fixed:
 Inspect responses and errors now respect newer Inspect/tab selections and leaving
 the Subscribers page, so they cannot replace a newer history view or its notice.
+
+Validated batch evidence displays its stored reason, before/after status and batch
+ID as labelled text. Original audit record opens the unchanged source string.
+Legacy, malformed or incomplete envelopes remain escaped literal text; no
+transition is inferred. Stored status records never prove network application.

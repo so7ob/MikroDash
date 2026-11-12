@@ -226,6 +226,9 @@ try {
  await historyPanel.getByText('2 events loaded.',{exact:true}).waitFor();
  assert.equal(await historyPanel.locator('li').count(),2);
  assert.equal(JSON.parse(history.events[1].reason).reason,batchReason);
+ assert.ok((await historyPanel.innerText()).includes(batchReason),'reviewed reason is unreadable');
+ assert.ok((await historyPanel.innerText()).includes('Before: active · After: suspended'));
+ await historyPanel.locator('details').nth(1).getByText('Original audit record',{exact:true}).click();
  assert.ok((await historyPanel.innerText()).includes(history.events[1].reason),'stored JSON audit evidence changed in the view');
  assert.ok(!(await historyPanel.innerText()).includes('Synthetic concurrent administrator'),'other account history leaked');
  assert.equal(await historyPanel.locator('script').count(),0);

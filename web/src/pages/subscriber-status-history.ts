@@ -43,12 +43,29 @@ export function createStatusHistory(api:API, changed:(state:HistoryState)=>void)
   };
 }
 
+function reasonMarkup(event:Event):string {
+  if(event.action==='account.status.batch'){
+    try {
+      const value:unknown=JSON.parse(event.reason);
+      if(value!==null && typeof value==='object' && !Array.isArray(value)){
+        const {reason,before,after,batchId}=value as Record<string,unknown>;
+        if(typeof reason==='string' && typeof before==='string' && typeof after==='string'
+            && ['active','suspended'].includes(before) && ['active','suspended'].includes(after)
+            && typeof batchId==='string' && batchId.length>0){
+          return `<p class="text-break">Reason: <bdi>${esc(reason)}</bdi></p><p>Before: ${esc(before)} · After: ${esc(after)}</p><p class="text-break">Batch ID: ${esc(batchId)}</p><details><summary>Original audit record</summary><p class="text-break">${esc(event.reason)}</p></details>`;
+        }
+      }
+    } catch { /* Legacy or incomplete evidence stays verbatim below. */ }
+  }
+  return `<p class="text-break">${esc(event.reason)}</p>`;
+}
+
 export function historyMarkup(s:HistoryState):string {
   const message=s.busy?'Loading status history…':s.error?s.error:s.loaded?(s.events.length?`${s.events.length} events loaded.`:'No status changes recorded.'):'Choose Status history on a subscriber.';
   return `<h4 tabindex="-1" data-history-heading>Status history${s.accountId?' - '+esc(s.label):''}</h4><p>Administrative changes only. These records do not confirm router application or disconnection.</p><p role="status" aria-live="polite">${esc(message)}</p>`+
     (s.accountId?`<button type="button" class="sbtn sbtn-outline" data-history="refresh" ${s.busy?'disabled':''}>Refresh history</button>`:'')+
     (s.error?` <button type="button" class="sbtn sbtn-outline" data-history="retry" ${s.busy?'disabled':''}>Retry page</button>`:'')+
-    `<ol>${s.events.map(e=>`<li><p><strong>${esc(e.action==='account.active'?'Activated':e.action==='account.suspended'?'Suspended':'Reviewed status change')}</strong> · ${esc(fmtTs(e.createdAt*1000,true))}</p><p>Actor: ${esc(e.actor)} · Audit ID: ${esc(e.id)}</p><p class="text-break">${esc(e.reason)}</p></li>`).join('')}</ol>`+
+    `<ol>${s.events.map(e=>`<li><p><strong>${esc(e.action==='account.active'?'Activated':e.action==='account.suspended'?'Suspended':'Reviewed status change')}</strong> · ${esc(fmtTs(e.createdAt*1000,true))}</p><p>Actor: ${esc(e.actor)} · Audit ID: ${esc(e.id)}</p>${reasonMarkup(e)}</li>`).join('')}</ol>`+
     (s.next?`<button type="button" class="sbtn sbtn-outline" data-history="more" ${s.busy?'disabled':''}>Load older changes</button>`:'');
 }
 

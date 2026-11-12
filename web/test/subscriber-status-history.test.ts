@@ -42,3 +42,20 @@ test('initial-page failure clears prior account rows and retry requests the same
  assert.equal(state.events.length,0);assert.equal(state.loaded,false);assert.equal(state.busy,false);assert.match(historyMarkup(state),/Subscriber administration permission required/);assert.match(historyMarkup(state),/Retry page/);
  fail=false;c.retry();await tick();assert.equal(calls[1],calls[2]);assert.equal(state.loaded,true);assert.equal(state.error,'');assert.equal(state.events.length,0);
 });
+
+test('batch history explains stored transitions and preserves exact original evidence safely',()=>{
+ const reason=JSON.stringify({batchId:'batch-1',reason:'سبب <script>bad()</script>',before:'active',after:'suspended'});
+ const html=historyMarkup({accountId:'A',label:'A',busy:false,error:'',loaded:true,events:[{...event('9'),action:'account.status.batch',reason}]});
+ assert.match(html,/Reason: <bdi>سبب &lt;script&gt;bad\(\)&lt;\/script&gt;<\/bdi>/);
+ assert.match(html,/Before: active · After: suspended/);assert.match(html,/Batch ID: batch-1/);
+ assert.match(html,/<details><summary>Original audit record<\/summary>/);
+ assert.ok(html.includes('&quot;before&quot;:&quot;active&quot;'));assert.ok(!html.includes('<script>'));
+});
+test('history never infers transitions from malformed or legacy reason text',()=>{
+ for(const action of ['account.suspended','account.status.batch']){
+  for(const reason of ['{broken',JSON.stringify({reason:'missing states',batchId:'batch'}),JSON.stringify({reason:'invalid states',batchId:'batch',before:'unknown',after:'active'})]){
+   const html=historyMarkup({accountId:'A',label:'A',busy:false,error:'',loaded:true,events:[{...event('9'),action,reason}]});
+   assert.ok(!html.includes('Before:'));assert.ok(!html.includes('Original audit record'));
+  }
+ }
+});
