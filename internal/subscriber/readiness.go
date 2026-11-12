@@ -1,9 +1,7 @@
 package subscriber
 
 import (
-	"fmt"
 	"mikrodash/internal/routeros"
-	"strings"
 	"time"
 )
 
@@ -61,47 +59,4 @@ func Inspect(reader Reader) Readiness {
 	}
 	r.Review = append(r.Review, "Verify both walled garden forwarding and router input access; do not add the subscriber bridge to LAN", "Verify IPv6 cannot bypass the enrolled HotSpot", "Review local HotSpot account precedence and ordered RADIUS server selection", "Prove local time and directional byte limits before enabling admission", "CoA timeout semantics and rate application remain unverified until hardware acceptance")
 	return r
-}
-
-type ImportPreview struct {
-	Rows        map[string][]routeros.Reply `json:"rows"`
-	Warnings    []string                    `json:"warnings"`
-	Fingerprint string                      `json:"fingerprint"`
-}
-
-func PreviewUserManager(reader Reader) ImportPreview {
-	p := ImportPreview{Rows: map[string][]routeros.Reply{}, Warnings: []string{"Preview only. Historical totals are not current-period opening balances.", "Credentials are not read; migrated subscribers need a new credential or an approved credential handover."}}
-	menus := []struct{ path, fields string }{
-		{"/user-manager/profile/print", ".id,name,validity,starts-when,override-shared-users"},
-		{"/user-manager/limitation/print", ".id,name,uptime-limit,download-limit,upload-limit,transfer-limit,reset-counters-interval,reset-counters-start-time,rate-limit-rx,rate-limit-tx,rate-limit-priority"},
-		{"/user-manager/profile-limitation/print", ".id,profile,limitation,from-time,till-time,weekdays"},
-		{"/user-manager/user/print", ".id,name,disabled,shared-users"},
-		{"/user-manager/user-profile/print", ".id,user,profile,state,end-time"},
-	}
-	material := ""
-	for _, m := range menus {
-		rows, err := reader.Do(routeros.Cmd{Path: m.path, Args: []string{"=.proplist=" + m.fields}, Timeout: 5 * time.Second})
-		if err != nil {
-			p.Warnings = append(p.Warnings, "Unavailable menu: "+m.path)
-			continue
-		}
-		if rows == nil {
-			rows = []routeros.Reply{}
-		}
-		p.Rows[m.path] = rows
-		for _, row := range rows {
-			material += fmt.Sprint(row)
-			if m.path == "/user-manager/limitation/print" {
-				name := row["name"]
-				if strings.Contains(strings.ToLower(name), "1min") && row["uptime-limit"] != "1m" {
-					p.Warnings = append(p.Warnings, "Name does not match uptime value: "+name)
-				}
-				if strings.Contains(strings.ToLower(name), "daily") && row["reset-counters-interval"] != "daily" {
-					p.Warnings = append(p.Warnings, "Name does not match reset interval: "+name)
-				}
-			}
-		}
-	}
-	p.Fingerprint = Digest(material)
-	return p
 }
