@@ -50,8 +50,12 @@ repeated pending submissions, a deliberate retry, keyboard focus, escaped Unicod
 three existing palettes at 375/1280 widths, screenshots and axe WCAG 2 A/AA plus
 2.1 AA tags. Local acceptance passed these six combinations with zero axe findings,
 and TypeScript plus all 154 frontend tests passed. This does not claim persisted
-SQLite transactions, live quotas or router acceptance. Local Go integration remains
-blocked by the pinned SQLite archive's Forbidden download; required CI is separate.
+SQLite transactions, live quotas or router acceptance. The earlier pinned SQLite download restriction is historical. The current local
+protected HTTP/SQLite regression `TestSubscriberPlanEditorPersistsConcurrentLimitsAndImmutableAssignment`
+passes: exact quantities above 2^53, stable sparse IDs, calendar zone, simultaneous FUP,
+old-version subscription isolation, refused overwrite and no runtime activation.
+The six-case current browser rerun passes with zero axe findings. Full gates/CI
+are recorded separately and remain required before merge.
 
 Two harness setup failures were retained during development: terminating a response
 before any bytes allowed Chromium transport retry, and axe required an explicit
