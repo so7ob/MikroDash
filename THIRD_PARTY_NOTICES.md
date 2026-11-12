@@ -272,3 +272,20 @@ pinned in go.mod. Its source files are licensed under MPL-2.0; the unmodified
 source and license are available at the pinned upstream revision. It supplies
 RADIUS framing, PAP attribute encoding, request/response authenticators and
 MikroTik vendor attributes. No FreeRADIUS sidecar is required.
+
+## So7ob subscriber portal
+
+The operator-supplied `so7ob-hotspot-green-C` design and So7ob logo are adapted
+in the isolated Arabic subscriber portal. The supplied public SVG is preserved
+in `web/public/subscriber/logo-white.svg`; RouterOS templates, CHAP scripts,
+User Manager URLs and example prices are not imported.
+
+Tajawal's four original Arabic/Latin 400/700 WOFF2 subsets are bundled only for
+this portal in `web/public/subscriber/`, outside the administration font picker.
+Copyright 2018 Boutros International; SIL OFL 1.1, with the full notice in that
+folder's `OFL.txt`. Source: https://github.com/google/fonts/tree/main/ofl/tajawal.
+
+The supplied local jsQR 1.4.0 decoder (jsDelivr/Terser minification) is retained
+in `web/public/vendor/jsqr/jsQR.min.js` for offline QR camera/image decoding.
+jsQR contributors; Apache-2.0, full license in the same folder's `LICENSE`.
+Source: https://github.com/cozmo/jsQR. No CDN request occurs in the browser.

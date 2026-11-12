@@ -30,6 +30,14 @@ func TestSubscriberBrowserAcceptance(t *testing.T) {
 		}
 		t.Run(name, func(t *testing.T) {
 			s, account, _, _ := portalFixture(t)
+			s.subscribers.cfg.Clients = []subscriber.NAS{{RouterID: "synthetic-router", Network: "C", CalledStationID: "hs-synthetic", LoginURL: "https://hotspot.example.test/login", DisconnectPort: 3799}}
+			voucherAccount, voucher, err := s.auditDB.Subscribers().CreateAccount(t.Context(), "synthetic-admin", "synthetic-voucher", "قسيمة تجريبية", "", "browser fixture", 32)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.auditDB.Subscribers().Assign(t.Context(), "synthetic-admin", voucherAccount.ID, "test", 1, "browser fixture", time.Now()); err != nil {
+				t.Fatal(err)
+			}
 			if tc.pending {
 				ledger := s.auditDB.Subscribers()
 				start := time.Now()
@@ -66,7 +74,7 @@ func TestSubscriberBrowserAcceptance(t *testing.T) {
 			if tc.pending {
 				evidence = filepath.Join(evidence, "pending-receipt")
 			}
-			command.Env = append(os.Environ(), "SUBSCRIBER_TEST_URL="+origin, "SUBSCRIBER_EVIDENCE_DIR="+evidence, fmt.Sprintf("SUBSCRIBER_PENDING_RECEIPT=%t", tc.pending))
+			command.Env = append(os.Environ(), "SUBSCRIBER_TEST_URL="+origin, "SUBSCRIBER_TEST_VOUCHER="+voucher, "SUBSCRIBER_EVIDENCE_DIR="+evidence, fmt.Sprintf("SUBSCRIBER_PENDING_RECEIPT=%t", tc.pending))
 			output, err := command.CombinedOutput()
 			if err != nil {
 				t.Fatalf("browser acceptance: %v\n%s", err, output)
