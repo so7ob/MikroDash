@@ -14,6 +14,14 @@ func (s *Server) subscriberPortal(webDir string) http.Handler {
 	mux.HandleFunc("GET /{$}", subscriberAsset(webDir, "subscriber.html"))
 	mux.HandleFunc("GET /subscriber.js", subscriberAsset(webDir, "subscriber.js"))
 	mux.HandleFunc("GET /subscriber.css", subscriberAsset(s.staticDir, "subscriber.css"))
+	for _, asset := range []string{
+		"subscriber-portal.css", "subscriber/logo-white.svg",
+		"subscriber/tajawal-arabic-400-normal.woff2", "subscriber/tajawal-arabic-700-normal.woff2",
+		"subscriber/tajawal-latin-400-normal.woff2", "subscriber/tajawal-latin-700-normal.woff2",
+		"vendor/jsqr/jsQR.min.js",
+	} {
+		mux.HandleFunc("GET /"+asset, subscriberAsset(s.staticDir, asset))
+	}
 	mux.HandleFunc("GET /app.css", subscriberAsset(s.staticDir, "app.css"))
 	mux.HandleFunc("GET /logo.png", subscriberAsset(s.staticDir, "logo.png"))
 	mux.HandleFunc("GET /vendor/tabler.min.css", subscriberAsset(s.staticDir, "vendor/tabler.min.css"))

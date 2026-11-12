@@ -12,6 +12,7 @@ test('subscriber quantities preserve large integers and exact time', () => {
 });
 test('limit cards preserve Unicode data, escape markup and distinguish zero from unlimited', () => {
  const v:SubscriberLimitView={limit:{id:'اختبار <script>',kind:'seconds',state:'limited',amount:'3600',period:{kind:'daily',zone:'Asia/Aden',anchor:'2026-01-01T00:00:00+03:00'},action:'disconnect',down:'0',up:'0'},used:'3600',reserved:'0',remaining:'0',periodStart:'2026-10-01T00:00:00+03:00',nextReset:'2026-10-02T00:00:00+03:00',quality:'fresh'};
+ const ar=limitCard(v, 'ar'); assert.match(ar, /المتبقي/); assert.match(ar, /اختبار &lt;script&gt;/); assert.doesNotMatch(ar, /<script>/);
  const html=limitCard(v);assert.ok(html.includes('اختبار &lt;script&gt;'));assert.ok(!html.includes('<script>'));assert.ok(html.includes('00:00:00'));assert.ok(html.includes('Remaining'));
  v.limit.state='unlimited';assert.ok(limitCard(v).includes('unlimited'));
  v.limit.state='unknown';assert.ok(limitCard(v).includes('unknown'));
@@ -22,3 +23,5 @@ test('pending accounting keeps last confirmed balances distinct from new admissi
  const message=accountingStatusMessage({pendingAccounting:2});
  assert.match(message,/2 pending/);assert.match(message,/Last confirmed balances/);assert.match(message,/New Internet connections are blocked/);assert.ok(!message.includes('Unknown'));
 });
+
+test('Arabic pending accounting retains the blocking and last-confirmed distinction', () => { assert.match(accountingStatusMessage({pendingAccounting:2}, 'ar'), /2 قيد المراجعة/); assert.match(accountingStatusMessage({pendingAccounting:2}, 'ar'), /الاتصالات الجديدة موقوفة/); });

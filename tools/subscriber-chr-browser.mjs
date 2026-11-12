@@ -73,7 +73,7 @@ try {
  const response=page.waitForResponse(r=>r.url().startsWith('https://login.example.test/login')&&r.request().method()==='POST',{timeout:15000});
  const submitted=Promise.all([accountBody.promise,connectBody.promise,response]);
  void submitted.catch(()=>{}); // The assertion below owns any early timeout.
- await page.locator('#subscriberUsername').fill(credentials.username);await page.locator('#subscriberPassword').fill(credentials.password);
+ await page.locator('#accountMode').click();await page.locator('#subscriberUsername').fill(credentials.username);await page.locator('#subscriberPassword').fill(credentials.password);
  phase='single sign-in and actual browser HotSpot POST';await page.locator('#portalLoginSubmit').click({noWaitAfter:true});
  const [before,ticket,hotspot]=await submitted;save('before.json',before);assert.equal(before.pendingAccounting,action==='reconciling'?1:0);assert.equal(before.sessions.filter(s=>s.state==='active').length,0,'start with no owned active session');
  const flowId=ticket.flowId;assert.match(flowId,/^[a-f0-9]{64}$/);assert.equal(ticket.destination,origin+'/?connection='+flowId);
@@ -85,25 +85,25 @@ try {
   const remaining=before.decision.limits.find(x=>x.limit.kind==='download').remaining;
   if(action==='exhausted')assert.equal(remaining,'0');
   else {assert.ok(BigInt(remaining)>0n,'missing-finality case needs positive known credit');assert.equal(before.quality,'reconciling');}
-  await page.waitForFunction(()=>document.querySelector('#internetState')?.textContent==='Internet connection denied',null,{timeout:10000});
-  const reason=await page.locator('#internetDetail').textContent();assert.match(reason,action==='exhausted'?/Allowance exhausted/i:/reconciliation/i);save('router-refusal.json',{reason});
+  await page.waitForFunction(()=>document.querySelector('#internetState')?.textContent==='رُفض الاتصال بالإنترنت',null,{timeout:10000});
+  const reason=await page.locator('#internetDetail').textContent();assert.match(reason,action==='exhausted'?/نفد الرصيد/i:/تسوية/i);save('router-refusal.json',{reason});
   const after=await snapshot();assert.equal(after.decision.allowed,false);assert.equal(after.sessions.filter(s=>s.state==='active').length,0);for(const key of ['pendingAccounting','lifetimeSeconds','lifetimeDownload','lifetimeUpload'])assert.equal(after[key],before[key]);
   save('result.json',{synthetic:true,result:'network-passed',scope:`actual ${action} re-entry denied; portal available; admin route 404`,runtimeBinarySHA256:app.binarySHA256,automaticRecovery:true});
  } else {
-  assert.equal(before.decision.allowed,true);await page.waitForFunction(()=>document.querySelector('#internetState')?.textContent==='Internet connected',null,{timeout:10000});
+  assert.equal(before.decision.allowed,true);await page.waitForFunction(()=>document.querySelector('#internetState')?.textContent==='متصل بالإنترنت',null,{timeout:10000});
   const dashboardReturnMs=Date.now()-repliedAt;
   const flow=await page.evaluate(async id=>{const r=await fetch('/api/connection?flow='+id);if(!r.ok)throw Error('Owned connection unavailable');return r.json();},flowId);assert.equal(flow.stage,'connected');save('owned-flow.json',flow);assert.ok(dashboardReturnMs<=5000,'dashboard return exceeded five seconds');
   const connected=await snapshot(), live=connected.sessions.filter(s=>s.state==='active');assert.equal(live.length,1);assert.equal(live[0].connectionState,'connected');assert.ok(BigInt(connected.lifetimeSeconds)>=BigInt(before.lifetimeSeconds));save('connected.json',connected);
   const profiles=['fast','economy'];assert.ok(profiles.every(id=>connected.subscription.plan.speeds.some(p=>p.id===id)));
   if(connected.subscription.speedId==='fast')profiles.reverse();
   for(const [index,id] of profiles.entries()) {
-   assert.equal(await page.locator('#internetState').textContent(),'Internet connected','owned connection event did not remain fresh');phase=`speed ${id}`;const reply=page.waitForResponse(r=>r.url().endsWith('/api/speed')&&r.request().method()==='POST');await page.locator(`[data-speed="${id}"]`).click();assert.equal((await reply).status(),200);
+   assert.equal(await page.locator('#internetState').textContent(),'متصل بالإنترنت','owned connection event did not remain fresh');phase=`speed ${id}`;const reply=page.waitForResponse(r=>r.url().endsWith('/api/speed')&&r.request().method()==='POST');await page.locator(`[data-speed="${id}"]`).click();assert.equal((await reply).status(),200);
    if(index===0) {
     const cooldown=await page.evaluate(async other=>{const s=await(await fetch('/api/session')).json();const r=await fetch('/api/speed',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':s.csrf},body:JSON.stringify({profileId:other})});return {status:r.status,body:await r.json()};},profiles[1]);
     assert.equal(cooldown.status,400);assert.match(cooldown.body.error,/wait before changing speed again/i);save('cooldown.json',cooldown);
    }
    const profile=connected.subscription.plan.speeds.find(p=>p.id===id);
-   await page.waitForFunction(name=>document.querySelector('#speedState')?.textContent.includes(`Selected: ${name} · Application: verified`),profile.name,{timeout:15000});
+   await page.waitForFunction(name=>document.querySelector('#speedState')?.textContent.includes(`السرعة المختارة: ${name} · التطبيق: مؤكد`),profile.name,{timeout:15000});
    const applied=await snapshot(), device=applied.sessions.find(s=>s.state==='active');assert.equal(applied.subscription.speedId,id);assert.equal(applied.subscription.speedState,'verified');assert.equal(device.id,live[0].id);assert.equal(device.appliedDown,profile.down);assert.equal(device.appliedUp,profile.up);
    assert.equal(applied.subscription.id,connected.subscription.id);assert.equal(applied.subscription.expiresAt,connected.subscription.expiresAt);assert.ok(BigInt(applied.lifetimeSeconds)>=BigInt(connected.lifetimeSeconds));assert.equal(applied.lifetimeDownload,connected.lifetimeDownload);assert.equal(applied.lifetimeUpload,connected.lifetimeUpload);save(`speed-${id}.json`,applied);
    if(index===0)await page.waitForTimeout(10500);
@@ -113,9 +113,8 @@ try {
  assert.deepEqual(submissions,{portal:1,connect:1,hotspot:1},'sign-in or network request repeated');
  save('submissions.json',submissions);
  phase='visual and accessibility';for(const width of [375,1280]) {
-  await page.setViewportSize({width,height:900});assert.equal(await page.locator('html').getAttribute('lang'),'en');assert.equal(await page.locator('html').getAttribute('dir'),'ltr');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
-  for(const theme of ['blue','green','purple']) {
-   await page.locator('#portalTheme').selectOption(theme);await page.screenshot({path:path.join(evidence,`${width}-${theme}.png`),fullPage:true});
+  await page.setViewportSize({width,height:900});assert.equal(await page.locator('html').getAttribute('lang'),'ar');assert.equal(await page.locator('html').getAttribute('dir'),'rtl');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  for(const theme of ['so7ob-green']) {await page.screenshot({path:path.join(evidence,`${width}-${theme}.png`),fullPage:true});
    const axe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(axe.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>n.target)})),[]);
   }
  }
