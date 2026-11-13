@@ -79,3 +79,23 @@ hardware/production activation is implied, and full platform/design dependencies
 remain open in the feature matrix.
 
 The first complete container gate also caught the exact no-settings-toggle census (14 -> 19 after adding five child pages) and a template-parser ambiguity from injecting required text. The census was updated for the new real pages and the existing toggleHtml inputAttrs argument is now used. Both targeted gates pass. Self-review replaced Number coercion in copied limit IDs with BigInt; the >2^53 non-reuse regression passes. The first full-gate failure is retained at /tmp/mikrodash-97-full-verify-initial.log.
+
+
+## #99 administrator credential reset
+
+Store/migration/server focused checks passed on the changed implementation.
+`npm test` passed all 169 frontend tests without skips. The new tagged
+`TestSubscriberCredentialBrowserAcceptance` passed in 108.847s after the mobile
+name wrapping correction: 12 dark/light/Nord × 375/768/1280/1920 geometry/axe
+cases (zero findings), real protected HTTP/SQLite conflicts/validation and
+committed lost-response recovery, session revocation, keyboard/focus and safe
+Unicode. Audit is independently inspected through a read-only SQLite connection.
+An earlier passing browser (89.857s) exposed long-name clipping during image
+inspection; the corrected images are retained. Later safe 503 classification
+and actual audit-trigger failure are verified by focused server tests.
+
+Commands, final exact-head full gate, optional browser regression, tested SHA,
+PR CI and post-merge CI are recorded on Issue #99 after delivery. Artifacts use
+`/tmp/mikrodash-99-*`. CREDENTIAL-ROTATION.md defines the durable epoch and
+admission boundary; UI-UX-UNIFICATION.md links committed synthetic screenshots.
+No actual NAS, router disconnect, deployment or production migration is claimed.

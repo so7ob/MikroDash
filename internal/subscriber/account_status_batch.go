@@ -14,7 +14,7 @@ const MaxAccountStatusBatch = 50
 
 const AccountStatusIndexes = `CREATE INDEX IF NOT EXISTS subscriber_status_revision ON subscriber_audit(target,id DESC) WHERE action IN ('account.active','account.suspended','account.status.batch');`
 
-const accountReviewColumns = `id,username,name,status,(SELECT COALESCE(MAX(id),0) FROM subscriber_audit WHERE target=subscriber_accounts.id AND action IN ('account.active','account.suspended','account.status.batch'))`
+const accountReviewColumns = `id,username,name,status,(SELECT COALESCE(MAX(id),0) FROM subscriber_audit WHERE target=subscriber_accounts.id AND action IN ('account.active','account.suspended','account.status.batch')),` + credentialRevisionColumn
 
 type AccountStatusExpectation struct {
 	AccountID        string    `json:"accountId"`
@@ -62,7 +62,7 @@ func (s *Store) SetStatusBatch(ctx context.Context, actor, status, reason string
 	at := time.Now()
 	for _, item := range items {
 		var account Account
-		err = tx.QueryRowContext(ctx, `SELECT `+accountReviewColumns+` FROM subscriber_accounts WHERE id=?`, item.AccountID).Scan(&account.ID, &account.Username, &account.Name, &account.Status, &account.StatusRevision)
+		err = tx.QueryRowContext(ctx, `SELECT `+accountReviewColumns+` FROM subscriber_accounts WHERE id=?`, item.AccountID).Scan(&account.ID, &account.Username, &account.Name, &account.Status, &account.StatusRevision, &account.CredentialRevision)
 		if errors.Is(err, sql.ErrNoRows) || err == nil && (account.Status != item.ExpectedStatus || account.StatusRevision != *item.ExpectedRevision) {
 			return AccountStatusBatch{}, ErrConflict
 		}

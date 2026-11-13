@@ -53,3 +53,24 @@ images and per-page partial status are in UI-UX-UNIFICATION.md. This is an addit
 foundation: #38, #76 and the full #97 design acceptance remain open. Continue
 P0-CREDENTIAL and the retained commercial/policy/directory roadmap. The final
 source SHA and local/PR/post-merge gate evidence are recorded on #97 after delivery.
+
+
+## Administrator credential rotation (#99)
+
+Built on verified #98/develop ecf191da, using the shared subscriber row actions
+and managed modal. Schema 46 adds durable account/ticket credential revisions
+without modifying existing account/hash/Unicode rows. A reviewed reset commits
+scrypt replacement, old voucher/ticket revocation and secret-free audit atomically.
+HTTP/WS authorization and authenticated RADIUS reservation fence stale epochs;
+new logins survive old-session eviction. Existing subscription balances, usage,
+leases and reservation exposure are preserved. Existing network connections are
+not forcibly disconnected. Username editing/new vouchers/self-service recovery
+remain separate work.
+
+Focused store/migration/server race and failure checks pass, as do 169 web tests.
+The credential browser passed 12 dark/light/Nord cases at all four widths with
+zero axe findings, retained draft/conflict/uncertain-commit checks and real
+HTTP/SQLite authority. CREDENTIAL-ROTATION.md records the contract and UI evidence.
+The full stable gate, exact tested SHA, PR, squash SHA and pre/post-merge CI are
+recorded on #99 after final delivery. Keep #38/#76/#97 open. Next P0: broader
+account audit, followed by commercial idempotency; the A-N/P0-P3 roadmap remains.

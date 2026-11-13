@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS subscriber_audit (
  id INTEGER PRIMARY KEY, actor TEXT NOT NULL, action TEXT NOT NULL, target TEXT NOT NULL,
  reason TEXT NOT NULL, created_at INTEGER NOT NULL
 );
-` + SessionSchema + ReconciliationSchema + ReceiptSchema + FinalityIndexes + ConnectionSchema + AccountStatusIndexes
+` + SessionSchema + ReconciliationSchema + ReceiptSchema + FinalityIndexes + ConnectionSchema + AccountStatusIndexes + CredentialSchema
 
 type Store struct{ sql *sql.DB }
 
@@ -102,11 +102,12 @@ func audit(tx *sql.Tx, actor, action, target, reason string, now time.Time) erro
 }
 
 type Account struct {
-	ID             string   `json:"id"`
-	Username       string   `json:"username"`
-	Name           string   `json:"name"`
-	Status         string   `json:"status"`
-	StatusRevision Quantity `json:"statusRevision"`
+	ID                 string   `json:"id"`
+	Username           string   `json:"username"`
+	Name               string   `json:"name"`
+	Status             string   `json:"status"`
+	StatusRevision     Quantity `json:"statusRevision"`
+	CredentialRevision Quantity `json:"credentialRevision"`
 }
 
 func (s *Store) CreateAccount(ctx context.Context, actor, username, name, password, reason string, voucherLength int) (Account, string, error) {
@@ -151,9 +152,9 @@ func (s *Store) Authenticate(ctx context.Context, username, password string) (Ac
 	var salt, hash string
 	var err error
 	if username == "" {
-		err = s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+`,salt,password_hash FROM subscriber_accounts WHERE voucher_hash=?`, Digest(password)).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &salt, &hash)
+		err = s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+`,salt,password_hash FROM subscriber_accounts WHERE voucher_hash=?`, Digest(password)).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &a.CredentialRevision, &salt, &hash)
 	} else {
-		err = s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+`,salt,password_hash FROM subscriber_accounts WHERE username=?`, username).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &salt, &hash)
+		err = s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+`,salt,password_hash FROM subscriber_accounts WHERE username=?`, username).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &a.CredentialRevision, &salt, &hash)
 	}
 	if err != nil {
 		store.HashPassword(password, "subscriber-missing-account")
@@ -162,6 +163,9 @@ func (s *Store) Authenticate(ctx context.Context, username, password string) (Ac
 	// Suspended accounts may inspect their balance; network admission checks status.
 	if username != "" && !store.VerifyPassword(store.User{PasswordHash: hash, Salt: salt}, password) {
 		return Account{}, ErrDenied
+	}
+	if err = s.ValidateCredentialRevision(ctx, a.ID, a.CredentialRevision); err != nil {
+		return Account{}, err
 	}
 	return a, nil
 }
@@ -174,7 +178,7 @@ func (s *Store) Accounts(ctx context.Context) ([]Account, error) {
 	out := []Account{}
 	for rows.Next() {
 		var a Account
-		if err = rows.Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision); err != nil {
+		if err = rows.Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &a.CredentialRevision); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
@@ -569,11 +573,11 @@ func (s *Store) CheckReady(ctx context.Context) error {
 		return err
 	}
 	var n int
-	if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('subscriber_accounts','subscriber_operations','subscriber_sources','subscriber_observations','subscriber_holds','subscriber_reconciliations','subscriber_byte_gaps','subscriber_gap_periods','subscriber_legacy_exposure','subscriber_accounting_receipts')`).Scan(&n); err != nil {
+	if err := s.sql.QueryRowContext(ctx, `SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('subscriber_accounts','subscriber_operations','subscriber_sources','subscriber_observations','subscriber_holds','subscriber_reconciliations','subscriber_byte_gaps','subscriber_gap_periods','subscriber_legacy_exposure','subscriber_accounting_receipts','subscriber_credential_revisions','subscriber_ticket_credentials')`).Scan(&n); err != nil {
 		return err
 	}
-	if n != 10 {
-		return errors.New("subscriber schema 41 migration required")
+	if n != 12 {
+		return errors.New("subscriber schema 46 migration required")
 	}
 	return nil
 }
@@ -586,7 +590,7 @@ func wrap(err error) error {
 
 func (s *Store) AccountByID(ctx context.Context, id string) (Account, error) {
 	var a Account
-	err := s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+` FROM subscriber_accounts WHERE id=?`, id).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision)
+	err := s.sql.QueryRowContext(ctx, `SELECT `+accountReviewColumns+` FROM subscriber_accounts WHERE id=?`, id).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &a.StatusRevision, &a.CredentialRevision)
 	return a, err
 }
 

@@ -4,19 +4,14 @@ package server
 
 import (
 	"database/sql"
-	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/evanw/esbuild/pkg/api"
-	"mikrodash/internal/pages"
 	"mikrodash/internal/subscriber"
 )
 
@@ -65,44 +60,7 @@ func TestSubscriberAdminReconciliationBrowserAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bundle := api.Build(api.BuildOptions{EntryPoints: []string{filepath.Join(root, "web/test/browser/subscriber-admin-entry.ts")}, Bundle: true, Write: false, Format: api.FormatIIFE, Platform: api.PlatformBrowser, LogLevel: api.LogLevelSilent})
-	if len(bundle.Errors) != 0 || len(bundle.OutputFiles) != 1 {
-		t.Fatal(bundle.Errors)
-	}
-	var markup strings.Builder
-	for _, p := range pages.All {
-		if pages.IsSubscriber(p.Key) || p.Key == "interfaces" || p.Key == "vlans" || p.Key == "bridges" {
-			content, err := os.ReadFile(filepath.Join(root, "web/src/ui/page-"+p.Key+".html"))
-			if err != nil {
-				t.Fatal(err)
-			}
-			markup.Write(content)
-		}
-	}
-	shell, err := os.ReadFile(filepath.Join(root, "web/src/ui/shell.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	navStart, navEnd := strings.Index(string(shell), "<nav id="), strings.Index(string(shell), "</nav>")
-	page := string(shell)[navStart:navEnd+6] + `<button id="burgerBtn" aria-label="Open menu">Menu</button><div id="navOverlay"></div><main id="main"><h1 class="card-title">Synthetic administration fixture</h1>` + markup.String() + `</main>`
-	mux.HandleFunc("GET /api/nav-prefs", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]any{"grouped": true}) })
-	mux.HandleFunc("POST /api/nav-prefs", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, map[string]any{"ok": true}) })
-	fixturePage := func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><html lang="en" dir="ltr" data-bs-theme="dark" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Synthetic subscriber administration</title><link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/app.css"></head><body>`+page+`<script src="/admin-test.js"></script></body></html>`)
-	}
-	mux.HandleFunc("GET /{$}", fixturePage)
-	for _, p := range pages.All {
-		if pages.IsSubscriber(p.Key) {
-			mux.HandleFunc("GET /"+p.URL(), fixturePage)
-		}
-	}
-
-	mux.HandleFunc("GET /admin-test.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		_, _ = w.Write(bundle.OutputFiles[0].Contents)
-	})
-	mux.Handle("GET /", http.FileServer(http.Dir(filepath.Join(root, "web/public"))))
+	mountSubscriberAdminBrowserFixture(t, mux, root)
 	server := httptest.NewTLSServer(mux)
 	defer server.Close()
 	command := exec.Command("node", filepath.Join(root, "tools/subscriber-admin-browser.mjs"))

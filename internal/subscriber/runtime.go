@@ -275,12 +275,13 @@ type SessionRegistry struct {
 	tokens map[string]PortalSession
 }
 type PortalSession struct {
-	AccountID string
-	CSRF      string
-	Expires   time.Time
+	AccountID          string
+	CredentialRevision Quantity
+	CSRF               string
+	Expires            time.Time
 }
 
-func (s *SessionRegistry) New(account string) (string, PortalSession) {
+func (s *SessionRegistry) New(account string, revision Quantity) (string, PortalSession) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.tokens == nil {
@@ -293,7 +294,7 @@ func (s *SessionRegistry) New(account string) (string, PortalSession) {
 		}
 	}
 	token := ID()
-	v := PortalSession{AccountID: account, CSRF: ID(), Expires: now.Add(8 * time.Hour)}
+	v := PortalSession{AccountID: account, CredentialRevision: revision, CSRF: ID(), Expires: now.Add(8 * time.Hour)}
 	s.tokens[Digest(token)] = v
 	return token, v
 }
@@ -316,4 +317,16 @@ func DecodeConfig(raw []byte) (Config, error) {
 		return c, errors.New("invalid subscriber configuration")
 	}
 	return c, c.Validate()
+}
+
+// RevokeBefore discards old in-memory tokens after a durable reset. A login using
+// the new credential may have completed already and must remain valid.
+func (s *SessionRegistry) RevokeBefore(account string, revision Quantity) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for token, session := range s.tokens {
+		if session.AccountID == account && session.CredentialRevision < revision {
+			delete(s.tokens, token)
+		}
+	}
 }
