@@ -162,5 +162,6 @@
       "axeViolations": 0,
       "geometry": true
     }
-  ]
+  ],
+  "captureNote": "These representative frames precede the equivalent explicit form-ID binding correction. Captured source hashes remain historical; final corrected-head browser frames and gate proof are recorded on Issue #99."
 }

@@ -99,3 +99,8 @@ PR CI and post-merge CI are recorded on Issue #99 after delivery. Artifacts use
 `/tmp/mikrodash-99-*`. CREDENTIAL-ROTATION.md defines the durable epoch and
 admission boundary; UI-UX-UNIFICATION.md links committed synthetic screenshots.
 No actual NAS, router disconnect, deployment or production migration is claimed.
+
+The first full #99 gate caught an explicit form-ID binding omission in
+TestTemplateIDsAreBound. The same submitted form is now bound through the shared
+DOM helper. The static check remains intact. Initial failure is retained in
+/tmp/mikrodash-99-full-verify.log; final evidence uses the corrected head.

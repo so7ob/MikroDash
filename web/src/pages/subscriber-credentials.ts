@@ -24,7 +24,7 @@ export function initSubscriberCredentials(api:API,committed:(account:SubscriberA
  function controls():void{form.querySelectorAll<HTMLInputElement|HTMLButtonElement>('input,button').forEach(n=>{n.disabled=busy;});save.disabled=busy||blockedReview||!review;save.textContent=busy?'Resetting…':'Reset password';modal.busy(busy);}
  for(const input of [password,repeat,reason])input.addEventListener('input',()=>{for(const field of [password,repeat,reason])field.setCustomValidity('');});
  modal.onClose(()=>{form.reset();password.setCustomValidity('');repeat.setCustomValidity('');reason.setCustomValidity('');review=null;blockedReview=false;controls();});
- form.addEventListener('submit',async event=>{
+ el<HTMLFormElement>('subscriberCredentialForm')!.addEventListener('submit',async event=>{
   event.preventDefault();if(busy||blockedReview||!review)return;
   const bytes=new TextEncoder().encode(password.value).length;
   password.setCustomValidity(bytes<8||bytes>128||/[\x00\r\n]/.test(password.value)?'Use 8 to 128 UTF-8 bytes without NUL or line breaks.':'');
