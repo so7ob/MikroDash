@@ -16,8 +16,8 @@ Acceptance/test contract: Protected admin UI/API/SQLite round trip, selected ide
 |---|---|---|---|
 | A01 | Create subscriber | Implemented & Verified | Scoped software/browser regression evidence in TEST-EVIDENCE; broader module remains open. |
 | A02 | Edit subscriber metadata | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| A03 | Manage username and login credentials | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| A04 | Secure password reset | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
+| A03 | Manage username and login credentials | Partial | #99 implements reviewed administrator password reset, preserving account identity and username. Username editing/new voucher issuance remain separate workflows. |
+| A04 | Secure password reset | Implemented & Verified | #99: reviewed shared modal/protected API; durable exact credential epoch, atomic scrypt/audit/ticket revocation; HTTP/WS and stale RADIUS proof fencing; rollback and protected HTTP/SQLite browser. Delivery evidence on #99. |
 | A05 | Activate suspend reactivate | Implemented & Verified | Scoped software/browser regression evidence in TEST-EVIDENCE; broader module remains open. |
 | A06 | Renew commercial subscription | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | A07 | Extend validity | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
@@ -278,7 +278,7 @@ Acceptance/test contract: Actual protected portal HTTP/SQLite browser journey, o
 | K04 | Usage | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | K05 | Owned devices/sessions | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | K06 | Entitled speed choice | Implemented but Not Hardware Verified | Pending Hardware Verification on target; see #76 and existing protocol tests. |
-| K07 | Secure credential change | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
+| K07 | Secure credential change | Partial | #99 verifies administrator password rotation and old voucher/session revocation. Subscriber self-service credential changes and recovery remain P2-PORTAL; username editing is separate A03 work. |
 | K08 | Renewal request | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
 | K09 | Redeem top-up voucher | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
 | K10 | Receipts | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |

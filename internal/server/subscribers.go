@@ -237,19 +237,21 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Action        string                                `json:"action"`
-		Username      string                                `json:"username"`
-		Name          string                                `json:"name"`
-		ExpectedName  *string                               `json:"expectedName"`
-		Password      string                                `json:"password"`
-		VoucherLength int                                   `json:"voucherLength"`
-		AccountID     string                                `json:"accountId"`
-		PlanID        string                                `json:"planId"`
-		Version       int                                   `json:"version"`
-		Reason        string                                `json:"reason"`
-		Status        string                                `json:"status"`
-		Plan          subscriber.Plan                       `json:"plan"`
-		Items         []subscriber.AccountStatusExpectation `json:"items"`
+		ExpectedCredentialRevision *subscriber.Quantity                  `json:"expectedCredentialRevision"`
+		ConfirmCredentialReset     bool                                  `json:"confirmCredentialReset"`
+		Action                     string                                `json:"action"`
+		Username                   string                                `json:"username"`
+		Name                       string                                `json:"name"`
+		ExpectedName               *string                               `json:"expectedName"`
+		Password                   string                                `json:"password"`
+		VoucherLength              int                                   `json:"voucherLength"`
+		AccountID                  string                                `json:"accountId"`
+		PlanID                     string                                `json:"planId"`
+		Version                    int                                   `json:"version"`
+		Reason                     string                                `json:"reason"`
+		Status                     string                                `json:"status"`
+		Plan                       subscriber.Plan                       `json:"plan"`
+		Items                      []subscriber.AccountStatusExpectation `json:"items"`
 	}
 	if !subscriberBody(w, r, &in) {
 		return
@@ -275,6 +277,30 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, subscriber.ErrConflict) {
 			writeJSONErr(w, 409, "Subscriber details changed. Refresh the list and open Edit name again before saving.")
 			return
+		}
+		result = map[string]any{"account": account}
+	case "credential":
+		if in.ExpectedCredentialRevision == nil || !in.ConfirmCredentialReset {
+			writeJSONErr(w, 400, "Review the credential revision and confirm the password reset")
+			return
+		}
+		var account subscriber.Account
+		account, err = store.ResetCredential(r.Context(), actor, in.AccountID, in.Password, in.Reason, *in.ExpectedCredentialRevision)
+		if err != nil {
+			switch {
+			case errors.Is(err, subscriber.ErrConflict):
+				writeJSONErr(w, 409, "Subscriber credentials changed. Close this dialog, refresh and review the account again.")
+			case errors.Is(err, subscriber.ErrCredentialInput):
+				subscriberError(w, err)
+			case errors.Is(err, subscriber.ErrDenied):
+				writeJSONErr(w, 404, "Subscriber account is unavailable. Refresh and review the list again.")
+			default:
+				writeJSONErr(w, 503, "Password reset was not confirmed. Refresh and review the account before retrying.")
+			}
+			return
+		}
+		if s.subscribers != nil {
+			s.subscribers.sessions.RevokeBefore(account.ID, account.CredentialRevision)
 		}
 		result = map[string]any{"account": account}
 	case "create":

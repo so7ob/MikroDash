@@ -10,9 +10,10 @@ Current integration: #77, #78, #80, #81 and #79 are delivered, with successful
 full local and PR/post-merge CI. Issue #95 tracks the audit PR and its own exact
 head/CI. Keep #38/#76 open; no release or runtime activation is implied.
 
-Next independent P0 is audited credential rotation. Search issues first, create
-or reuse a scoped issue and numbered branch from then-current develop. Deliver a
-reviewed administrator UI/API with modern authority, Origin/CSRF, explicit account
+P0-CREDENTIAL is implemented and locally verified in Issue #99. Its exact head,
+full gate, PR/develop merge and CI are recorded on that issue after delivery.
+The contract below is retained as implemented acceptance, not a task to restart.
+Audited administrator credential rotation provides a reviewed administrator UI/API with modern authority, Origin/CSRF, explicit account
 and reason, stale credential-version fencing and scrypt using existing primitives.
 Commit new credential/version, audit and outstanding-ticket revocation atomically.
 Portal HTTP and WebSocket sessions must reject revoked epochs, including an
@@ -23,7 +24,13 @@ login/admission races, audit/storage rollback, sessions/tickets, unauthorized ca
 input retention/uncertain response and actual protected HTTP/SQLite browser UX.
 Define the credential epoch contract before editing network admission code.
 
-Follow with broader account audit and P0 commercial operation idempotency. The
+Next independent P0 is broader account audit (P0-AUDIT): bounded indexed
+chronology for creation, name/status/assignment and credential events; exact
+audit IDs, actor/reason/action, safe parsed revision changes, original evidence,
+truthful unknown historical before-state, account/subscription isolation,
+readonly protected API and shared detail modal. Search existing issues first.
+Preserve the delivered status-only history and #99 credential epoch contract.
+Then implement P0 commercial operation idempotency. The
 owner-approved policy is a new period without rollover. Review must show previous
 remaining balance, transferred amount zero and new period credit; retain prior
 subscription and usage records. New request keys produce one immutable operation
@@ -46,6 +53,7 @@ on the actual target. Do not close the full platform from these bounded incremen
 
 
 UI extension received 2026-11-13: deliver #97 shared sidebar/list/modal foundation
-and record browser evidence in UI-UX-UNIFICATION.md, then continue the unchanged
-P0 credential epoch/rotation work above using those same components. Do not claim
+and record browser evidence in UI-UX-UNIFICATION.md. #98 delivered its foundation;
+#99 uses those components for credential rotation. Continue broader audit and
+commercial work with those same shared components. Do not claim
 UX closure for unresolved directory/detail/analytics/backend dependencies.

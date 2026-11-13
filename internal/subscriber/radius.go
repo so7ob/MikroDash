@@ -230,7 +230,7 @@ func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) 
 		reject()
 		return
 	}
-	admitted, err := s.Store.Reserve(r.Context(), a.ID, c.RouterID, c.Network, device, request, time.Now())
+	admitted, err := s.Store.ReserveAuthenticated(r.Context(), a, c.RouterID, c.Network, device, request, time.Now())
 	if err != nil {
 		if ticket {
 			s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{Reasons: admissionReasons(err)})
@@ -248,6 +248,10 @@ func (s *RadiusService) ServeRADIUS(w radius.ResponseWriter, r *radius.Request) 
 		return
 	}
 	if ticket && !s.recordTicketOutcome(r.Context(), password, binding, request, TicketOutcome{LeaseID: admitted.LeaseID}) {
+		reject()
+		return
+	}
+	if s.Store.ValidateCredentialRevision(r.Context(), a.ID, a.CredentialRevision) != nil {
 		reject()
 		return
 	}

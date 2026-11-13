@@ -190,3 +190,29 @@ Visual correction rounds fixed measured secondary-action/label/header/light
 warning contrast, visible-control geometry mutation, modal footer placement and
 long-dialog header/action visibility. Remaining functional dependencies in the
 page matrix are intentionally still partial; future children are not exposed.
+
+
+### Credential reset follows the shared pattern (#99)
+
+Subscriber rows now expose Reset password. This opens the existing managed
+modal shell with the selected Unicode account, exact reviewed revision, two
+password fields, audit reason and explicit revocation confirmation. Existing
+password/voucher/portal credentials are revoked; balances, usage and existing
+network authorizations are preserved. Secrets are cleared after success/discard
+and never read back. Busy forms reject duplicate save/close. A 400 preserves the
+draft for correction; conflict/uncertain results require closing and refreshing
+before another reviewed reset. This adds no permanent page form or new design
+system. Mobile long-name wrapping uses the existing text-break utility.
+
+Acceptance: actual protected HTTP/SQLite browser covers validation, cancellation,
+dirty Escape, focus trap/return, concurrent reset, committed lost response,
+unrelated account isolation, old/new portal proofs and exact audit. All four
+widths and dark/light/Nord pass shared form geometry and axe (12 cases, zero
+findings); deliberate control-height mutation is rejected. The credential audit
+read surface remains broader P0-AUDIT work; the scoped reset does not close #97.
+Committed images and hashes are in [credential evidence](credential-evidence/manifest.json).
+[Mobile dark](credential-evidence/credential-dark-375.png),
+[desktop dark](credential-evidence/credential-dark-1280.png),
+[desktop light](credential-evidence/credential-light-1280.png),
+[mobile Nord](credential-evidence/credential-nord-375.png).
+Exact final source/full gate/PR/develop CI are recorded on Issue #99.

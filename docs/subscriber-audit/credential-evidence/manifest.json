@@ -1,0 +1,167 @@
+{
+  "issue": 99,
+  "referenceBase": "ecf191da53c4726ebf57a9a42e60d8a57f1d50d8",
+  "source": "Actual protected HTTP/SQLite; all identities and NAS data synthetic. UI render hashes match captures; final server/API full-head delivery proof is on Issue #99.",
+  "localResults": "/tmp/mikrodash-99-browser-final/credential-browser-results.json",
+  "visualSourceSHA256": {
+    "web/src/pages/subscriber-credentials.ts": "4989b4814d43b931966267c8e3e36fa5c2300bcecec29a693bf7b667e7498f12",
+    "web/src/pages/subscribers.ts": "f11c3c8808e431dcf5c7ecbc72aaa4cd6d3c7a6bd11eb55b474f7ac3e8cbf11c",
+    "web/src/pages/subscriber-account-actions.ts": "18c522e7a41f29ab1d12085ade009b51c76a6963703541c0ed903ae4ef10443c",
+    "web/src/modals.ts": "2555f4d710f1cf13ccc6f35d45379598fab673f530cc32ac93e350af52c98a9d",
+    "web/src/form.ts": "dc0476a42fa0addd1c679c62941c8b83104933a6687ef6c36e65590bb4fe4314",
+    "web/public/app.css": "acb62d385fab8725b6c97607e4ae5de1b52786f23682780de8fc0e77fa4ac2dc",
+    "web/src/ui/shell.html": "eedb23d23fc30ff027488110e37c36c00955a412041051877a62713edb42848f",
+    "web/test/browser/subscriber-admin-entry.ts": "844700db4b56159c4c3ac716e7c91d4b94de85d3eeff28e73dfd4bd533f46b70",
+    "internal/server/subscriber_credential_browser_test.go": "622135ede25f29061c0790eaf576d80537d45117f5588e24d33da01a9b4d9d8c",
+    "tools/subscriber-credential-browser.mjs": "f9f72c345d11f1a3c8626a4baf71c92a1fc349153460fb0b2836dfa3402c352b"
+  },
+  "images": [
+    {
+      "file": "credential-dark-375.png",
+      "sha256": "0878a29ee7af77e5216c928be20b51e8bd6d06c1794631dd43df6c6e70e1cc37",
+      "width": 375,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "credential-dark-768.png",
+      "sha256": "70a41aa42ada22f4a192ccafdb1abea80109ce75325897e83aaebfcd740182d6",
+      "width": 768,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "credential-dark-1280.png",
+      "sha256": "9cc640b086403f449d5eb390bd6d5661c619e71023eabb818a38e7539f7f8a32",
+      "width": 1280,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "credential-dark-1920.png",
+      "sha256": "4b61d5efb5decce481f00e847b8ae4c50c2865f363d6429c7b1f8249772757fa",
+      "width": 1920,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "credential-light-1280.png",
+      "sha256": "4c1e341fb39601d26a9b67f90b22b4f2051e09f24fb6879652c5b46fee4335f6",
+      "width": 1280,
+      "height": 1000,
+      "theme": "light",
+      "palette": "default"
+    },
+    {
+      "file": "credential-nord-375.png",
+      "sha256": "9b2b09e48140a8c3fcfaf1b9601b93391755b81457b928c0583eb8ffb1e0a4d1",
+      "width": 375,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "nord"
+    }
+  ],
+  "cases": [
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 375,
+      "file": "subscriber-credential-synthetic-dark-default-375.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 768,
+      "file": "subscriber-credential-synthetic-dark-default-768.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 1280,
+      "file": "subscriber-credential-synthetic-dark-default-1280.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 1920,
+      "file": "subscriber-credential-synthetic-dark-default-1920.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 375,
+      "file": "subscriber-credential-synthetic-light-default-375.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 768,
+      "file": "subscriber-credential-synthetic-light-default-768.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 1280,
+      "file": "subscriber-credential-synthetic-light-default-1280.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 1920,
+      "file": "subscriber-credential-synthetic-light-default-1920.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 375,
+      "file": "subscriber-credential-synthetic-dark-nord-375.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 768,
+      "file": "subscriber-credential-synthetic-dark-nord-768.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 1280,
+      "file": "subscriber-credential-synthetic-dark-nord-1280.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 1920,
+      "file": "subscriber-credential-synthetic-dark-nord-1920.png",
+      "axeViolations": 0,
+      "geometry": true
+    }
+  ],
+  "captureNote": "These representative frames precede the equivalent explicit form-ID binding correction. Captured source hashes remain historical; final corrected-head browser frames and gate proof are recorded on Issue #99."
+}

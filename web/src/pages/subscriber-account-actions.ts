@@ -2,7 +2,7 @@ import { el, esc, pill } from '../dom';
 import { managedModal } from '../modals';
 import { fieldHtml, toggleHtml } from '../form';
 
-export type SubscriberAdminAccount = { id: string; username: string; name: string; status: string; statusRevision: string };
+export type SubscriberAdminAccount = { id: string; username: string; name: string; status: string; statusRevision: string; credentialRevision?: string };
 type StatusResult = { account: SubscriberAdminAccount; outcome: 'changed' | 'unchanged' };
 type BatchResult = { batchId: string; changed: SubscriberAdminAccount[]; skipped: number; results: StatusResult[] };
 type API = <T>(path: string, body?: unknown) => Promise<T>;

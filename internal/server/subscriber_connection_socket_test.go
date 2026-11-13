@@ -20,7 +20,7 @@ func TestPortalConnectionSocketChecksOwnerPeerAndOriginBeforeUpgrade(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	foreignToken, _ := s.subscribers.sessions.New(foreign.ID)
+	foreignToken, _ := s.subscribers.sessions.New(foreign.ID, foreign.CredentialRevision)
 	own, err := ledger.IssueTicket(t.Context(), subscriber.TicketRequest{AccountID: account.ID, RouterID: "lab", Network: "C", Device: "02:00:00:00:00:64", ClientAddress: "127.0.0.1"}, time.Now())
 	if err != nil {
 		t.Fatal(err)
