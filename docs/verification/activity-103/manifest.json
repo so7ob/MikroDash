@@ -1,0 +1,46 @@
+{
+  "issue": 103,
+  "kind": "synthetic browser evidence",
+  "date": "2026-11-14",
+  "viewports": [
+    375,
+    768,
+    1280,
+    1920
+  ],
+  "themes": [
+    "dark",
+    "light"
+  ],
+  "axeViolations": 0,
+  "sourceFingerprint": "e2bbb849ad70a846c5461999f0c434606d3e98260ede8bfabaa9a29aa82ed32d",
+  "sourcePaths": [
+    "internal/activity/query.go",
+    "internal/db/db.go",
+    "internal/db/activity_index.go",
+    "internal/db/activity_query_cache.go",
+    "internal/server/activity.go",
+    "web/src/pages/activity.ts",
+    "web/src/pages/dashboard-card-activity.ts",
+    "web/src/ui/page-activity.html",
+    "web/src/gen/payloads.ts"
+  ],
+  "files": [
+    {
+      "file": "mikrodash-activity-preparing-375-dark.png",
+      "sha256": "b7ec38da73f9ff410757d10209872fd66989f6fde58d5cd2743098fbee430c90"
+    },
+    {
+      "file": "mikrodash-activity-preparing-1280-dark.png",
+      "sha256": "837a98a91da335f9d5dedad44ea1a0608da359ec2671639d8be7d181531d5dec"
+    },
+    {
+      "file": "mikrodash-activity-prepared-375-light.png",
+      "sha256": "577b2fdd2285c72330d28694954ec1e59e6d499561336031804b7393d73bc8d7"
+    },
+    {
+      "file": "mikrodash-activity-prepared-1280-dark.png",
+      "sha256": "e435317b629b5dfd91c03d6a380cf5254006df9573af9e2bc110646e4a5f95e2"
+    }
+  ]
+}

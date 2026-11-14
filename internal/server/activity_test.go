@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -398,5 +399,60 @@ func TestActivityPartialResponsesKeepFullDefaultAndRecheckCachedPermission(t *te
 	denied := activityRequest(mux, "GET", "/api/activity/query?routerId=r1&view=events&parts=table", "", "mikrodash_sid=activity-test-token")
 	if denied.Code != 403 {
 		t.Fatal("cached analysis bypassed revoked permission", denied.Code)
+	}
+}
+
+// A competing SQLite writer can delay local preparation on a constrained host.
+// This exercises the real HTTP path and database deadline, not a stubbed result.
+func TestActivityPreparationHTTPAcceptedAndRetry(t *testing.T) {
+	s, mux, dir := activityTestServer(t)
+	s.activityWire.Close()
+	now := time.Now().UnixMilli()
+	if err := s.auditDB.PersistActivity([]activity.Event{{RouterID: "r1", SourceKey: "prepare", At: now - 100, Received: now, Kind: "dns", Domain: "synthetic.example", Client: "synthetic", DNSIPs: []string{"198.51.100.9"}}}, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	h, err := sql.Open("sqlite", filepath.Join(dir, "mikrodash.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Close()
+	h.SetMaxOpenConns(1)
+	if _, err = h.Exec("BEGIN IMMEDIATE"); err != nil {
+		t.Fatal(err)
+	}
+	locked := true
+	defer func() {
+		if locked {
+			h.Exec("ROLLBACK")
+		}
+	}()
+	url := "/api/activity/query?routerId=r1&view=summary&parts=overview"
+	w := activityRequest(mux, "GET", url, "", "mikrodash_sid=activity-test-token")
+	if w.Code != http.StatusAccepted || w.Header().Get("Retry-After") != "1" || w.Header().Get("Cache-Control") != "no-store" || !strings.HasPrefix(w.Header().Get("Content-Type"), "application/json") {
+		t.Fatalf("pending response: %d %v %s", w.Code, w.Header(), w.Body.String())
+	}
+	var out activity.Result
+	if err = json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if !out.Preparing || out.RouterID != "r1" || out.TotalStored != 1 || out.Totals.DNS != 0 || len(out.Rows) != 0 {
+		t.Fatalf("not an explicit preparation response: %#v", out)
+	}
+	if _, err = h.Exec("ROLLBACK"); err != nil {
+		t.Fatal(err)
+	}
+	locked = false
+	w = activityRequest(mux, "GET", url, "", "mikrodash_sid=activity-test-token")
+	if w.Code != 200 {
+		t.Fatalf("retry: %d %s", w.Code, w.Body.String())
+	}
+	if err = json.Unmarshal(w.Body.Bytes(), &out); err != nil || out.Preparing || out.Totals.DNS != 1 {
+		t.Fatalf("retry incomplete: preparing=%v dns=%d err=%v", out.Preparing, out.Totals.DNS, err)
+	}
+	if _, err = s.auditDB.DeleteGrantsForScope("router", "r1"); err != nil {
+		t.Fatal(err)
+	}
+	if w = activityRequest(mux, "GET", url, "", "mikrodash_sid=activity-test-token"); w.Code != 403 {
+		t.Fatal("retry ignored revoked authority", w.Code)
 	}
 }

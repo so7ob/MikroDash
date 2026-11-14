@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"mikrodash/internal/activity"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
@@ -458,5 +459,121 @@ func TestActivityDerivedContextSurvivesRestartAndRollingExpiry(t *testing.T) {
 	expires, err := reopened.activityExpiry(t.Context(), "future", rolling, now)
 	if err != nil || expires != now+1000 {
 		t.Fatal("future event entry reused stale window", expires-now, err)
+	}
+}
+
+// Slow local enrichment must commit progress without returning partial analytics.
+func TestActivityPreparationResumesWithoutPartialResults(t *testing.T) {
+	d, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	now := time.Now().UnixMilli()
+	events := make([]activity.Event, 600)
+	for i := range events {
+		events[i] = activity.Event{RouterID: "r1", SourceKey: fmt.Sprint(i), At: now - 100, Received: now, Kind: "dns", Domain: "synthetic.example", Client: "synthetic", DNSIPs: []string{fmt.Sprintf("2001:db8::%x", i+1)}}
+	}
+	if err = d.PersistActivity(events, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	f := activity.Filter{From: now - 1000, To: now + 1, View: "summary", Group: "dnsIP", Limit: 10, Page: 1, Parts: "overview"}
+	before, err := d.ActivityIndexState(t.Context(), "r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	slow := func(string) (string, string) { time.Sleep(5 * time.Millisecond); return "YE", "Synthetic" }
+	out, ready, err := d.ActivityIndexedQuery(t.Context(), "r1", f, nil, "UTC", "slow-geo", slow)
+	if err != nil || !ready || !out.Preparing || out.PreparationPending <= 0 || out.PreparationPending >= int64(len(events)) {
+		t.Fatalf("no resumable progress: ready=%v pending=%d preparing=%v err=%v", ready, out.PreparationPending, out.Preparing, err)
+	}
+	if out.Totals.DNS != 0 || len(out.Rows) != 0 || len(out.Series) != 0 || len(out.Services) != 0 || out.ResultVersion != "" || out.RefreshAt <= out.ComputedAt {
+		t.Fatalf("incomplete projection represented as results: %#v", out)
+	}
+	pending := out.PreparationPending
+	complete := false
+	for i := 0; i < 6; i++ {
+		out, ready, err = d.ActivityIndexedQuery(t.Context(), "r1", f, nil, "UTC", "slow-geo", slow)
+		if err != nil || !ready {
+			t.Fatal(ready, err)
+		}
+		if !out.Preparing {
+			complete = true
+			break
+		}
+		if out.PreparationPending >= pending {
+			t.Fatalf("retry did not advance: %d >= %d", out.PreparationPending, pending)
+		}
+		pending = out.PreparationPending
+	}
+	if !complete || out.Totals.DNS != len(events) || out.TotalRows != len(events) {
+		t.Fatalf("complete retry incorrect: preparing=%v dns=%d rows=%d", out.Preparing, out.Totals.DNS, out.TotalRows)
+	}
+	after, err := d.ActivityIndexState(t.Context(), "r1")
+	if err != nil || before != after {
+		t.Fatalf("preparation changed source: before=%+v after=%+v err=%v", before, after, err)
+	}
+	cached, _, err := d.ActivityIndexedQuery(t.Context(), "r1", f, nil, "UTC", "slow-geo", slow)
+	if err != nil || cached.Preparing || cached.ResultVersion != out.ResultVersion {
+		t.Fatal("pending reply cached", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if _, _, err = d.ActivityIndexedQuery(ctx, "r1", f, nil, "UTC", "different", slow); err != context.Canceled {
+		t.Fatalf("caller cancellation masked: %v", err)
+	}
+}
+
+func TestActivityContextInvalidationResumesAfterFaultAndRestart(t *testing.T) {
+	d, _, rules, lookup := indexedActivityFixture(t)
+	if err := d.PrepareActivityShapes(t.Context(), "r1", "old-context", "UTC", rules, lookup); err != nil {
+		t.Fatal(err)
+	}
+	before, err := d.ActivityIndexState(t.Context(), "r1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cutoff int64
+	if err = d.sql.QueryRow(`SELECT id FROM activity_shapes WHERE router_id='r1' ORDER BY id LIMIT 1 OFFSET 99`).Scan(&cutoff); err != nil {
+		t.Fatal(err)
+	}
+	trigger := fmt.Sprintf(`CREATE TEMP TRIGGER injected_activity_reset_failure BEFORE UPDATE OF ready ON activity_shapes WHEN OLD.ready=1 AND NEW.ready=0 AND OLD.id>%d BEGIN SELECT RAISE(ABORT,'synthetic context reset failure'); END`, cutoff)
+	if _, err = d.sql.Exec(trigger); err != nil {
+		t.Fatal(err)
+	}
+	if err = d.PrepareActivityShapes(t.Context(), "r1", "new-context", "UTC", rules, lookup); err == nil {
+		t.Fatal("permanent storage fault hidden")
+	}
+	var pending int
+	if err = d.sql.QueryRow(`SELECT COUNT(*) FROM activity_shapes WHERE router_id='r1' AND ready=0`).Scan(&pending); err != nil || pending != 100 {
+		t.Fatalf("first committed invalidation lost: %d %v", pending, err)
+	}
+	var marker string
+	if err = d.sql.QueryRow(`SELECT version FROM activity_projection_context WHERE router_id='r1'`).Scan(&marker); err != nil {
+		t.Fatal(err)
+	}
+	var reset activityShapeReset
+	if json.Unmarshal([]byte(marker), &reset) != nil || reset.Version != "new-context" || reset.After != cutoff {
+		t.Fatalf("missing durable context reset: %q", marker)
+	}
+	dir := filepath.Dir(d.Path())
+	d.Close()
+	reopened, err := Open(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if err = reopened.PrepareActivityShapes(t.Context(), "r1", "new-context", "UTC", rules, lookup); err != nil {
+		t.Fatal(err)
+	}
+	if err = reopened.sql.QueryRow(`SELECT COUNT(*) FROM activity_shapes WHERE router_id='r1' AND ready=0`).Scan(&pending); err != nil || pending != 0 {
+		t.Fatal("restart incomplete", pending, err)
+	}
+	if err = reopened.sql.QueryRow(`SELECT version FROM activity_projection_context WHERE router_id='r1'`).Scan(&marker); err != nil || marker != "new-context" {
+		t.Fatal("context not finalized", marker, err)
+	}
+	after, err := reopened.ActivityIndexState(t.Context(), "r1")
+	if err != nil || before != after {
+		t.Fatal("source changed during reset", before, after, err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"log"
 	"mikrodash/internal/db"
 	"net/http"
 	"net/netip"
@@ -213,6 +214,9 @@ func (s *Server) activityResult(r *http.Request, id string) (activity.Result, er
 	out.Status.Enabled = cfg.Enabled
 	out.GeoAvailable = lookup != nil
 	out.Rules = append(rules, activity.Builtins...)
+	if out.Preparing {
+		return out, nil
+	}
 	out.Coverage, err = s.auditDB.ActivityCoverage(id, f.From-(f.To-f.From), f.To)
 	if err != nil {
 		return out, err
@@ -235,6 +239,7 @@ func (s *Server) activityQuery(w http.ResponseWriter, r *http.Request) {
 			writeJSONErr(w, 400, "Invalid activity cursor")
 			return
 		}
+		log.Printf("[activity] query failed: %s", safe.Message(err.Error()))
 		writeJSONErr(w, 500, "Activity query failed")
 		return
 	}
@@ -243,6 +248,11 @@ func (s *Server) activityQuery(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	out.CanWrite = permitted(s.rbac.CanPage(s.userIDFor(sess.Username), "activity", "write", id))
+	if out.Preparing {
+		w.Header().Set("Retry-After", "1")
+		writeJSONStatus(w, http.StatusAccepted, out)
+		return
+	}
 	writeJSON(w, out)
 }
 func (s *Server) activitySettingsGet(w http.ResponseWriter, r *http.Request) {
