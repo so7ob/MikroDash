@@ -66,7 +66,7 @@ try{
    if(width===375&&appearance.theme==='dark'&&!appearance.palette){await category.evaluate(n=>n.style.height='50px');assert.equal((await page.evaluate(geometrySource)).ok,false,'geometry accepted broken input');await category.evaluate(n=>n.style.removeProperty('height'));assert.equal((await page.evaluate(geometrySource)).ok,true);}
    const audit=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();assert.deepEqual(audit.violations,[]);
    await modal.locator('[data-audit-filters]').evaluate(n=>n.open=false);await modal.locator('.rtr-modal-body').evaluate(n=>n.scrollTop=0);
-   if(width===375){assert.equal(await results.locator('[data-audit-card]').first().isVisible(),true);assert.equal(await rows.first().isVisible(),false);}else{assert.equal(await rows.first().isVisible(),true);}
+   if(width===375){assert.equal(await results.locator('article').first().isVisible(),true);assert.equal(await rows.first().isVisible(),false);}else{assert.equal(await rows.first().isVisible(),true);}
    const file=`subscriber-audit-synthetic-${appearance.theme}-${appearance.palette||'default'}-${width}.png`;await page.screenshot({path:out+'/'+file,fullPage:true});evidence.push({...appearance,width,file,axeViolations:0,geometry:true});
   }
  }

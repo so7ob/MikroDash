@@ -142,3 +142,8 @@ TEXT-prefix benchmark remains historical evidence, not the final performance cla
 The final corrected implementation browser passed 112.748s with twelve visual/axe
 cases and independently verified unchanged account/credential/usage/audit state.
 The final source hashes and refreshed representative images are in audit-evidence/.
+
+The first full gate at 352ac7c1 passed 180 frontend and 32 tooling tests but
+correctly rejected an unread phone-card data attribute. The marker was removed;
+the browser now uses native article semantics. The check is unchanged. Initial
+failure: /tmp/mikrodash-101-full-verify.log. Corrected-head full proof is on #101.

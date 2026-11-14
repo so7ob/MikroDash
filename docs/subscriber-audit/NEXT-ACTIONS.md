@@ -28,8 +28,9 @@ Define the credential epoch contract before editing network admission code.
 P0-AUDIT administrative chronology is implemented and verified in #101: indexed
 creation/name/status/credential/owned-subscription/speed events, server filters,
 exact safe evidence, readonly authority and shared responsive modal. Preserve it
-and the delivered status/credential contracts. Network/session/accounting and
-future financial event history still belong to their retained roadmap scopes.
+and the delivered status/credential contracts. The broader P0-AUDIT group remains partial for network/session/accounting and
+future commercial/financial history, coordinated with those retained roadmap
+contracts. This completed administrative increment does not close that group.
 
 Next independent P0 is commercial operation idempotency. Search existing issues
 first and create/reuse a numbered branch from then-current develop. The

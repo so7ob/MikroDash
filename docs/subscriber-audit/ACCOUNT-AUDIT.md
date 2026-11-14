@@ -99,3 +99,7 @@ A final data-integrity regression proves embedded NULs and four-byte Unicode
 boundaries retain exact safe evidence. The reader uses a bounded blob prefix;
 control characters in original UI evidence are labelled JSON escapes. The initial
 failure is retained in /tmp/mikrodash-101-nul-initial.log.
+
+This issue is the administrative increment of P0-AUDIT. The complete chronology
+group remains Partial for network/accounting/future commercial event integration;
+its existing priorities and dependency contracts remain unchanged.

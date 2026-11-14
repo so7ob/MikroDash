@@ -97,3 +97,7 @@ Final source SHA, exact-head full gate/browser, PR and develop CI are recorded o
 runtime activation or router write. #38/#76/#97 remain open. Next P0 is commercial
 operation idempotency using the owner's fresh-period/no-rollover rule; all other
 A-N/P0-P3 requirements remain in scope.
+
+#101 completes its administrative audit acceptance only. The original broader
+P0-AUDIT chronology remains Partial for network/accounting and future commercial
+events; no parent roadmap priority or requirement is removed or downgraded.

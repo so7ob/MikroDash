@@ -162,5 +162,6 @@
       "axeViolations": 0,
       "geometry": true
     }
-  ]
+  ],
+  "captureNote": "These representative frames precede removal of an unread automation-only attribute. That correction changes no layout or data; captured source hashes remain historical, and corrected-head browser/full-gate proof is recorded on Issue #101."
 }
