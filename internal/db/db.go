@@ -55,11 +55,10 @@ const MinSchema = 11
 
 // DB is a handle on the shared database.
 type DB struct {
-	sql              *sql.DB
-	path             string
-	activityMu       activityMutex
-	activityContexts map[string]string
-	activityCache    activityQueryCache
+	sql           *sql.DB
+	path          string
+	activityMu    activityMutex
+	activityCache activityQueryCache
 	// vacuums counts entries into `Vacuum`. See `VacuumCountForTest`.
 	vacuums atomic.Int64
 }

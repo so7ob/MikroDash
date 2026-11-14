@@ -265,12 +265,13 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     el('activityRulesBody')!.innerHTML = sortRows(data.rules, rulesSort.col, rulesSort.dir).map(r => `<tr><td class="activity-mono">${cell(r.domain)}</td><td>${cell(r.service)}</td><td>${pill(r.category)}</td><td>${r.subdomains ? 'Domain + subdomains' : 'Exact domain'}</td><td>${pill(r.custom ? 'Local' : 'Built-in')}</td><td><button type="button" class="sbtn sbtn-outline" data-edit-rule="${esc(r.domain)}" data-custom="${r.custom}" ${data?.canWrite ? '' : 'disabled'}>Edit</button>${r.custom ? `<button type="button" class="sbtn sbtn-danger" data-remove-rule="${esc(r.domain)}" ${data?.canWrite ? '' : 'disabled'}>Remove override</button>` : ''}</td></tr>`).join('');
   }
   function clearData(): void {
+    const preparation = el('activityPreparation')!; preparation.textContent = ''; preparation.hidden = true;
     data=null; setup.stop(); clearCopyNotice();
     el('activityCount')!.textContent='—';el('activityState')!.textContent='';
     select('activityCountry').innerHTML='<option value="">All countries</option>';
-    ['activityMetrics','activityServices','activityClients','activityCategories','activityServiceDonut','activityUserDonut','activityCountryDonut','activityTimeline','activityHeat','activityTableBody','activityRulesBody','activityDNSMetrics','activityQueryTypes','activityMatchMethods','activityIPBases','activityEvidenceBody','activityEvidencePage'].forEach(id=>{el(id)!.innerHTML='';});
+    ['activityMetrics','activityServices','activityClients','activityCategories','activityServiceDonut','activityUserDonut','activityCountryDonut','activityTimeline','activityHeat','activityTableBody','activityRulesBody','activityDNSMetrics','activityQueryTypes','activityMatchMethods','activityIPBases','activityEvidenceBody','activityEvidencePage','activityComparison','activityCoverage','activityPageLabel'].forEach(id=>{el(id)!.innerHTML='';});
     ['activityEnabled','activityFolder','activityTimezone','activitySaveSettings','activityRuleDomain','activityRuleService','activityRuleCategory','activityRuleSubdomains','activitySaveRule'].forEach(id=>{el<HTMLInputElement | HTMLButtonElement>(id)!.disabled=true;});
-    el<HTMLButtonElement>('activityEvidencePrev')!.disabled = true; el<HTMLButtonElement>('activityEvidenceNext')!.disabled = true;
+    for (const id of ['activityPrev','activityNext','activityEvidencePrev','activityEvidenceNext']) el<HTMLButtonElement>(id)!.disabled = true;
   }
   function scheduleRefresh(): void {
     dirty = true;
@@ -317,7 +318,16 @@ export function initActivityPage(socket: Socket, visible: (page: string) => bool
     root!.setAttribute('aria-busy', 'true');
     try {
       const result = await json<ActivityResult>(API + 'query?' + p, { signal: controller.signal });
-      if (current !== request) return; data = result;
+      if (current !== request) return;
+      if (result.preparing) {
+        clearData(); showError('');
+        const preparation = el('activityPreparation')!; preparation.hidden = false;
+        preparation.textContent = 'Preparing saved activity for analysis' + (result.preparationPending > 0 ? ' · ' + n(result.preparationPending) + ' remaining' : '') + ' · Retrying automatically';
+        expiry = setTimeout(scheduleRefresh, Math.max(1000, result.refreshAt - Date.now()));
+        return;
+      }
+      el('activityPreparation')!.hidden = true; el('activityPreparation')!.textContent = '';
+      data = result;
       if(background && p.has('anchor') && result.filter.page!==Number(state.get('page') || 1)){state.set('page',String(result.filter.page));saveURL();}
       showError(''); render();
       if (background) {

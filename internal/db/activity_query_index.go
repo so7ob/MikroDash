@@ -67,7 +67,13 @@ func activityCalendarWhere(alias string, f activity.Filter, zone string) (string
 }
 
 func (d *DB) activityHistogram(ctx context.Context, router string, f activity.Filter, zone string, out *activity.Result) error {
-	shapeSQL, shapeArgs := activityShapeWhere(f)
+	histogramFilter := f
+	// The chart already counts DNS only; an explicit DNS source filter is
+	// redundant and must retain the same bounded boundary-hour plan.
+	if histogramFilter.Kind == "dns" {
+		histogramFilter.Kind = ""
+	}
+	shapeSQL, shapeArgs := activityShapeWhere(histogramFilter)
 	calSQL, calArgs := activityCalendarWhere("a", f, zone)
 	bucket := int64(time.Hour / time.Millisecond)
 	if f.To-f.From > 7*24*bucket {
@@ -106,6 +112,12 @@ func (d *DB) activityHistogram(ctx context.Context, router string, f activity.Fi
 	raw := func(from, to int64) string {
 		args = append(args, router, from, to)
 		args = append(args, calArgs...)
+		// Unfiltered partial hours contain few observations. Seek that time
+		// range once instead of probing every retained shape twice, including
+		// thousands with no events in either boundary hour.
+		if shapeSQL == "" && to-from <= 3600000 {
+			return `SELECT ` + utcBucket + ` AS bucket,` + localBucket + ` AS localhour,COUNT(*) AS n FROM activity_facts a INDEXED BY activity_facts_time JOIN activity_shapes s ON s.id=a.shape_id WHERE a.router_id=? AND a.at>=? AND a.at<? AND s.kind='dns'` + calSQL + ` GROUP BY 1,2`
+		}
 		return `SELECT ` + utcBucket + ` AS bucket,` + localBucket + ` AS localhour,COUNT(*) AS n FROM matching m CROSS JOIN activity_facts a INDEXED BY activity_facts_shape ON a.shape_id=m.id WHERE a.router_id=? AND a.at>=? AND a.at<?` + calSQL + ` GROUP BY 1,2`
 	}
 	lo, hi := (f.From+3600000-1)/3600000, f.To/3600000

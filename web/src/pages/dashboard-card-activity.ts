@@ -29,6 +29,11 @@ export function activityCardURL(routerId: string, filter?: string, value?: strin
 export function renderActivityCards(data: ActivityResult): void {
   const n = (v: number): string => v.toLocaleString();
   const set = (kind: CardKind, html: string): void => { const node = el(contentId(kind)); if (node) node.innerHTML = html; };
+  if (data.preparing) {
+    for (const kind of ACTIVITY_CARDS) set(kind, '<p class="activity-empty">Preparing saved activity for analysis' + (data.preparationPending > 0 ? ' · ' + n(data.preparationPending) + ' remaining' : '') + '</p>');
+    renderActivityCardStatus(data);
+    return;
+  }
   const summary = [[data.totals.dns, 'DNSUSER events'], [data.totals.domains, 'Unique domains'], [data.totals.users, 'Known users'], [data.totals.unmapped, 'Unmapped sources']];
   set('overview', '<div class="dc-activity-metrics">' + summary.map(([value, label]) => `<div><strong>${n(Number(value))}</strong><span>${label}</span></div>`).join('') + '</div><p class="activity-note">Recorded DNS events, not confirmed visits.</p>');
   set('services', rankMarkup(data.services.slice(0, 5), 'service'));

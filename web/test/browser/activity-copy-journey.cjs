@@ -10,10 +10,20 @@ module.exports = async function copyJourney(page, context, settled) {
  let requests = 0;
  const countRequest = request => { if (new URL(request.url()).pathname.startsWith('/api/activity/')) requests++; };
  page.on('request', countRequest);
+ // Copy-only checks need no independent cache-expiry refresh. Keep the real
+ // APIs/data and the exact no-request assertion; live/expiry journeys exercise
+ // automatic refresh separately. A minute-long axe pass must not be attributed
+ // to the next Control-click.
+ const freezeExpiry = async route => {
+  const response=await route.fetch(), data=await response.json();
+  data.refreshAt=0; await route.fulfill({response,json:data});
+ };
+ await page.route('**/api/activity/query?**',freezeExpiry);
  // Add adversarial text and known geolocation to one synthetic response only.
  const special = 'مستخدم <"&> تجريبي';
  const enrich = async route => {
   const response = await route.fetch(), data = await response.json();
+  data.refreshAt=0;
   const row = data.events.find(e => e.kind === 'dns' && e.dnsAnswers.length);
   if (row) { row.user = special; row.deviceName = 'جهاز <script> & "'; row.dnsAnswers[0].country = 'DE'; row.dnsAnswers[0].city = 'Example City'; }
   await route.fulfill({ response, json: data });
@@ -119,6 +129,7 @@ module.exports = async function copyJourney(page, context, settled) {
  await page.setViewportSize({ width: 1280, height: 1000 });
  await page.evaluate(() => { delete document.documentElement.dataset.theme; delete document.documentElement.dataset.palette; });
  await page.locator('[data-view="summary"]').click(); await settled();
+ await page.unroute('**/api/activity/query?**',freezeExpiry);
  page.off('request', countRequest);
  console.log('clipboard: individual DNS/Firewall values, Arabic/escaping, nested targets, no filter/requests, rejection, real HTTP fallback, redraws, timer/cleanup and 375/1280 dark/light/Nord axe passed');
 };
