@@ -36,7 +36,7 @@ Acceptance/test contract: Protected admin UI/API/SQLite round trip, selected ide
 | A20 | Time down up remaining balances | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 | A21 | Authentication failure reasons/history | Missing | No complete route/schema/UI workflow found in cited module; implement and test the contract above. |
 | A22 | Subscriber usage history | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
-| A23 | Administrative audit history | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
+| A23 | Administrative audit history | Implemented & Verified | #101: protected readonly indexed account/owned-subscription chronology; creation/name/status/batch/credential/assignment/speed requests; exact cursors, UTC server filters, safe original evidence, unknown before-states, responsive shared modal and actual HTTP/SQLite browser. Network/accounting/future financial chronologies remain in their named roadmap scopes. |
 | A24 | Independent subscriber detail page | Partial | Existing primitive is partial; complete the requested workflow and relevant test contract above. |
 
 ## Axis B
@@ -373,10 +373,10 @@ functional checkpoint or hardware task.
 |---|---|---|---|
 | UX01 | Reuse Network tokens/cards/forms/tables/modals | Partial | Shared implementation and four-width dark/light/Nord browser/axe proof on #97; exact full-gate/PR delivery recorded on the issue. |
 | UX02 | Independent expandable sidebar pages and deep links | Partial | Six implemented routes; existing global authority; browser disclosure/mobile/short-scroll/reload/history plus RBAC/direct-route proof passed. |
-| UX03 | Subscriber list first; create/edit/assignment dialogs; selection-only batches | Partial | Bounded 50-row DOM; existing account CRUD/status contracts retained. Actual snapshot detail now shows profile/subscription/quotas/sessions/devices/accounting; full server directory, plan filter and general account audit remain P1-DIRECTORY/P0-HISTORY. |
+| UX03 | Subscriber list first; create/edit/assignment dialogs; selection-only batches | Partial | Bounded 50-row DOM; existing account CRUD/status contracts retained. Actual snapshot detail now shows profile/subscription/quotas/sessions/devices/accounting; full server directory and plan filter remain P1-DIRECTORY. #101 adds administrative account audit with server filters and phone evidence cards; broader network/accounting detail remains scoped work. |
 | UX04 | Immutable plans list first, exact units, grouped version editor | Partial | Clone preserves policy windows/speeds; richer saved-policy states/schedules/archive remain P0-PLAN. |
 | UX05 | Read-only interactive simulator with real accounting | Partial | Account/time scenario through existing evaluator; arbitrary draft scenario comparison remains pending. |
-| UX06 | Table history, filters, actor/reason/exact operation/details | Partial | Filters apply to loaded pages, explicitly labelled. Complete generalized audit remains P0-HISTORY. |
+| UX06 | Table history, filters, actor/reason/exact operation/details | Partial | Filters apply to loaded pages, explicitly labelled. Administrative account/subscription audit with server category/date filters is delivered by #101. The status-specific page retains loaded-page filters; combined network/accounting chronology remains scoped work. |
 | UX07 | Reconciliation case list, real scoped counts, confirmed modal approvals | Partial | Existing evidence, validation and reservation rules retained; protected HTTP/SQLite browser proof passed. |
 | UX08 | Four viewport/theme/keyboard/axe/Unicode/dense/permission gates | Partial | 375/768/1280/1920 dark/light, dialog Nord, keyboard/focus, empty/dense and zero axe findings passed for the foundation. Full server scale and remaining workflows retain their own gates. |
 | UX09 | Future administrative pages follow the same design and navigation | Missing | Target tree retained in UI-UX-UNIFICATION; add sidebar entries only with working protected workflows. |

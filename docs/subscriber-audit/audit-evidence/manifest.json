@@ -1,0 +1,167 @@
+{
+  "issue": 101,
+  "referenceBase": "45ead3ff73ae8b98d0dab3c40c792820551ccaa5",
+  "source": "Actual protected HTTP/SQLite; all identities and historical records synthetic. These hashes cover visual/fixture sources; exact final server/head/gate/CI evidence is on Issue #101.",
+  "localResults": "/tmp/mikrodash-101-browser-integrity/audit-browser-results.json",
+  "visualSourceSHA256": {
+    "web/src/pages/subscriber-audit.ts": "7a643b91f9fdf4516d57b522f5a277f44282e1e44f382ad338924cf63bdf5d84",
+    "web/src/pages/subscribers.ts": "47f141725302fd8b80ccc9758b27a7643f7957f6124ce7f930f11742704a82e6",
+    "web/src/modals.ts": "1e3a92a87176808cbc070c0aaacc28e91d1228e4c540443f8b27195860ed514e",
+    "web/src/form.ts": "dc0476a42fa0addd1c679c62941c8b83104933a6687ef6c36e65590bb4fe4314",
+    "web/src/dom.ts": "8e713d3c4950805bfc73b5b259c8b20ab6e6104155d1892ec7d9433315e96c4b",
+    "web/public/app.css": "acb62d385fab8725b6c97607e4ae5de1b52786f23682780de8fc0e77fa4ac2dc",
+    "web/public/vendor/tabler.min.css": "e2f5c542d00f15513e80d527655e82a2e12573799ea278a8b298206edb4b9ff3",
+    "web/test/browser/subscriber-admin-entry.ts": "844700db4b56159c4c3ac716e7c91d4b94de85d3eeff28e73dfd4bd533f46b70",
+    "internal/server/subscriber_audit_browser_test.go": "e974e24cb352e4c0665c2537e0f6af13b6b91191521ed9e39d0efa4afbcf4612",
+    "tools/subscriber-audit-browser.mjs": "19fef7aee435443ba9f3626e5e8ca4e383a21d05b5fcb1f42b4953d734e21d83"
+  },
+  "images": [
+    {
+      "file": "audit-dark-375.png",
+      "sha256": "26ce09b896fb51489f5dc084632e73c55159edb3d89c445147cd1f1881e1d3d9",
+      "width": 375,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "audit-dark-768.png",
+      "sha256": "a3b53dc098a81994483125f9bfc59140d8246f1f1cbbb7246a8ed2c286da85d4",
+      "width": 768,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "audit-dark-1280.png",
+      "sha256": "d99aed27ceef27f87afe77cbd4d9d95707a679e035cdfb54f277e1b750d37cd6",
+      "width": 1280,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "audit-dark-1920.png",
+      "sha256": "fcb2a35a80c4eb96731863197dd907ca6fced3ab4b05259b81ff1338b30fad28",
+      "width": 1920,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "default"
+    },
+    {
+      "file": "audit-light-1280.png",
+      "sha256": "bc282bd1699e7e67e19618e2529937698a9c888e7d9ad00e16bbb574fe8903ae",
+      "width": 1280,
+      "height": 1000,
+      "theme": "light",
+      "palette": "default"
+    },
+    {
+      "file": "audit-nord-375.png",
+      "sha256": "de1fc85274738c9ff7c9e7b18a7af387ad6ef3545bfa20fdd4893535be578154",
+      "width": 375,
+      "height": 1000,
+      "theme": "dark",
+      "palette": "nord"
+    }
+  ],
+  "cases": [
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 375,
+      "file": "subscriber-audit-synthetic-dark-default-375.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 768,
+      "file": "subscriber-audit-synthetic-dark-default-768.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 1280,
+      "file": "subscriber-audit-synthetic-dark-default-1280.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "",
+      "width": 1920,
+      "file": "subscriber-audit-synthetic-dark-default-1920.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 375,
+      "file": "subscriber-audit-synthetic-light-default-375.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 768,
+      "file": "subscriber-audit-synthetic-light-default-768.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 1280,
+      "file": "subscriber-audit-synthetic-light-default-1280.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "light",
+      "palette": "",
+      "width": 1920,
+      "file": "subscriber-audit-synthetic-light-default-1920.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 375,
+      "file": "subscriber-audit-synthetic-dark-nord-375.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 768,
+      "file": "subscriber-audit-synthetic-dark-nord-768.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 1280,
+      "file": "subscriber-audit-synthetic-dark-nord-1280.png",
+      "axeViolations": 0,
+      "geometry": true
+    },
+    {
+      "theme": "dark",
+      "palette": "nord",
+      "width": 1920,
+      "file": "subscriber-audit-synthetic-dark-nord-1920.png",
+      "axeViolations": 0,
+      "geometry": true
+    }
+  ],
+  "captureNote": "These representative frames precede removal of an unread automation-only attribute. That correction changes no layout or data; captured source hashes remain historical, and corrected-head browser/full-gate proof is recorded on Issue #101."
+}
