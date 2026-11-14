@@ -2,6 +2,29 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [1.0.4] - Activity container reliability and subscriber administration
+
+### Activity Analytics
+
+- Resume local analysis preparation and context invalidation in durable batches on constrained containers. Show preparation and retry automatically instead of presenting incomplete results as zeros; status and rules remain available.
+- Seek the two partial-hour chart ranges through the time index, including DNS-only views. Aggregate chart groups before looking up their latest evidence, preserving every ranking field, timestamp/ID tie, Unicode identity and DNS-answer unit.
+- Retain the 20-second analysis deadline, router permissions, source observations, 30-day retention, filtering, pagination, CSV and live updates. Keep sanitized internal failure diagnostics and accessible empty-chart/status semantics.
+- Verify preparation on actual ARM/v7 hardware with isolated synthetic data. A readonly diagnostic against the existing target model completed the default 24-hour SQL in about 11 seconds after the old path exceeded its deadline; this is not a universal latency guarantee or complete production HTTP acceptance. See [the verification report](https://github.com/so7ob/MikroDash/blob/v1.0.4/docs/Activity-Container-Query-Fix.md).
+
+### Subscriber Management development preview
+
+- Integrate implemented administration pages into the existing expandable sidebar with direct links and browser history. Add compact summaries and list-first subscriber/plan management with shared add/edit/review modals. Administration remains English/LTR while preserving imported Unicode values.
+- Preserve exact decimal quota and duration conversion, reject incomplete requests, and edit multiple concurrent plan limits before saving immutable plan versions.
+- Add paged/filterable status history and an account/subscription audit modal with bounded original evidence, safe credential revision details, exact cursors and ownership-scoped subscription history.
+- Add audited administrator credential rotation with stale-version checks, atomic ticket revocation and portal/RADIUS credential fencing. Preserve entitlement, confirmed consumption and previous subscriptions.
+- Validate bounded read-only import previews. Preview does not apply a migration, issue usable stock or modify source accounts.
+
+### Upgrade and verification
+
+- Advance storage from schema 45 to 47: credential-version/session fencing and the administrative audit target index. Back up the complete data directory before upgrading. Preserve existing users, encryption keys, router/settings files, subscriber configuration and certificate paths.
+- Verify the full repository gate, real HTTP/SQLite regressions and responsive browser journeys, including dark/light themes, keyboard, Unicode, permissions and accessibility. Publish amd64, arm64 and arm/v7 images.
+- Subscriber Management remains a development preview. Integration #38, hardware acceptance #76 and remaining UI scope #97 stay open. The release does not enable RADIUS, change router configuration or activate capability flags automatically. Existing configured runtime modes are preserved.
+
 ## [1.0.3] - So7ob subscriber portal
 
 ### Subscriber portal
