@@ -2,12 +2,16 @@ package db
 
 import (
 	"context"
+	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"mikrodash/internal/activity"
+	"modernc.org/sqlite"
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -575,5 +579,138 @@ func TestActivityContextInvalidationResumesAfterFaultAndRestart(t *testing.T) {
 	after, err := reopened.ActivityIndexState(t.Context(), "r1")
 	if err != nil || before != after {
 		t.Fatal("source changed during reset", before, after, err)
+	}
+}
+
+// Record the actual histogram statement, then inspect SQLite's selected plan.
+// A lookalike query would not catch a missed call-site optimization.
+type activityHistogramTrace struct {
+	query string
+	args  []any
+}
+type activityHistogramDriver struct{ traces *[]activityHistogramTrace }
+
+func (d activityHistogramDriver) Open(dsn string) (driver.Conn, error) {
+	c, err := (&sqlite.Driver{}).Open(dsn)
+	if err != nil {
+		return nil, err
+	}
+	return &activityHistogramConn{Conn: c, traces: d.traces}, nil
+}
+
+type activityHistogramConn struct {
+	driver.Conn
+	traces *[]activityHistogramTrace
+}
+
+func (c *activityHistogramConn) QueryContext(ctx context.Context, q string, args []driver.NamedValue) (driver.Rows, error) {
+	if strings.HasPrefix(q, "WITH matching AS MATERIALIZED") {
+		values := make([]any, len(args))
+		for i, a := range args {
+			values[i] = a.Value
+		}
+		*c.traces = append(*c.traces, activityHistogramTrace{q, values})
+	}
+	return c.Conn.(driver.QueryerContext).QueryContext(ctx, q, args)
+}
+func TestActivityHistogramBoundaryUsesActualTimeIndexPlan(t *testing.T) {
+	d, now, rules, lookup := indexedActivityFixture(t)
+	f := activity.Filter{From: now - 86400000 + 12345, To: now + 12345, View: "summary", Group: "dnsIP", Limit: 10, Page: 1, Parts: "overview"}
+	if _, _, err := d.ActivityIndexedQuery(t.Context(), "r1", f, rules, "Asia/Aden", "fixture", lookup); err != nil {
+		t.Fatal(err)
+	}
+	var traces []activityHistogramTrace
+	name := fmt.Sprintf("activity_histogram_%d", time.Now().UnixNano())
+	sql.Register(name, activityHistogramDriver{&traces})
+	h, err := sql.Open(name, d.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer h.Close()
+	h.SetMaxOpenConns(1)
+	for _, kind := range []string{"", "dns"} {
+		traces = nil
+		f.Kind = kind
+		traced := &DB{sql: h}
+		out := EmptyActivityResult(f)
+		if err = traced.activityHistogram(t.Context(), "r1", f, "Asia/Aden", &out); err != nil {
+			t.Fatal(err)
+		}
+		if len(traces) != 1 {
+			t.Fatalf("did not capture actual histogram: %d", len(traces))
+		}
+		rows, err := h.QueryContext(t.Context(), "EXPLAIN QUERY PLAN "+traces[0].query, traces[0].args...)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		var plan []string
+		for rows.Next() {
+			var id, parent, unused int
+			var detail string
+			if err = rows.Scan(&id, &parent, &unused, &detail); err != nil {
+				t.Fatal(err)
+			}
+			plan = append(plan, detail)
+		}
+		if err = rows.Err(); err != nil {
+			t.Fatal(err)
+		}
+		text := strings.Join(plan, "\n")
+		if strings.Count(text, "activity_facts_time") != 2 || strings.Contains(text, "activity_facts_shape") || strings.Contains(strings.ToLower(text), "materialize matching") {
+			t.Fatalf("boundary still probes retained shapes:\n%s", text)
+		}
+		want, err := activity.Analyze(f, rules, "Asia/Aden", func(from, to int64, fn func(activity.Event) error) error {
+			return d.WalkActivity(t.Context(), "r1", from, to, fn)
+		}, lookup)
+		if err != nil || !reflect.DeepEqual(want.Series, out.Series) || !reflect.DeepEqual(want.Heatmap, out.Heatmap) {
+			t.Fatalf("boundary histogram changed: %v", err)
+		}
+
+	}
+	for _, table := range []string{"activity_query_work"} {
+		var n int
+		if err = d.sql.QueryRow("SELECT COUNT(*) FROM " + table).Scan(&n); err != nil || n != 0 {
+			t.Fatalf("temporary snapshot retained: %s=%d err=%v", table, n, err)
+		}
+	}
+}
+
+func TestActivityFacetsKeepLatestIdentityAndAnswerUnits(t *testing.T) {
+	d, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	now := time.Now().UnixMilli()
+	events := []activity.Event{}
+	for i, at := range []int64{now - 200, now - 100, now - 300, now - 100} {
+		events = append(events, activity.Event{RouterID: "r1", SourceKey: fmt.Sprint(i), At: at, Received: now, Kind: "dns", Domain: fmt.Sprintf("d%d.example", i), Client: "shared historical identity", User: []string{"قديم", "ثانٍ", "متأخر", "الأحدث"}[i], IP: fmt.Sprintf("198.51.100.%d", i+1), MAC: fmt.Sprintf("02:00:00:00:00:%02x", i+1), Server: "synthetic", DNSIPs: []string{"198.51.100.20", "198.51.100.21"}})
+	}
+	if err = d.PersistActivity(events, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	f := activity.Filter{From: now - 1000, To: now + 1, View: "summary", Group: "dnsIP", Page: 1, Limit: 10, Parts: "overview"}
+	lookup := func(string) (string, string) { return "YE", "Synthetic" }
+	got, ready, err := d.ActivityIndexedQuery(t.Context(), "r1", f, nil, "UTC", "fixture", lookup)
+	if err != nil || !ready || got.Preparing {
+		t.Fatal(ready, err)
+	}
+	if len(got.Clients) != 1 || got.Clients[0].User != "الأحدث" || got.Clients[0].Label != "الأحدث" || got.Clients[0].Count != 4 || got.Clients[0].Last != now-100 {
+		t.Fatalf("latest evidence tie changed: %+v", got.Clients)
+	}
+	if len(got.DNSCountries) != 1 || got.DNSCountries[0].Count != 8 {
+		t.Fatalf("answers were changed to event units: %+v", got.DNSCountries)
+	}
+	want, err := activity.Analyze(f, nil, "UTC", func(from, to int64, fn func(activity.Event) error) error {
+		return d.WalkActivity(t.Context(), "r1", from, to, fn)
+	}, lookup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2][]activity.Ranking{{got.Clients, want.Clients}, {got.Services, want.Services}, {got.Categories, want.Categories}, {got.DNSCountries, want.DNSCountries}, {got.QueryTypes, want.QueryTypes}, {got.MatchMethods, want.MatchMethods}, {got.IPBases, want.IPBases}} {
+		if !reflect.DeepEqual(pair[0], pair[1]) {
+			t.Fatalf("facet metadata changed: got=%+v want=%+v", pair[0], pair[1])
+		}
 	}
 }

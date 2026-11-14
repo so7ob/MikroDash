@@ -39,6 +39,11 @@ were used successfully; no application password was guessed or reset.
 - Activity shows visible preparation and retries through its existing visibility,
   cancellation and request-generation guards. Old coverage, counts and pagination
   are cleared. Optional dashboard cards also distinguish preparation from zeros.
+- Unfiltered chart boundary hours use the time index, including an explicit
+  DNS-only source filter. They no longer seek every historical shape twice.
+  Chart facets aggregate groups before seeking their latest returned evidence;
+  all existing Ranking metadata and DNS-answer units are preserved. The small
+  temporary work index also supports exact latest-time/ID ties.
 - Complete results retain HTTP 200. Status/rules remain available during
   preparation. Authorization is rechecked on each response/retry. Actual caller
   cancellation and permanent storage failures remain errors; internal failures
@@ -69,12 +74,13 @@ query deadline or guarantee every high-cardinality query will meet it.
 - All temporary diagnostic executables, chunks and receipts were removed by their
   exact owned Linux paths and absence checked. An initial RouterOS file-list
   normalization mistake was corrected; an empty listing is not cleanup proof.
-- Full Activity browser journey passed in 202.50 seconds, including existing
+- The preparation-only head 59b9b5b0 passed the full Activity browser journey
+  in 277.27 seconds, including existing
   clipboard, chart selection, live arrivals/anchors, permissions and keyboard
-  regressions. The final focused preparation journey passed in 19.43 seconds:
+  regressions. The focused journey after the aggregate fix passed in 24.69 seconds:
   375/768/1280/1920, dark/light, eight zero-violation axe checks, visible progress,
   automatic complete retry, preserved URL/focus and cleared stale result controls.
-- The related Go packages passed (db, activity, activitywire and server), and all
+- The initial related Go packages passed (db, activity, activitywire and server), and all
   six optional-card unit cases passed. Final full repository/CI evidence is
   recorded on #103 after the source is committed.
 
@@ -84,6 +90,32 @@ run caught preparation text being written into the hidden Synchronization panel;
 the final page-shell status is visible and its disappearance is asserted. The
 focused empty-state accessibility check also caught missing chart group semantics;
 the labelled interactive containers now retain valid roles while empty.
+
+## ARM aggregate timing follow-up
+
+A further readonly probe found a second cause beyond preparation: the old 24-hour
+aggregate hit its original 20-second deadline and still timed out when diagnosed
+with a temporary 40-second bound. Stage output showed the histogram consuming
+21.22 seconds before that overall cancellation. It probed all retained shapes
+for the two partial-hour fragments. The optimized default 24-hour SQL completed
+in **10.91 seconds**, with the histogram taking **58.54 ms**, under the unchanged
+20-second bound. These are observations from separate diagnostic runs, not
+controlled cold/warm percentiles: cache state, normal imports and shared load
+varied. The readonly source still had partial derivation, so these measurements
+assert SQL execution time only, not complete analytical counts or production HTTP
+acceptance. No resource limit was raised. Exact temporary tools were cleaned.
+
+The actual executed histogram statement now has a regression over SQLite's
+selected plan: both fragments use activity_facts_time, with no historical shape
+sweep. Streaming parity covers All sources and DNS-only. Existing broad parity
+checks and an explicit tie/late-arrival/Unicode/DNS-answer test retain all facet
+fields. A mutation restoring the old sweep fails this call-site plan check.
+
+A temporary flat-copy experiment added enough copying cost to miss the deadline
+and was removed. The final implementation keeps the existing read model and
+preserves the full Ranking contract while avoiding repeated window ordering for
+chart facets. The new hardware finding required a new revision after the first
+verified preparation-only commit; final exact-head checks/CI are on #103/#104.
 
 ## Synthetic visual evidence
 

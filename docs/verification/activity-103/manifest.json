@@ -13,7 +13,7 @@
     "light"
   ],
   "axeViolations": 0,
-  "sourceFingerprint": "e2bbb849ad70a846c5461999f0c434606d3e98260ede8bfabaa9a29aa82ed32d",
+  "sourceFingerprint": "11bea38f1e93173a8255895da573a2d69274ddc004a2711a4f8e307215265e68",
   "sourcePaths": [
     "internal/activity/query.go",
     "internal/db/db.go",
@@ -23,7 +23,9 @@
     "web/src/pages/activity.ts",
     "web/src/pages/dashboard-card-activity.ts",
     "web/src/ui/page-activity.html",
-    "web/src/gen/payloads.ts"
+    "web/src/gen/payloads.ts",
+    "internal/db/activity_aggregate_sql.go",
+    "internal/db/activity_query_index.go"
   ],
   "files": [
     {
@@ -32,15 +34,15 @@
     },
     {
       "file": "mikrodash-activity-preparing-1280-dark.png",
-      "sha256": "837a98a91da335f9d5dedad44ea1a0608da359ec2671639d8be7d181531d5dec"
+      "sha256": "9332012aaedda4548c4ed4b9480c51bcd3cb9eea43cddc4a9c69a45a6c90ea15"
     },
     {
       "file": "mikrodash-activity-prepared-375-light.png",
-      "sha256": "577b2fdd2285c72330d28694954ec1e59e6d499561336031804b7393d73bc8d7"
+      "sha256": "578f670583c3203154dc48fac91af12f479125df8ad65df2651957c0b371ac6d"
     },
     {
       "file": "mikrodash-activity-prepared-1280-dark.png",
-      "sha256": "e435317b629b5dfd91c03d6a380cf5254006df9573af9e2bc110646e4a5f95e2"
+      "sha256": "136271ca9d48d371ab1f11b1907172eced0852cb2479d187a4999f4e00004931"
     }
   ]
 }

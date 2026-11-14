@@ -24,7 +24,7 @@ func (d *DB) activitySQLAggregate(ctx context.Context, router string, f activity
 		return out, err
 	}
 	defer conn.Close()
-	if _, err = conn.ExecContext(ctx, `CREATE TEMP TABLE IF NOT EXISTS activity_query_work(shape_id INTEGER,at INTEGER,id INTEGER,n INTEGER); DELETE FROM activity_query_work;`); err != nil {
+	if _, err = conn.ExecContext(ctx, `CREATE TEMP TABLE IF NOT EXISTS activity_query_work(shape_id INTEGER,at INTEGER,id INTEGER,n INTEGER); CREATE INDEX IF NOT EXISTS activity_query_work_time ON activity_query_work(at DESC,id DESC); DELETE FROM activity_query_work;`); err != nil {
 		return out, err
 	}
 	defer conn.ExecContext(context.Background(), `DELETE FROM activity_query_work`)
@@ -159,6 +159,9 @@ func activityRankSQL(ctx context.Context, conn *sql.Conn, f activity.Filter, zon
 		expr = localTimeExpression("q.at", format, zone, f.From, f.To)
 		extra = ""
 	}
+	if !paged {
+		return activityFacetSQL(ctx, conn, f, expr, extra, join, client, missing, limit)
+	}
 	cte := `WITH evidence AS (SELECT ` + expr + ` AS key,q.n,q.at,s.category,s.service,s.user,s.server,s.ip,s.mac,s.domain,
  ROW_NUMBER() OVER(PARTITION BY ` + expr + ` ORDER BY q.at DESC,q.id DESC) AS position
  FROM activity_query_work q JOIN activity_shapes s ON s.id=q.shape_id` + join + ` WHERE q.at>=?` + extra + `),
@@ -229,4 +232,50 @@ func activityRankSQL(ctx context.Context, conn *sql.Conn, f activity.Filter, zon
 		}
 	}
 	return result, total, nil
+}
+
+// Chart facets order by count/key. Aggregate once, limit the groups, then seek
+// only each returned group's latest evidence instead of sorting every evidence
+// row through a window for every chart. Keep the complete Ranking contract.
+func activityFacetSQL(ctx context.Context, conn *sql.Conn, f activity.Filter, expr, extra, join string, client, missing bool, limit int) ([]activity.Ranking, int, error) {
+	cte := `WITH grouped AS (SELECT ` + expr + ` AS key,SUM(q.n) AS count,COUNT(DISTINCT NULLIF(s.domain,'')) AS domains,
+ COUNT(DISTINCT NULLIF(COALESCE(NULLIF(s.mac,''),s.ip),'')) AS devices,MAX(q.at) AS last,
+ CASE WHEN MIN(s.category)=MAX(s.category) THEN MIN(s.category) ELSE 'Mixed' END AS category,
+ CASE WHEN MIN(s.service)=MAX(s.service) THEN MIN(s.service) ELSE '' END AS service
+ FROM activity_query_work q JOIN activity_shapes s ON s.id=q.shape_id` + join + ` WHERE q.at>=?` + extra + ` GROUP BY ` + expr + `),
+ ranked AS (SELECT *,COUNT(*) OVER() AS total FROM grouped ORDER BY count DESC,key ASC`
+	args := []any{f.From}
+	if limit > 0 {
+		cte += ` LIMIT ?`
+		args = append(args, limit)
+	}
+	cte += `) `
+	label := `g.key`
+	if client {
+		label = `COALESCE(NULLIF(e.user,''),NULLIF(e.mac,''),e.ip)`
+	}
+	if missing {
+		label = `CASE WHEN g.key='-' THEN 'Not provided' ELSE g.key END`
+	}
+	query := cte + `SELECT g.key,` + label + `,g.service,g.category,e.user,e.server,e.ip,e.mac,g.count,g.domains,g.devices,g.last,g.total
+ FROM ranked g JOIN activity_shapes e ON e.id=(SELECT q.shape_id FROM activity_query_work q JOIN activity_shapes s ON s.id=q.shape_id` + join + `
+ WHERE q.at=g.last AND ` + expr + `=g.key` + extra + ` ORDER BY q.id DESC LIMIT 1) ORDER BY g.count DESC,g.key ASC`
+	rows, err := conn.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	result := []activity.Ranking{}
+	total := 0
+	for rows.Next() {
+		var r activity.Ranking
+		if err = rows.Scan(&r.Key, &r.Label, &r.Service, &r.Category, &r.User, &r.Server, &r.IP, &r.MAC, &r.Count, &r.Domains, &r.Devices, &r.Last, &total); err != nil {
+			return nil, 0, err
+		}
+		if client {
+			r.Service, r.Category = "", ""
+		}
+		result = append(result, r)
+	}
+	return result, total, rows.Err()
 }
