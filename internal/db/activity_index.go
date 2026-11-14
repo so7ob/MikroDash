@@ -67,7 +67,7 @@ func newActivityIndexer(tx *sql.Tx) (*activityIndexer, error) {
 	}{
 		{&w.insert, `INSERT OR IGNORE INTO activity_shapes(router_id,fingerprint,payload,kind,domain,client,user,ip,mac,server,canonical,device_name,ip_basis,qtype,match_method,destination,label,user_label) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`},
 		{&w.find, `SELECT id FROM activity_shapes WHERE router_id=? AND fingerprint=?`},
-		{&w.fact, `INSERT OR IGNORE INTO activity_facts(event_id,router_id,at,shape_id) VALUES(?,?,?,?)`},
+		{&w.fact, `INSERT OR IGNORE INTO activity_facts(event_id,router_id,at,shape_id,evidence_key) VALUES(?,?,?,?,?)`},
 		{&w.done, `DELETE FROM activity_pending WHERE event_id=?`},
 	} {
 		*p.dst, err = tx.Prepare(p.q)
@@ -119,7 +119,7 @@ func (w *activityIndexer) add(id int64, e activity.Event) error {
 			w.shapes[key] = shapeID
 		}
 	}
-	if _, err = w.fact.Exec(id, e.RouterID, e.At, shapeID); err != nil {
+	if _, err = w.fact.Exec(id, e.RouterID, e.At, shapeID, activityEvidenceKey(e.At, id)); err != nil {
 		return err
 	}
 	_, err = w.done.Exec(id)

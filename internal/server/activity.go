@@ -217,11 +217,12 @@ func (s *Server) activityResult(r *http.Request, id string) (activity.Result, er
 	if out.Preparing {
 		return out, nil
 	}
-	out.Coverage, err = s.auditDB.ActivityCoverage(id, f.From-(f.To-f.From), f.To)
+	snapshot := out.Filter
+	out.Coverage, err = s.auditDB.ActivityCoverage(id, snapshot.From-(snapshot.To-snapshot.From), snapshot.To)
 	if err != nil {
 		return out, err
 	}
-	out.Comparison = out.Status.Dropped == 0 && activity.FullyCovered(out.Coverage, f.From-(f.To-f.From), f.From) && activity.FullyCovered(out.Coverage, f.From, f.To)
+	out.Comparison = out.Status.Dropped == 0 && activity.FullyCovered(out.Coverage, snapshot.From-(snapshot.To-snapshot.From), snapshot.From) && activity.FullyCovered(out.Coverage, snapshot.From, snapshot.To)
 	return out, nil
 }
 func (s *Server) activityQuery(w http.ResponseWriter, r *http.Request) {

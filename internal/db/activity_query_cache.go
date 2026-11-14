@@ -144,30 +144,37 @@ func (d *DB) ActivityIndexedQuery(ctx context.Context, router string, f activity
 	if f.View == "events" && f.Parts == "table" {
 		out, err = d.activityIndexedEvents(ctx, router, f, zone, rules, lookup, countsKey, expires)
 	} else {
-		out, err = d.activitySQLAggregate(ctx, router, f, rules, zone, lookup)
-		if err == nil && f.View == "events" {
-			page, e := d.activityIndexedEvents(ctx, router, f, zone, rules, lookup, countsKey, expires)
-			err = e
-			out.Events, out.TotalRows = page.Events, page.TotalRows
-			out.Anchor, out.NextCursor, out.PrevCursor = page.Anchor, page.NextCursor, page.PrevCursor
-			out.HasNext, out.HasPrevious = page.HasNext, page.HasPrevious
-		}
+		jobKey := router + "\x00" + version + "\x00" + string(filterBytes)
+		out, err = d.activitySQLAggregate(ctx, router, f, rules, zone, lookup, activityAggregateRequest{Key: jobKey})
 	}
 	if err != nil {
 		return out, true, err
+	}
+	if out.Preparing {
+		out.TotalStored, out.DataRevision = state.Total, state.Revision
+		out.ComputedAt = time.Now().UnixMilli()
+		out.RefreshAt = out.ComputedAt + 1000
+		return out, true, nil
 	}
 	if f.Parts == "table" {
 		if err = d.activityFilterChoices(ctx, router, &out); err != nil {
 			return out, true, err
 		}
 	}
-	out.TotalStored = state.Total
-	out.DataRevision = state.Revision
+	if out.DataRevision == 0 {
+		out.TotalStored, out.DataRevision = state.Total, state.Revision
+		out.ComputedAt = now
+	}
 	out.IndexPending = 0
-	out.ComputedAt = now
-	out.ResultVersion = version + ":" + strconv.FormatInt(state.Revision, 10)
-	out.RefreshAt = max(now+1, expires)
-	d.activityCache.put(key, out, out.RefreshAt)
+	out.ResultVersion = version + ":" + strconv.FormatInt(out.DataRevision, 10)
+	out.RefreshAt = max(time.Now().UnixMilli()+1, expires)
+	// A completed frozen snapshot remains complete under concurrent imports.
+	// Refresh it immediately, without caching it under a newer source revision.
+	if out.DataRevision != state.Revision {
+		out.RefreshAt = time.Now().UnixMilli() + 1
+	} else {
+		d.activityCache.put(key, out, out.RefreshAt)
+	}
 	return out, true, nil
 }
 
