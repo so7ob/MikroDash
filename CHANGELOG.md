@@ -2,6 +2,15 @@
 
 All notable changes to MikroDash will be documented in this file.
 
+## [1.0.5] - Activity query indexes and complete historical analysis
+
+- Improve day, week, month and custom-range queries with covering indexes, exact latest-evidence keys and transactional daily/hourly rollups. Preserve original observations, duplicate groups, Unicode identities, filtering, sorting, cursors and CSV behavior.
+- Count calendar groups with exact integer local buckets and format only returned groups. Use hourly rollups where timezone transitions permit them, retaining exact partial-hour, DST and fractional-offset fallbacks.
+- Resume dense analysis through the existing preparing/retry interface. Every request keeps its 20-second analysis budget; the complete cold report can require several requests. Never expose or cache partial counts/charts, and preserve snapshot revision/time while imports continue between phases.
+- Preserve permission checks on each response, and restart preparation safely if retention removes required metadata. Advance storage from schema 47 to 48 atomically without resetting subscriber usage, entitlements, account credentials or RBAC data. Back up the complete data directory before upgrading.
+- Validate all-period/query differential and HTTP matrices, migration/rollback, 429000-event synthetic HTTP performance, responsive real-HTTP browser flows and read-only ARM phase timing. Hardware timing is qualified rather than a universal latency guarantee; see [the report](https://github.com/so7ob/MikroDash/blob/v1.0.5/docs/Activity-Query-Structure.md).
+- Keep Subscriber Management a development preview and retain its open roadmap. This release does not enable RADIUS, change router settings or activate capability flags automatically; existing configured modes remain in force.
+
 ## [1.0.4] - Activity container reliability and subscriber administration
 
 ### Activity Analytics
