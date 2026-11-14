@@ -113,19 +113,28 @@ func TestActivityHTTPPerformance(t *testing.T) {
 				req, _ := http.NewRequest("GET", httpServer.URL+"/api/activity/query?"+q.Encode(), nil)
 				req.Header.Set("Cookie", "mikrodash_sid=activity-test-token")
 				at := time.Now()
-				resp, err := client.Do(req)
-				if err != nil {
-					t.Fatal(err)
+				for attempt := 0; attempt < 60; attempt++ {
+					resp, err := client.Do(req)
+					if err != nil {
+						t.Fatal(err)
+					}
+					var result activity.Result
+					err = json.NewDecoder(resp.Body).Decode(&result)
+					resp.Body.Close()
+					if err != nil {
+						t.Fatal(err)
+					}
+					if resp.StatusCode == http.StatusAccepted && result.Preparing {
+						time.Sleep(time.Second)
+						continue
+					}
+					if resp.StatusCode != http.StatusOK || result.Preparing {
+						t.Fatal(resp.StatusCode)
+					}
+					return result, time.Since(at)
 				}
-				defer resp.Body.Close()
-				var result activity.Result
-				if err = json.NewDecoder(resp.Body).Decode(&result); err != nil {
-					t.Fatal(err)
-				}
-				if resp.StatusCode != 200 {
-					t.Fatal(resp.StatusCode)
-				}
-				return result, time.Since(at)
+				t.Fatal("preparation did not finish after bounded retries")
+				return activity.Result{}, time.Since(at)
 			}
 			base := url.Values{"routerId": {"r1"}, "from": {fmt.Sprint(now - 29*86400000 - 1)}, "to": {fmt.Sprint(now + 1)}, "view": {"summary"}, "parts": {"overview"}}
 			warmupQuery := url.Values{}

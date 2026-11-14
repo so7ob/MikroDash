@@ -9,11 +9,12 @@ import (
 // TicketRequest contains only server-verified context. The portal resolves its
 // device from the enrolled NAS host table using the trusted HTTP peer address.
 type TicketRequest struct {
-	AccountID     string
-	RouterID      string
-	Network       string
-	Device        string
-	ClientAddress string
+	AccountID          string
+	CredentialRevision Quantity
+	RouterID           string
+	Network            string
+	Device             string
+	ClientAddress      string
 }
 
 type TicketBinding struct {
@@ -43,9 +44,19 @@ func (s *Store) IssueTicket(ctx context.Context, in TicketRequest, at time.Time)
 		return "", err
 	}
 	defer tx.Rollback()
+	revision, err := credentialRevision(tx, in.AccountID)
+	if err != nil {
+		return "", err
+	}
+	if in.CredentialRevision < 0 || revision != in.CredentialRevision {
+		return "", ErrDenied
+	}
 	token := "mdt_" + ID()
 	key := Digest(token)
 	if _, err = tx.Exec(`INSERT INTO subscriber_tickets(token_hash,account_id,network,device,expires_at) VALUES(?,?,?,?,?)`, key, in.AccountID, in.Network, in.Device, at.Add(30*time.Second).Unix()); err != nil {
+		return "", err
+	}
+	if _, err = tx.Exec(`INSERT INTO subscriber_ticket_credentials(token_hash,credential_revision) VALUES(?,?)`, key, revision); err != nil {
 		return "", err
 	}
 	if _, err = tx.Exec(`INSERT INTO subscriber_connection_flows(token_hash,router_id,client_address,created_at,updated_at) VALUES(?,?,?,?,?)`, key, in.RouterID, peer, at.Unix(), at.Unix()); err != nil {
@@ -72,8 +83,9 @@ func (s *Store) RedeemTicket(ctx context.Context, token string, b TicketBinding,
 	defer tx.Rollback()
 	var network, device, router, prior, state string
 	var expires int64
-	err = tx.QueryRow(`SELECT a.id,a.username,a.name,a.status,t.network,t.device,t.expires_at,t.request_key,f.router_id,f.state FROM subscriber_tickets t JOIN subscriber_accounts a ON a.id=t.account_id JOIN subscriber_connection_flows f ON f.token_hash=t.token_hash WHERE t.token_hash=?`, Digest(token)).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &network, &device, &expires, &prior, &router, &state)
-	if err != nil || a.Status != "active" || a.Username != b.Username || router != b.RouterID || network != b.Network || device != b.Device || at.Unix() >= expires || state == "rejected" || (prior != "" && prior != request) {
+	var ticketRevision Quantity
+	err = tx.QueryRow(`SELECT a.id,a.username,a.name,a.status,t.network,t.device,t.expires_at,t.request_key,f.router_id,f.state,c.credential_revision,COALESCE(v.revision,0) FROM subscriber_tickets t JOIN subscriber_accounts a ON a.id=t.account_id JOIN subscriber_ticket_credentials c ON c.token_hash=t.token_hash LEFT JOIN subscriber_credential_revisions v ON v.account_id=a.id JOIN subscriber_connection_flows f ON f.token_hash=t.token_hash WHERE t.token_hash=?`, Digest(token)).Scan(&a.ID, &a.Username, &a.Name, &a.Status, &network, &device, &expires, &prior, &router, &state, &ticketRevision, &a.CredentialRevision)
+	if err != nil || ticketRevision != a.CredentialRevision || a.Status != "active" || a.Username != b.Username || router != b.RouterID || network != b.Network || device != b.Device || at.Unix() >= expires || state == "rejected" || (prior != "" && prior != request) {
 		return Account{}, ErrDenied
 	}
 	if prior == "" {

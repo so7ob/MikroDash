@@ -232,6 +232,17 @@ Existing `/api/activity/*` paths and `page` links remain supported. Requests wit
 | `status` | Synchronization/settings, retained total and index progress |
 | `rules` | Classification rules/settings; no history analysis |
 
+A cold or changed local analysis context may need several preparation batches on
+slower containers. Such a request returns **HTTP 202**, `Retry-After: 1`,
+`preparing: true`, `preparationPending` (remaining derived shapes) and `refreshAt`.
+This is maintenance progress, **not an analytical result**: do not interpret its
+empty charts or default totals as measured zeros. The Activity page and optional
+dashboard cards show preparation and retry automatically while visible; each
+request resumes committed batches. HTTP 200 with `preparing: false` contains the
+complete result. `status` and `rules` remain available during preparation. Caller
+cancellation and permanent storage errors remain errors, and authorization is
+checked on every retry. See [container failure verification](Activity-Container-Query-Fix.md).
+
 Events responses add `nextCursor`, `prevCursor`, `anchor`, `hasNext`, and
 `hasPrevious`. Pass `cursor` for navigation, or `anchor` to refresh around the first
 visible group. Keep the original filters and sort. Rolling `days` ranges accept

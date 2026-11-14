@@ -18,6 +18,9 @@ test('CHR browser refuses public or symlinked private state',()=>{
  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'mikrodash-chr-browser-'));fs.chmodSync(directory,0o700);
  try {
   const manifest=path.join(directory,'runtime.json');fs.writeFileSync(manifest,'{}',{mode:0o644});
+ // Creation mode is filtered by umask; the synthetic fixture must actually be public.
+ fs.chmodSync(manifest,0o644);
+ assert.equal(fs.statSync(manifest).mode&0o777,0o644);
   let result=spawnSync(process.execPath,[script,'journey',directory],{encoding:'utf8'});assert.equal(result.status,1);assert.match(result.stderr,/Private regular lab metadata required/);
   fs.unlinkSync(manifest);const target=path.join(directory,'state.json');fs.writeFileSync(target,'{}',{mode:0o600});fs.symlinkSync(target,manifest);
   for(const action of ['exhausted','reconciling']) {

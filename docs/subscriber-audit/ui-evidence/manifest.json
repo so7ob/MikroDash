@@ -1,0 +1,186 @@
+{
+  "baselineCommit": "404622b3",
+  "fixture": "Actual shared components and protected isolated HTTP/SQLite; NAS synthetic; Network references show unmeasured template state.",
+  "sourceFilesSha256": {
+    "internal/pages/pages.go": "641f0f76b6a35cc608bd2881b596bd48df73e0465db818579a003505dd75c07b",
+    "internal/rbac/capabilities.go": "a096da78138e6720fbb745357e41fc22bbb47236d78cc0455d44ab8aee5dd638",
+    "internal/rbac/capabilities_test.go": "88f6144e2975feaf2dbeb4051737acdb7c403f1279ad3b81a48321cdde36d98c",
+    "internal/server/pages_table.json": "7f6f34f8377114429d75bc32f092f16a77525a1d94fca0069164fcbdec6757fd",
+    "internal/server/server.go": "ba929344421b3664d307c6d6b0851491310cdef91b18c03e9bfef76ad1508ed6",
+    "internal/server/subscriber_admin_browser_test.go": "ba7355cc10188f45fb6b2fc3f7d5570d5d3d9ebebac1866b0e9768a88f090e80",
+    "internal/server/subscriber_plan_test.go": "a8a882c6120c2ad0c2322377dcf90b7cb0142631f6f65b6f2a7b275e597a5f15",
+    "internal/server/subscribers.go": "c0cb0c1683bbf9650856a05fbdbecf9e1371858b00117aa0d8a1bc17897fd512",
+    "testdata/pages-table.json": "2a54163abb7beb40a4b9b7dabe9f7a01788b966d70218b6cceb10b6eedb2bba1",
+    "tools/subscriber-admin-browser.mjs": "9e6b9ded129559225e25cdcf73127d55c9903d23d8a5f52716200203cde8e835",
+    "tools/subscriber-history-browser.mjs": "9864dabd60b3aa5b85947f555f50d30890259ac3de019f3aae14296c258a9361",
+    "tools/subscriber-plan-browser.mjs": "450b5b28202b0234002eeab018a38c79cc4207dd7e99a545f4f4dff7be7b14c2",
+    "web/public/app.css": "acb62d385fab8725b6c97607e4ae5de1b52786f23682780de8fc0e77fa4ac2dc",
+    "web/src/gen/page-keys.ts": "f45d49dbe0b6ba71418fd631eb98b5b2c9bcfac49933e806de091beb9e9ee5d9",
+    "web/src/gen/pages.ts": "8b46e8fbf39be065c50e639a57ea210ca107d7f9d69cfa6a8b0fa39cbc373d63",
+    "web/src/modals.ts": "2555f4d710f1cf13ccc6f35d45379598fab673f530cc32ac93e350af52c98a9d",
+    "web/src/pages/subscriber-account-actions.ts": "b3a6b505c4bcca972cae84c0cbf9ddcd02fc2bb8e0b4e2737e3661fa3325bc47",
+    "web/src/pages/subscriber-plan-limits.ts": "c9bf0a9afa6350e0ea6808807818bb8cf413c25683c1e348b7b84c22ec7ccb2e",
+    "web/src/pages/subscriber-reconciliation.ts": "bc2722ee709c736c571285af0bed5ea2ef032ce879ef8dc80766824febc0f197",
+    "web/src/pages/subscriber-status-history.ts": "2debff932e34636466f023cfc3c1a9249393d2044073af90b39e30bac930ef5f",
+    "web/src/pages/subscribers.ts": "7196b7fa4b7f193bceba7cc84d2830ce122d9831ac92fd0791bd287cc5663dfa",
+    "web/src/ui/page-subscriber-history.html": "ff3a3db9e3251c9c0c10a0a627eba39cc7c1ac5ed428a1540e21f22660ab91e0",
+    "web/src/ui/page-subscriber-overview.html": "cbd0d106bf752eb69e8a68113c28ff8dd8df4196390d4ee290b563a416611cf2",
+    "web/src/ui/page-subscriber-plans.html": "d1c2431b3588fa68533bee0fc3295937f10609a6828ee2d90386933f4d3704d7",
+    "web/src/ui/page-subscriber-reconciliation.html": "b3e2f78b9fd5c3b7de4eaa3a1e9b05a26b204d93ed53840574461bcb2ec178e6",
+    "web/src/ui/page-subscriber-simulator.html": "6cbe43a5858a2e7a4d9dd1be4da8a809aa4f5f0fe71ab56ae1dbab033c835e59",
+    "web/src/ui/page-subscribers.html": "ae714f59ccd4b59be66d316093a7ab66b72fb75275a430106e3eb9c2de1b1097",
+    "web/src/ui/shell.html": "eedb23d23fc30ff027488110e37c36c00955a412041051877a62713edb42848f",
+    "web/test/browser/subscriber-admin-entry.ts": "844700db4b56159c4c3ac716e7c91d4b94de85d3eeff28e73dfd4bd533f46b70",
+    "web/test/subscriber-plan-limits.test.ts": "85a271be2bacac4c29122ce323e889dbd9ed67b7e936237e663b559946ba7ff0",
+    "internal/server/principals_api_test.go": "32f29250353c6ce69b2f4e76b8528b9031ff982f4f4fd4f814259c72beb28a56"
+  },
+  "images": [
+    {
+      "file": "before-subscribers-375.png",
+      "kind": "baseline-404622b3-synthetic-http",
+      "width": 375,
+      "height": 1000,
+      "sha256": "5e9180eeb77f6b464acca7baef8fa807faffc267ae74387d14b55809876ae373"
+    },
+    {
+      "file": "before-subscribers-1280.png",
+      "kind": "baseline-404622b3-synthetic-http",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "b69aeed319dfeb0deb7f2a329ec800b6e25379e7269fa1b44f56c5d59699facd"
+    },
+    {
+      "file": "before-plans-375.png",
+      "kind": "baseline-404622b3-synthetic-http",
+      "width": 375,
+      "height": 1000,
+      "sha256": "fe9cac0fa420eb135471c8b3a4eda63adaf3732b1e8270e95a1e0da776a4fad4"
+    },
+    {
+      "file": "before-plans-1280.png",
+      "kind": "baseline-404622b3-synthetic-http",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "f4d868f405cb310de00be2f39c62ab28c4db40bf2a30b11287138f78c656cf9f"
+    },
+    {
+      "file": "before-sidebar-1280.png",
+      "kind": "baseline-404622b3-synthetic-http",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "d0f8c4a15dee1bec2c9ea87395b2fe8234c21cad47f43d3672587e3a337acbf3"
+    },
+    {
+      "file": "after-subscriber-overview-dark-1280.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "6a168bca8c1c0dc41aa365b1a4c76511a6473bd9f5f51be4f57a18d6014b698c"
+    },
+    {
+      "file": "after-subscribers-dark-1280.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "c211ed3262ed79f9cf01c88169127723a952f13af8657386b1b6b588e05f42ce"
+    },
+    {
+      "file": "after-subscriber-plans-dark-1280.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "bcedd1593b2d984591cdd6d02eb7c2de90b7b33b0ef2303209f513978292f9c0"
+    },
+    {
+      "file": "after-subscriber-simulator-dark-1280.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "e9cd50d06e7ef1a6cfd28aca7d7972af70e4ff1eabb3e59b7db985f65a060b38"
+    },
+    {
+      "file": "after-subscriber-history-dark-1280.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "1856bd5f5ee982580710c756a135a303adbb6b8ddaaa0203037258379d2625f9"
+    },
+    {
+      "file": "after-subscriber-reconciliation-dark-1280.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "894eddd2d4466007ca018e9ad7139ffbff64730734e2ed678f6a27559dd48416"
+    },
+    {
+      "file": "reference-interfaces-dark-1280.png",
+      "kind": "actual-network-template-no-router-data",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "172f8c0dbe7ce5e33c9c9142f75efebf0b8089a6c358d4b701d9c79fa4e97f8b"
+    },
+    {
+      "file": "reference-vlans-dark-1280.png",
+      "kind": "actual-network-template-no-router-data",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "ccdd63ee0ffd2c28be21eb4d910c5e16c8ff35b96b25691677ad2868fe140617"
+    },
+    {
+      "file": "reference-bridges-dark-1280.png",
+      "kind": "actual-network-template-no-router-data",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "86e0f5a07e0779560de0ede573246f7c25b1c6dd7ddbc8aff107fe8a2875a96e"
+    },
+    {
+      "file": "unified-subscribers-light-375.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 375,
+      "height": 1000,
+      "sha256": "9e72518f4f6d049b66cbd885685a2825561959ca413d8348925d11fecf4b103f"
+    },
+    {
+      "file": "subscriber-name-editor-synthetic-dark-default-375.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 375,
+      "height": 1000,
+      "sha256": "286f2387d1ae20535d7cf3ef23411aa05b62aaa34db177aa070dccc3152fc834"
+    },
+    {
+      "file": "subscriber-admin-reconciliation-synthetic-light-default-375.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 375,
+      "height": 1000,
+      "sha256": "ceb12623e27b543b1ca4001cfef8d4cad5c57fb60e8afa77bb173d6b3424b966"
+    },
+    {
+      "file": "sidebar-expanded-dark-1280.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "88f1da3ca0fe40a0a404642ac629bbd7ec8b945b070f498b4c03a979a796d5b9"
+    },
+    {
+      "file": "sidebar-mobile-dark-375.png",
+      "kind": "protected-http-sqlite-synthetic-nas",
+      "width": 375,
+      "height": 560,
+      "sha256": "f21d2b5acdc22113617887f81ff1b8ee4d2348c7eddbb5bfde305827ea896ea2"
+    },
+    {
+      "file": "after-plan-modal-dark-375.png",
+      "kind": "synthetic-http-plan-editor",
+      "width": 375,
+      "height": 1000,
+      "sha256": "9ac6bae56f094f936cbbe78d5c3cd5a7fead310d0612d0ae50055d9969d6ecdc"
+    },
+    {
+      "file": "after-plan-modal-dark-1280.png",
+      "kind": "synthetic-http-plan-editor",
+      "width": 1280,
+      "height": 1000,
+      "sha256": "0c787e6935e6a82513603c8dcdffaa5134e2673b2b5230604eeb3dd49704b2e2"
+    }
+  ]
+}

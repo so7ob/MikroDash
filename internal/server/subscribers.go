@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"log"
 	"net"
@@ -160,6 +159,8 @@ func (s *Server) registerSubscribers(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/subscribers", s.subscribersGet)
 	mux.HandleFunc("POST /api/subscribers", s.subscribersPost)
 	mux.HandleFunc("GET /api/subscribers/snapshot", s.subscribersSnapshot)
+	mux.HandleFunc("GET /api/subscribers/status-history", s.subscribersStatusHistory)
+	mux.HandleFunc("GET /api/subscribers/audit", s.subscribersAccountAudit)
 	mux.HandleFunc("GET /api/subscribers/reconciliation", s.subscribersReconciliationGet)
 	mux.HandleFunc("POST /api/subscribers/reconciliation", s.subscribersReconciliationPost)
 }
@@ -215,7 +216,16 @@ func (s *Server) subscribersSnapshot(w http.ResponseWriter, r *http.Request) {
 	if s.subscriberAdmin(w, r) == nil {
 		return
 	}
-	v, err := s.auditDB.Subscribers().Snapshot(r.Context(), r.URL.Query().Get("account"), time.Now())
+	at := time.Now()
+	if raw := r.URL.Query().Get("at"); raw != "" {
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil || parsed.Year() < 1970 || parsed.Year() > 9999 {
+			writeJSONErr(w, 400, "Use an RFC3339 simulation time")
+			return
+		}
+		at = parsed
+	}
+	v, err := s.auditDB.Subscribers().Snapshot(r.Context(), r.URL.Query().Get("account"), at)
 	if err != nil {
 		subscriberError(w, err)
 		return
@@ -228,19 +238,21 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Action        string                                `json:"action"`
-		Username      string                                `json:"username"`
-		Name          string                                `json:"name"`
-		ExpectedName  *string                               `json:"expectedName"`
-		Password      string                                `json:"password"`
-		VoucherLength int                                   `json:"voucherLength"`
-		AccountID     string                                `json:"accountId"`
-		PlanID        string                                `json:"planId"`
-		Version       int                                   `json:"version"`
-		Reason        string                                `json:"reason"`
-		Status        string                                `json:"status"`
-		Plan          subscriber.Plan                       `json:"plan"`
-		Items         []subscriber.AccountStatusExpectation `json:"items"`
+		ExpectedCredentialRevision *subscriber.Quantity                  `json:"expectedCredentialRevision"`
+		ConfirmCredentialReset     bool                                  `json:"confirmCredentialReset"`
+		Action                     string                                `json:"action"`
+		Username                   string                                `json:"username"`
+		Name                       string                                `json:"name"`
+		ExpectedName               *string                               `json:"expectedName"`
+		Password                   string                                `json:"password"`
+		VoucherLength              int                                   `json:"voucherLength"`
+		AccountID                  string                                `json:"accountId"`
+		PlanID                     string                                `json:"planId"`
+		Version                    int                                   `json:"version"`
+		Reason                     string                                `json:"reason"`
+		Status                     string                                `json:"status"`
+		Plan                       subscriber.Plan                       `json:"plan"`
+		Items                      []subscriber.AccountStatusExpectation `json:"items"`
 	}
 	if !subscriberBody(w, r, &in) {
 		return
@@ -268,6 +280,30 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		result = map[string]any{"account": account}
+	case "credential":
+		if in.ExpectedCredentialRevision == nil || !in.ConfirmCredentialReset {
+			writeJSONErr(w, 400, "Review the credential revision and confirm the password reset")
+			return
+		}
+		var account subscriber.Account
+		account, err = store.ResetCredential(r.Context(), actor, in.AccountID, in.Password, in.Reason, *in.ExpectedCredentialRevision)
+		if err != nil {
+			switch {
+			case errors.Is(err, subscriber.ErrConflict):
+				writeJSONErr(w, 409, "Subscriber credentials changed. Close this dialog, refresh and review the account again.")
+			case errors.Is(err, subscriber.ErrCredentialInput):
+				subscriberError(w, err)
+			case errors.Is(err, subscriber.ErrDenied):
+				writeJSONErr(w, 404, "Subscriber account is unavailable. Refresh and review the list again.")
+			default:
+				writeJSONErr(w, 503, "Password reset was not confirmed. Refresh and review the account before retrying.")
+			}
+			return
+		}
+		if s.subscribers != nil {
+			s.subscribers.sessions.RevokeBefore(account.ID, account.CredentialRevision)
+		}
+		result = map[string]any{"account": account}
 	case "create":
 		var a subscriber.Account
 		var code string
@@ -290,15 +326,6 @@ func (s *Server) subscribersPost(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, result)
-}
-func subscriberBody(w http.ResponseWriter, r *http.Request, v any) bool {
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(v); err != nil {
-		writeJSONErr(w, 400, "Invalid request")
-		return false
-	}
-	return true
 }
 func subscriberError(w http.ResponseWriter, err error) {
 	writeJSONErr(w, 400, safe.Message(err.Error()))

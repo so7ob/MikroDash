@@ -768,6 +768,18 @@ HotSpot handoff, live connected-state browser proof and manual screen-reader
 acceptance remain pending; the automated checks do not establish all WCAG 2.2
 criteria or target-router acceptance.
 
+### Draft subscriber plan limits
+
+The existing dense plan form now includes a calendar-zone field and conditional
+throttle ceilings using the shared grid, inputs and semantic buttons. Each draft
+limit has inline Edit/Remove actions; editing retains its ID and exposes Cancel.
+No modal, palette, font or new card system is introduced. Pending plan saves freeze
+the controls; failure preserves the draft and explains that the save is unconfirmed.
+
+Synthetic Chromium checks cover edit/cancel/remove, keyboard focus, repeated and
+interrupted saves, escaped Unicode and dark/light/Nord at 375/1280 with zero axe
+findings under the existing tags. Scrolled mobile control screenshots supplement
+the app's main-panel viewport captures. Checklist: zero new decorative patterns.
 
 ### Activity query scope and live pages
 
@@ -800,3 +812,53 @@ prices and RouterOS template expressions are absent. Connection, authorization,
 accounting uncertainty and portal sign-in retain separate text states. Data
 names are escaped and preserved; numbers use Latin digits. Keyboard focus,
 native modal containment, camera cleanup and live updates are tested at 375/1280.
+
+
+### Subscriber account status history
+
+The existing dense English/LTR console adds a fifth wrapping header tab using
+the shared roving keyboard focus, local fonts and semantic controls. History
+keeps exact audit IDs, escaped reasons and clear loading/error/empty states.
+Older-page errors retain loaded rows; account changes fence delayed responses.
+The plan draft editor and guarded submission behavior remain intact. No new
+palette, typography, asset source, decorative pattern or framework is introduced.
+
+Batch history uses labelled reason and before/after rows with native disclosure
+for original audit evidence. Unicode reason text is isolated with bdi. This
+reduces raw JSON in the reading path without hiding historical evidence.
+
+
+## Subscriber administrative surfaces (2026-11-13, #97)
+
+Subscriber Management follows Network's existing dense, calm, data-first console
+system. It reuses the palette/font/control/table tokens, VLAN/Bridge summary
+cards, sortable lists and shared modal shell. Keep page-level functions in the
+existing sidebar category with independent URLs; retain tabs only inside details
+or a genuinely related editor. List first; create/edit/review forms in dialogs.
+Long plan editors use titled field groups and internal vertical scrolling.
+Configured runtime state uses a compact expandable explanation.
+
+The shared managed modal lifecycle owns dirty/busy close, keyboard focus and
+background inertness. Footer actions retain native form submission. Never add
+placeholder charts: unavailable online/usage/assignment measurements are labelled.
+Read docs/subscriber-audit/UI-UX-UNIFICATION.md for per-page and future acceptance.
+Aesthetic audit: existing dark glass, Oxanium/mono, blue interaction and semantic
+state roles retained; no new palette, font, component library or decorative chart.
+Rendered foundation review passed four widths, dark/light and dialog Nord with shared geometry, keyboard/focus and axe checks; representative images and remaining functional scope are in that document.
+
+
+## Subscriber audit detail (2026-11-14, #101)
+
+Keep this administrative evidence view compact, precise and familiar. It uses
+existing Oxanium/mono scales, dark/light/Nord tokens, KPI cards, shared field
+contract, table/pills and managed modal. Preserve original account identifier case
+outside uppercase section headings. Place selected identity/counts first, optional
+filters in a native disclosure, then current scoped data. Desktop is a table;
+phone evidence uses existing subscriber-section cards and Tabler responsive display
+utilities. No new CSS, palette, fonts, decorative charts or component library.
+
+Read-only filter dialogs can disable the shared modal's automatic dirty tracking;
+edit/review dialogs keep the default protection. Labels describe loaded evidence,
+UTC filters and display-timezone dates truthfully. Original before-values require
+stored evidence. Source/visual audit, image provenance and remaining scope live in
+docs/subscriber-audit/UI-UX-UNIFICATION.md and ACCOUNT-AUDIT.md.

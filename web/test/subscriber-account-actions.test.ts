@@ -20,3 +20,12 @@ test('subscriber filters match original Unicode data literally and preserve the 
   assert.deepEqual(filterSubscriberAccounts(accounts, '<script>', 'all'), [accounts[0]]);
   assert.deepEqual(accounts, original);
 });
+
+
+test('credential review freezes exact account metadata without numeric coercion or fallback',async()=>{
+ const {credentialReview}=await import('../src/pages/subscriber-credentials');
+ const account={id:'synthetic-account',username:'Synthetic اسم',name:'Original <script>',status:'active',statusRevision:'0',credentialRevision:'9007199254740993'};
+ const review=credentialReview(account);account.credentialRevision='9007199254740994';account.username='Changed after review';
+ assert.deepEqual(review,{accountId:'synthetic-account',username:'Synthetic اسم',name:'Original <script>',revision:'9007199254740993'});assert.equal(Object.isFrozen(review),true);
+ for(const credentialRevision of [undefined,0,null,'-1','1e3','9223372036854775808',''] as unknown[]){assert.throws(()=>credentialReview({...account,credentialRevision} as SubscriberAdminAccount));}
+});

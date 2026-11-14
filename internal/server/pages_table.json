@@ -317,8 +317,33 @@
       "settingsKey": null
     },
     {
+      "key": "subscriber-overview",
+      "title": "Subscriber Overview",
+      "settingsKey": null
+    },
+    {
+      "key": "subscriber-plans",
+      "title": "Plans & Policies",
+      "settingsKey": null
+    },
+    {
+      "key": "subscriber-simulator",
+      "title": "Policy Simulator",
+      "settingsKey": null
+    },
+    {
+      "key": "subscriber-history",
+      "title": "Status History",
+      "settingsKey": null
+    },
+    {
+      "key": "subscriber-reconciliation",
+      "title": "Reconciliation",
+      "settingsKey": null
+    },
+    {
       "key": "subscribers",
-      "title": "Subscriber Management",
+      "title": "Subscribers",
       "settingsKey": null
     }
   ],

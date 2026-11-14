@@ -57,7 +57,7 @@ func (s *Server) subscriberPortalWS(w http.ResponseWriter, r *http.Request) {
 	defer ticker.Stop()
 	owned := func() bool {
 		current, valid := s.subscribers.sessions.Get(cookie.Value)
-		return valid && current.AccountID == identity.AccountID
+		return valid && current.AccountID == identity.AccountID && current.CredentialRevision == identity.CredentialRevision && s.subscribers.radius.Store.ValidateCredentialRevision(ctx, current.AccountID, current.CredentialRevision) == nil
 	}
 	writeFrame := func() bool {
 		// Recheck before each individual send, including the connection event.

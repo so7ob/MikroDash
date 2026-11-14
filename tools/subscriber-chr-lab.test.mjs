@@ -73,6 +73,9 @@ test('CHR lifecycle check rejects public manifests, symlinks and directories', t
   t.after(() => fs.rmSync(directory, { recursive: true }));
   const file = path.join(directory, 'runtime.json');
   fs.writeFileSync(file, '{}', { mode: 0o644 });
+  // A restrictive caller umask must not turn this rejection fixture private.
+  fs.chmodSync(file, 0o644);
+  assert.equal(fs.statSync(file).mode & 0o777, 0o644);
   let result = invoke(['check', directory]);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Private regular lab file required/);

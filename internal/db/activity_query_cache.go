@@ -97,8 +97,24 @@ func (d *DB) ActivityIndexedQuery(ctx context.Context, router string, f activity
 	}{rules, activity.Builtins, 1, zone, geoKey})
 	digest := sha256.Sum256(contextBytes)
 	version := hex.EncodeToString(digest[:])
-	if err = d.PrepareActivityShapes(ctx, router, version, zone, rules, lookup); err != nil {
-		return out, false, err
+	// Preparation is durable maintenance, not an incomplete analytical result.
+	// Bound each request so slower containers can commit batches and retry without
+	// exhausting the HTTP deadline. Never cache or aggregate a partial projection.
+	prepareCtx, cancelPrepare := context.WithTimeout(ctx, 2*time.Second)
+	err = d.PrepareActivityShapes(prepareCtx, router, version, zone, rules, lookup)
+	preparationExpired := prepareCtx.Err() == context.DeadlineExceeded
+	cancelPrepare()
+	if err != nil {
+		if !preparationExpired || ctx.Err() != nil {
+			return out, false, err
+		}
+		if err = d.sql.QueryRowContext(ctx, `SELECT COUNT(*) FROM activity_shapes WHERE router_id=? AND (ready=0 OR COALESCE((SELECT version FROM activity_projection_context WHERE router_id=?),'')<>?)`, router, router, version).Scan(&out.PreparationPending); err != nil {
+			return out, false, err
+		}
+		out.Preparing = true
+		out.ComputedAt = time.Now().UnixMilli()
+		out.RefreshAt = out.ComputedAt + 1000
+		return out, true, nil
 	}
 	cacheFilter := f
 	if f.RollingDays > 0 {

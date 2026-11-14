@@ -25,7 +25,10 @@ package rbac
 // router and dns:read on another can see the write controls at first paint, and
 // the socket then refuses the write on the router that does not allow it.
 
-import "sort"
+import (
+	"mikrodash/internal/pages"
+	"sort"
+)
 
 // conferred is the fail-closed rule for the four flags: true only when the
 // lookup SUCCEEDED and said yes.
@@ -203,6 +206,16 @@ func (r *Resolver) CapabilitiesFor(userID string) (Capabilities, error) {
 				continue
 			}
 			caps.Pages[p.Page] = p.Access
+		}
+	}
+	// Module authority is global, including an install without any routers.
+	allowed, permissionErr := r.Can(userID, "system:subscribers", "")
+	for page := range r.pages {
+		if pages.IsSubscriber(page) {
+			delete(caps.Pages, page)
+			if permissionErr == nil && allowed {
+				caps.Pages[page] = "write"
+			}
 		}
 	}
 	return caps, nil

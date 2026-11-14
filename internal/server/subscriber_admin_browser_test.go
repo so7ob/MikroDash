@@ -4,18 +4,14 @@ package server
 
 import (
 	"database/sql"
-	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/evanw/esbuild/pkg/api"
 	"mikrodash/internal/subscriber"
 )
 
@@ -64,24 +60,7 @@ func TestSubscriberAdminReconciliationBrowserAcceptance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bundle := api.Build(api.BuildOptions{EntryPoints: []string{filepath.Join(root, "web/test/browser/subscriber-admin-entry.ts")}, Bundle: true, Write: false, Format: api.FormatIIFE, Platform: api.PlatformBrowser, LogLevel: api.LogLevelSilent})
-	if len(bundle.Errors) != 0 || len(bundle.OutputFiles) != 1 {
-		t.Fatal(bundle.Errors)
-	}
-	markup, err := os.ReadFile(filepath.Join(root, "web/src/ui/page-subscribers.html"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	page := strings.Replace(string(markup), `class="page-view"`, `class="page-view active"`, 1)
-	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprint(w, `<!doctype html><html lang="en" dir="ltr" data-bs-theme="dark" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Synthetic subscriber administration</title><link rel="stylesheet" href="/vendor/tabler.min.css"><link rel="stylesheet" href="/vendor/fonts/fonts.css"><link rel="stylesheet" href="/css/app-fonts.css"><link rel="stylesheet" href="/app.css"></head><body><main id="main"><h1 class="card-title">Synthetic administration fixture</h1>`+page+`</main><script src="/admin-test.js"></script></body></html>`)
-	})
-	mux.HandleFunc("GET /admin-test.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/javascript")
-		_, _ = w.Write(bundle.OutputFiles[0].Contents)
-	})
-	mux.Handle("GET /", http.FileServer(http.Dir(filepath.Join(root, "web/public"))))
+	mountSubscriberAdminBrowserFixture(t, mux, root)
 	server := httptest.NewTLSServer(mux)
 	defer server.Close()
 	command := exec.Command("node", filepath.Join(root, "tools/subscriber-admin-browser.mjs"))

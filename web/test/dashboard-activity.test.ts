@@ -117,3 +117,15 @@ test('status notifications update only card status and rolling expiry refreshes 
   await pause(550);assert.equal(calls.length,count,'hidden cards kept expiry requests running');
  }finally{doc.hidden=true;listeners.visibilitychange?.forEach(fn=>fn({}));globalThis.document=saved.document;globalThis.fetch=saved.fetch}
 });
+
+
+test('pending Activity cards do not present incomplete data as measured zeros', () => {
+ const nodes=new Map(ACTIVITY_CARDS.map(kind=>['dc-activity-'+kind,{innerHTML:''}]));
+ const saved=globalThis.document;
+ globalThis.document={getElementById:(id:string)=>nodes.get(id)||null} as any;
+ try {
+  renderActivityCards({...result('r1',0),preparing:true,preparationPending:1200});
+  for(const node of nodes.values()) {assert.match(node.innerHTML,/Preparing saved activity/);assert.match(node.innerHTML,/1,200 remaining/);assert.doesNotMatch(node.innerHTML,/<strong>|No DNSUSER|No matching/);}
+  renderActivityCards(result('r1',3));assert.match(nodes.get('dc-activity-overview')!.innerHTML,/>3</);
+ } finally {globalThis.document=saved;}
+});

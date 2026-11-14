@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strings"
 	"testing"
 
 	"mikrodash/internal/pages"
@@ -120,6 +121,25 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 	for _, m := range regexp.MustCompile(`\btoggleHtml\(\s*['"]([A-Za-z][\w-]*)['"]`).FindAllStringSubmatch(ts, -1) {
 		produced[m[1]] = true
 	}
+	// The subscriber form uses local input/select factories. Follow literal
+	// calls only when the actual factory declaration emits its id argument.
+	// Unlike an allowlist, deleting that producer makes its lookups fail again.
+	form := mustRead(t, filepath.Join(root, "web/src/pages/subscribers.ts"))
+	for id := range subscriberFormProducerIDs(form) {
+		produced[id] = true
+	}
+	t.Run("subscriber helper output is required", func(t *testing.T) {
+		for helper, id := range map[string]string{"input": "subLimitAmount", "select": "subLimitKind"} {
+			if !subscriberFormProducerIDs(form)[id] {
+				t.Fatalf("real %s factory did not produce %s", helper, id)
+			}
+			before := "<" + helper + ` id="${id}"`
+			mutated := strings.Replace(form, before, "<"+helper+` data-removed-id="${id}"`, 1)
+			if mutated == form || subscriberFormProducerIDs(mutated)[id] {
+				t.Fatalf("removing %s factory id did not remove its producer", helper)
+			}
+		}
+	})
 	// AND IDS ASSIGNED TO AN ELEMENT, which is markup built without markup:
 	// `st.id = 'navBoot'` in preflight, `node.id = 'sysMetaTemp'` created lazily
 	// on first use. Missing these made two real producers look absent.
@@ -177,6 +197,25 @@ func TestEveryLookupHasAProducer(t *testing.T) {
 	}
 	t.Logf("%d lookups across the port, every one produced (%d produced ids, constructed "+
 		"lookups present: %v)", len(lookedUp), len(produced), constructed)
+}
+
+// subscriberFormProducerIDs follows the two local form factories only while
+// their production declarations actually interpolate the first id argument.
+// Unrecognized implementations fail closed and require this scanner to follow
+// their real markup; there is no exemption for any subscriber control ID.
+func subscriberFormProducerIDs(body string) map[string]bool {
+	ids := map[string]bool{}
+	declarations := regexp.MustCompile("(?m)^function (input|select)\\(id: string[^\\n]*?\\{ return `<(input|select) id=\"\\$\\{id\\}\"")
+	for _, declaration := range declarations.FindAllStringSubmatch(body, -1) {
+		if declaration[1] != declaration[2] {
+			continue
+		}
+		calls := regexp.MustCompile(`\b` + declaration[1] + `\(\s*['"]([A-Za-z][\w-]*)['"]`)
+		for _, call := range calls.FindAllStringSubmatch(body, -1) {
+			ids[call[1]] = true
+		}
+	}
+	return ids
 }
 
 // lookupsWithoutProducer: ids the port looks up that nothing here creates.

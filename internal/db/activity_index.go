@@ -187,36 +187,18 @@ func (d *DB) IndexActivityBatch(ctx context.Context, limit int) (int, error) {
 // PrepareActivityShapes refreshes derived values once per distinct shape/context,
 // not once per source event. Caller serializes context changes with queries.
 func (d *DB) PrepareActivityShapes(ctx context.Context, router, version, zone string, rules []activity.Rule, lookup func(string) (string, string)) error {
-	if d.activityContexts == nil {
-		d.activityContexts = map[string]string{}
-	}
-	previous, exists := d.activityContexts[router]
-	if !exists {
-		err := d.sql.QueryRowContext(ctx, `SELECT version FROM activity_projection_context WHERE router_id=?`, router).Scan(&previous)
-		if err != nil && err != sql.ErrNoRows {
-			return err
-		}
+	var previous string
+	if err := d.sql.QueryRowContext(ctx, `SELECT version FROM activity_projection_context WHERE router_id=?`, router).Scan(&previous); err != nil && err != sql.ErrNoRows {
+		return err
 	}
 	if previous != version {
-		tx, err := d.sql.BeginTx(ctx, nil)
-		if err != nil {
-			return err
-		}
-		if _, err = tx.ExecContext(ctx, `UPDATE activity_shapes SET ready=0 WHERE router_id=?`, router); err == nil {
-			_, err = tx.ExecContext(ctx, `INSERT INTO activity_projection_context VALUES(?,?) ON CONFLICT(router_id) DO UPDATE SET version=excluded.version`, router, version)
-		}
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-		if err = tx.Commit(); err != nil {
+		if err := d.resetActivityShapes(ctx, router, previous, version); err != nil {
 			return err
 		}
 	}
-	d.activityContexts[router] = version
 	evaluator := activity.NewEvaluator(zone, rules, lookup)
 	for {
-		rows, err := d.sql.QueryContext(ctx, `SELECT id,payload FROM activity_shapes WHERE router_id=? AND ready=0 LIMIT 500`, router)
+		rows, err := d.sql.QueryContext(ctx, `SELECT id,payload FROM activity_shapes WHERE router_id=? AND ready=0 LIMIT 100`, router)
 		if err != nil {
 			return err
 		}
@@ -275,6 +257,66 @@ func (d *DB) PrepareActivityShapes(ctx context.Context, router, version, zone st
 		if err = tx.Commit(); err != nil {
 			return err
 		}
+	}
+}
+
+// An interrupted context change must not repeat one large invalidation forever.
+// The existing opaque version stores a durable cursor until all old derived rows
+// are invalidated. Readers remain in preparation until the final version commits.
+type activityShapeReset struct {
+	Version string `json:"version"`
+	After   int64  `json:"after"`
+}
+
+func (d *DB) resetActivityShapes(ctx context.Context, router, previous, version string) error {
+	reset := activityShapeReset{Version: version}
+	var saved activityShapeReset
+	if json.Unmarshal([]byte(previous), &saved) == nil && saved.Version == version && saved.After >= 0 {
+		reset = saved
+	}
+	for {
+		tx, err := d.sql.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		rows, err := tx.QueryContext(ctx, `SELECT id FROM activity_shapes WHERE router_id=? AND ready=1 AND id>? ORDER BY id LIMIT 100`, router, reset.After)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		last, n := reset.After, 0
+		for rows.Next() {
+			if err = rows.Scan(&last); err != nil {
+				break
+			}
+			n++
+		}
+		if err == nil {
+			err = rows.Err()
+		}
+		rows.Close()
+		if err == nil && n > 0 {
+			_, err = tx.ExecContext(ctx, `UPDATE activity_shapes SET ready=0 WHERE router_id=? AND ready=1 AND id>? AND id<=?`, router, reset.After, last)
+		}
+		next := version
+		if n == 100 {
+			b, _ := json.Marshal(activityShapeReset{Version: version, After: last})
+			next = string(b)
+		}
+		if err == nil {
+			_, err = tx.ExecContext(ctx, `INSERT INTO activity_projection_context VALUES(?,?) ON CONFLICT(router_id) DO UPDATE SET version=excluded.version`, router, next)
+		}
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+		if err = tx.Commit(); err != nil {
+			return err
+		}
+		if n < 100 {
+			return nil
+		}
+		reset.After = last
 	}
 }
 

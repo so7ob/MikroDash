@@ -711,7 +711,15 @@ func (s *Server) Handler() http.Handler {
 	// /css, /fonts -- that this gets for free from the mux preferring the
 	// more specific pattern.
 	for _, p := range pages.All {
-		mux.Handle("/"+p.URL(), s.requireSession(s.spa()))
+		if pages.IsSubscriber(p.Key) {
+			mux.Handle("/"+p.URL(), s.requireSession(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if s.subscriberAdmin(w, r) != nil {
+					s.spa().ServeHTTP(w, r)
+				}
+			})))
+		} else {
+			mux.Handle("/"+p.URL(), s.requireSession(s.spa()))
+		}
 	}
 
 	// ── THE LOGIN DOCUMENT AND THE TWO CLASSIC SCRIPTS ─────────────────

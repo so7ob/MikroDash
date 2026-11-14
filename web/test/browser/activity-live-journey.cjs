@@ -1,6 +1,7 @@
 const assert=require('node:assert/strict');
 module.exports=async function(page,settled){
  await page.locator('[data-view="summary"]').click();await settled();
+ await require('./activity-preparing-journey.cjs')(page,settled);
  let requests=[];
  const listener=req=>{if(new URL(req.url()).pathname==='/api/activity/query')requests.push(new URL(req.url()).searchParams)};
  page.on('request',listener);

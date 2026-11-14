@@ -23,10 +23,21 @@
       <span class="nav-label">Dashboard</span>
     </a>
 
-    <a class="nav-item" data-page="subscribers" href="#" aria-label="Subscriber Management" title="Subscriber Management">
-      <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M5 16c0-3 6-3 6 0M14 9h4M14 13h4M14 17h2"/></svg></span>
-      <span class="nav-label">Subscriber<br />Management</span>
-    </a>
+    <div class="nav-group" data-cat="subscriber-management">
+      <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-subscriber-management" title="Subscriber Management">
+        <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="10" r="2"/><path d="M5 16c0-3 6-3 6 0M14 9h4M14 13h4M14 17h2"/></svg></span>
+        <span class="nav-label">Subscriber<br>Management</span>
+        <span class="nav-group-chev"><svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg></span>
+      </button>
+      <div class="nav-group-body" id="navgrp-subscriber-management" role="group" aria-label="Subscriber Management">
+        <a class="nav-item" data-page="subscriber-overview" data-cat="subscriber-management" href="/subscriber-overview"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><path d="M3 21v-7h7v7M14 21v-7h7v7"/></svg></span><span class="nav-label">Overview</span></a>
+        <a class="nav-item" data-page="subscribers" data-cat="subscriber-management" href="/subscribers"><span class="nav-icon"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-3-5"/></svg></span><span class="nav-label">Subscribers</span></a>
+        <a class="nav-item" data-page="subscriber-plans" data-cat="subscriber-management" href="/subscriber-plans"><span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 12h8M8 17h5"/></svg></span><span class="nav-label">Plans & Policies</span></a>
+        <a class="nav-item" data-page="subscriber-simulator" data-cat="subscriber-management" href="/subscriber-simulator"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4 19a1 1 0 0 0 1 2h14a1 1 0 0 0 1-2L14 9V3M7 15h10"/></svg></span><span class="nav-label">Policy Simulator</span></a>
+        <a class="nav-item" data-page="subscriber-history" data-cat="subscriber-management" href="/subscriber-history"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-7M3 3v6h6M12 7v5l4 2"/></svg></span><span class="nav-label">Status History</span></a>
+        <a class="nav-item" data-page="subscriber-reconciliation" data-cat="subscriber-management" href="/subscriber-reconciliation"><span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16M7 4L4 7l3 3M17 14l3 3-3 3M9 12h6"/></svg></span><span class="nav-label">Reconciliation</span></a>
+      </div>
+    </div>
 
     <div class="nav-group" data-cat="network">
       <button class="nav-group-hdr" type="button" aria-expanded="false" aria-controls="navgrp-network">

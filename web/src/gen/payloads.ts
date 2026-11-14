@@ -2378,6 +2378,8 @@ export interface ActivityResult {
   dataRevision: number;
   totalStored: number;
   indexPending: number;
+  preparing: boolean;
+  preparationPending: number;
   nextCursor: string;
   prevCursor: string;
   anchor: string;

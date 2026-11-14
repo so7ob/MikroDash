@@ -66,6 +66,15 @@ func (s *Server) subscriberIdentity(w http.ResponseWriter, r *http.Request) (sub
 		writeJSONErr(w, 403, "Request verification failed")
 		return v, false
 	}
+	if err = s.subscribers.radius.Store.ValidateCredentialRevision(r.Context(), v.AccountID, v.CredentialRevision); err != nil {
+		if errors.Is(err, subscriber.ErrDenied) {
+			s.subscribers.sessions.Delete(c.Value)
+			writeJSONErr(w, 401, "Your portal session has expired. Sign in again.")
+		} else {
+			writeJSONErr(w, 503, "Subscriber authentication is unavailable")
+		}
+		return v, false
+	}
 	return v, true
 }
 func (s *Server) subscriberPortalLogin(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +107,12 @@ func (s *Server) subscriberPortalLogin(w http.ResponseWriter, r *http.Request) {
 		writeJSONErr(w, 401, "Invalid credentials")
 		return
 	}
-	token, v := s.subscribers.sessions.New(a.ID)
+	token, v := s.subscribers.sessions.New(a.ID, a.CredentialRevision)
+	if err = s.subscribers.radius.Store.ValidateCredentialRevision(r.Context(), a.ID, a.CredentialRevision); err != nil {
+		s.subscribers.sessions.Delete(token)
+		writeJSONErr(w, 401, "Credentials changed. Sign in again.")
+		return
+	}
 	http.SetCookie(w, &http.Cookie{Name: "__Host-mikrodash_subscriber", Value: token, Path: "/", HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode, MaxAge: 8 * 3600})
 	writeJSON(w, map[string]any{"csrf": v.CSRF, "account": a})
 }
@@ -224,7 +238,7 @@ func (s *Server) subscriberPortalConnect(w http.ResponseWriter, r *http.Request)
 		subscriberError(w, err)
 		return
 	}
-	ticket, err := rt.radius.Store.IssueTicket(r.Context(), subscriber.TicketRequest{AccountID: v.AccountID, RouterID: nas.RouterID, Network: nas.Network, Device: device, ClientAddress: subscriberClientIPOf(r)}, time.Now())
+	ticket, err := rt.radius.Store.IssueTicket(r.Context(), subscriber.TicketRequest{AccountID: v.AccountID, CredentialRevision: v.CredentialRevision, RouterID: nas.RouterID, Network: nas.Network, Device: device, ClientAddress: subscriberClientIPOf(r)}, time.Now())
 	if err != nil {
 		subscriberError(w, err)
 		return

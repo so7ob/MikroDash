@@ -210,3 +210,19 @@ func TestReadableIsSortedAndDeduplicated(t *testing.T) {
 		}
 	}
 }
+
+func TestSubscriberNavigationUsesGlobalAuthorityWithoutRouters(t *testing.T) {
+	r := build(t, seed{roles: [][2]string{{"administrator", "1"}, {"viewer", "0"}}, grants: [][4]string{{"user", "admin", "global", ""}, {"user", "viewer", "global", ""}}, grantRoles: []string{"administrator", "viewer"}, rolePages: [][3]string{{"viewer", "subscribers", "write"}, {"viewer", "subscriber-overview", "write"}}})
+	r.routers = func() []Router { return nil }
+	for _, user := range []string{"admin", "viewer"} {
+		caps, err := r.CapabilitiesFor(user)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, key := range []string{"subscribers", "subscriber-overview", "subscriber-plans", "subscriber-history", "subscriber-simulator", "subscriber-reconciliation"} {
+			if (caps.Pages[key] == "write") != (user == "admin") {
+				t.Fatal(user, key, caps.Pages)
+			}
+		}
+	}
+}

@@ -43,6 +43,15 @@ type Admission struct {
 // subscription expiry and access-window closure remain mandatory cutoffs.
 // Quotas are shared across all routers, with a sub-budget for each device slot.
 func (s *Store) Reserve(ctx context.Context, account, router, network, device, request string, at time.Time) (Admission, error) {
+	return s.reserve(ctx, account, router, network, device, request, at, nil)
+}
+
+// ReserveAuthenticated fences the authenticated proof in the same immediate
+// transaction as accounting reservation, before any replay or ledger effects.
+func (s *Store) ReserveAuthenticated(ctx context.Context, proof Account, router, network, device, request string, at time.Time) (Admission, error) {
+	return s.reserve(ctx, proof.ID, router, network, device, request, at, &proof.CredentialRevision)
+}
+func (s *Store) reserve(ctx context.Context, account, router, network, device, request string, at time.Time, expected *Quantity) (Admission, error) {
 	var a Admission
 	if router == "" || network == "" || device == "" || request == "" {
 		return a, denyAdmission("admission-context-missing")
@@ -52,6 +61,15 @@ func (s *Store) Reserve(ctx context.Context, account, router, network, device, r
 		return a, err
 	}
 	defer tx.Rollback()
+	if expected != nil {
+		revision, proofErr := credentialRevision(tx, account)
+		if proofErr != nil {
+			return a, proofErr
+		}
+		if *expected < 0 || revision != *expected {
+			return a, denyAdmission("credentials-changed")
+		}
+	}
 	count, err := pendingAccounting(tx, account)
 	if err != nil {
 		return a, err
