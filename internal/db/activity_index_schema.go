@@ -3,7 +3,9 @@ package db
 // The source table remains authoritative. Pending rows make partial indexing
 // observable; no reader may confuse an incomplete projection with empty history.
 // Source triggers also cover metadata replay and retention in their transaction.
-const activityIndexDDL = `
+const activityIndexDDL = activityIndexTablesDDL + activitySummaryIndexDDL + ";" + activityFactTriggersDDL
+
+const activityIndexTablesDDL = `
 CREATE TABLE IF NOT EXISTS activity_index_state (
  router_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 1, total INTEGER NOT NULL DEFAULT 0
 );
@@ -34,10 +36,11 @@ CREATE INDEX IF NOT EXISTS activity_answers_country ON activity_shape_answers(co
 CREATE TABLE IF NOT EXISTS activity_facts (
  event_id INTEGER PRIMARY KEY REFERENCES activity_events(id) ON DELETE CASCADE,
  router_id TEXT NOT NULL, at INTEGER NOT NULL,
- shape_id INTEGER NOT NULL REFERENCES activity_shapes(id)
+ shape_id INTEGER NOT NULL REFERENCES activity_shapes(id),
+ evidence_key BLOB NOT NULL DEFAULT X''
 );
-CREATE INDEX IF NOT EXISTS activity_facts_time ON activity_facts(router_id,at,event_id,shape_id);
-CREATE INDEX IF NOT EXISTS activity_facts_shape ON activity_facts(router_id,shape_id,at,event_id);
+CREATE INDEX IF NOT EXISTS activity_facts_time ON activity_facts(router_id,at,event_id,shape_id,evidence_key);
+CREATE INDEX IF NOT EXISTS activity_facts_shape ON activity_facts(router_id,shape_id,at,event_id,evidence_key);
 CREATE TABLE IF NOT EXISTS activity_event_groups (
  router_id TEXT NOT NULL, second INTEGER NOT NULL, shape_id INTEGER NOT NULL,
  kind TEXT NOT NULL,label TEXT NOT NULL,user_label TEXT NOT NULL,
@@ -56,16 +59,18 @@ CREATE INDEX IF NOT EXISTS activity_groups_shape ON activity_event_groups(router
 CREATE INDEX IF NOT EXISTS activity_groups_count ON activity_event_groups(router_id,n,second,shape_id);
 CREATE TABLE IF NOT EXISTS activity_daily (
  router_id TEXT NOT NULL,day INTEGER NOT NULL,shape_id INTEGER NOT NULL,n INTEGER NOT NULL,groups INTEGER NOT NULL,last_at INTEGER NOT NULL,
+ evidence_key BLOB NOT NULL DEFAULT X'',
  PRIMARY KEY(router_id,day,shape_id)
 ) WITHOUT ROWID;
-CREATE INDEX IF NOT EXISTS activity_daily_shape ON activity_daily(router_id,shape_id,day);
+CREATE INDEX IF NOT EXISTS activity_daily_shape ON activity_daily(router_id,shape_id,day,n,groups,last_at,evidence_key);
 CREATE TABLE IF NOT EXISTS activity_hourly (
  router_id TEXT NOT NULL,hour INTEGER NOT NULL,shape_id INTEGER NOT NULL,n INTEGER NOT NULL,
+ groups INTEGER NOT NULL DEFAULT 0,last_at INTEGER NOT NULL DEFAULT 0,evidence_key BLOB NOT NULL DEFAULT X'',
  PRIMARY KEY(router_id,hour,shape_id)
 ) WITHOUT ROWID;
-CREATE INDEX IF NOT EXISTS activity_hourly_shape ON activity_hourly(router_id,shape_id,hour);
+CREATE INDEX IF NOT EXISTS activity_hourly_shape ON activity_hourly(router_id,shape_id,hour,n,groups,last_at,evidence_key);
 CREATE TABLE IF NOT EXISTS activity_hour_totals (
- router_id TEXT NOT NULL,hour INTEGER NOT NULL,kind TEXT NOT NULL,n INTEGER NOT NULL,
+ router_id TEXT NOT NULL,hour INTEGER NOT NULL,kind TEXT NOT NULL,n INTEGER NOT NULL,groups INTEGER NOT NULL DEFAULT 0,
  PRIMARY KEY(router_id,hour,kind)
 ) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS activity_pending (
@@ -89,17 +94,22 @@ END;
 CREATE TRIGGER IF NOT EXISTS activity_source_delete AFTER DELETE ON activity_events BEGIN
  UPDATE activity_index_state SET revision=revision+1,total=total-1 WHERE router_id=old.router_id;
 END;
+`
+
+const activityFactTriggersDDL = `
 CREATE TRIGGER IF NOT EXISTS activity_fact_insert AFTER INSERT ON activity_facts BEGIN
  INSERT INTO activity_event_groups SELECT new.router_id,new.at/1000,new.shape_id,kind,label,user_label,1,new.at,new.at,new.event_id FROM activity_shapes WHERE id=new.shape_id
  ON CONFLICT(router_id,second,shape_id) DO UPDATE SET n=n+1,
  first_at=MIN(first_at,new.at),last_at=MAX(last_at,new.at),first_id=MIN(first_id,new.event_id);
  INSERT INTO activity_daily VALUES(new.router_id,new.at/86400000,new.shape_id,1,
- (SELECT n=1 FROM activity_event_groups WHERE router_id=new.router_id AND second=new.at/1000 AND shape_id=new.shape_id),new.at)
- ON CONFLICT(router_id,day,shape_id) DO UPDATE SET n=n+1,groups=groups+excluded.groups,last_at=MAX(last_at,new.at);
- INSERT INTO activity_hourly VALUES(new.router_id,new.at/3600000,new.shape_id,1)
- ON CONFLICT(router_id,hour,shape_id) DO UPDATE SET n=n+1;
- INSERT INTO activity_hour_totals SELECT new.router_id,new.at/3600000,kind,1 FROM activity_shapes WHERE id=new.shape_id
- ON CONFLICT(router_id,hour,kind) DO UPDATE SET n=n+1;
+ (SELECT n=1 FROM activity_event_groups WHERE router_id=new.router_id AND second=new.at/1000 AND shape_id=new.shape_id),new.at,new.evidence_key)
+ ON CONFLICT(router_id,day,shape_id) DO UPDATE SET n=n+1,groups=groups+excluded.groups,last_at=MAX(last_at,new.at),evidence_key=MAX(evidence_key,new.evidence_key);
+ INSERT INTO activity_hourly VALUES(new.router_id,new.at/3600000,new.shape_id,1,
+ (SELECT n=1 FROM activity_event_groups WHERE router_id=new.router_id AND second=new.at/1000 AND shape_id=new.shape_id),new.at,new.evidence_key)
+ ON CONFLICT(router_id,hour,shape_id) DO UPDATE SET n=n+1,groups=groups+excluded.groups,last_at=MAX(last_at,new.at),evidence_key=MAX(evidence_key,new.evidence_key);
+ INSERT INTO activity_hour_totals SELECT new.router_id,new.at/3600000,kind,1,
+ (SELECT n=1 FROM activity_event_groups WHERE router_id=new.router_id AND second=new.at/1000 AND shape_id=new.shape_id) FROM activity_shapes WHERE id=new.shape_id
+ ON CONFLICT(router_id,hour,kind) DO UPDATE SET n=n+1,groups=groups+excluded.groups;
 END;
 CREATE TRIGGER IF NOT EXISTS activity_fact_delete AFTER DELETE ON activity_facts BEGIN
  UPDATE activity_event_groups SET n=n-1 WHERE router_id=old.router_id AND second=old.at/1000 AND shape_id=old.shape_id;
@@ -113,11 +123,13 @@ CREATE TRIGGER IF NOT EXISTS activity_fact_delete AFTER DELETE ON activity_facts
  UPDATE activity_daily SET n=n-1,groups=groups-(NOT EXISTS(SELECT 1 FROM activity_event_groups WHERE router_id=old.router_id AND second=old.at/1000 AND shape_id=old.shape_id))
  WHERE router_id=old.router_id AND day=old.at/86400000 AND shape_id=old.shape_id;
  DELETE FROM activity_daily WHERE router_id=old.router_id AND day=old.at/86400000 AND shape_id=old.shape_id AND n=0;
- UPDATE activity_daily SET last_at=(SELECT MAX(at) FROM activity_facts WHERE router_id=old.router_id AND shape_id=old.shape_id AND at>=old.at/86400000*86400000 AND at<old.at/86400000*86400000+86400000)
- WHERE router_id=old.router_id AND day=old.at/86400000 AND shape_id=old.shape_id AND last_at=old.at;
- UPDATE activity_hourly SET n=n-1 WHERE router_id=old.router_id AND hour=old.at/3600000 AND shape_id=old.shape_id;
+ UPDATE activity_daily SET (last_at,evidence_key)=(SELECT at,evidence_key FROM activity_facts WHERE router_id=old.router_id AND shape_id=old.shape_id AND at>=old.at/86400000*86400000 AND at<old.at/86400000*86400000+86400000 ORDER BY at DESC,event_id DESC LIMIT 1)
+ WHERE router_id=old.router_id AND day=old.at/86400000 AND shape_id=old.shape_id AND evidence_key=old.evidence_key;
+ UPDATE activity_hourly SET n=n-1,groups=groups-(NOT EXISTS(SELECT 1 FROM activity_event_groups WHERE router_id=old.router_id AND second=old.at/1000 AND shape_id=old.shape_id)) WHERE router_id=old.router_id AND hour=old.at/3600000 AND shape_id=old.shape_id;
  DELETE FROM activity_hourly WHERE router_id=old.router_id AND hour=old.at/3600000 AND shape_id=old.shape_id AND n=0;
- UPDATE activity_hour_totals SET n=n-1 WHERE router_id=old.router_id AND hour=old.at/3600000 AND kind=(SELECT kind FROM activity_shapes WHERE id=old.shape_id);
+ UPDATE activity_hourly SET (last_at,evidence_key)=(SELECT at,evidence_key FROM activity_facts WHERE router_id=old.router_id AND shape_id=old.shape_id AND at>=old.at/3600000*3600000 AND at<old.at/3600000*3600000+3600000 ORDER BY at DESC,event_id DESC LIMIT 1)
+ WHERE router_id=old.router_id AND hour=old.at/3600000 AND shape_id=old.shape_id AND evidence_key=old.evidence_key;
+ UPDATE activity_hour_totals SET n=n-1,groups=groups-(NOT EXISTS(SELECT 1 FROM activity_event_groups WHERE router_id=old.router_id AND second=old.at/1000 AND shape_id=old.shape_id)) WHERE router_id=old.router_id AND hour=old.at/3600000 AND kind=(SELECT kind FROM activity_shapes WHERE id=old.shape_id);
  DELETE FROM activity_hour_totals WHERE router_id=old.router_id AND hour=old.at/3600000 AND n=0;
 END;
 `

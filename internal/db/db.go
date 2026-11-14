@@ -59,6 +59,7 @@ type DB struct {
 	path          string
 	activityMu    activityMutex
 	activityCache activityQueryCache
+	activityJob   *activityAggregateJob
 	// vacuums counts entries into `Vacuum`. See `VacuumCountForTest`.
 	vacuums atomic.Int64
 }

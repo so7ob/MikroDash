@@ -62,6 +62,10 @@ func TestActivityHTTPPerformance(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
+				if _, err = existing.Migrate(); err != nil {
+					existing.Close()
+					t.Fatal("migrate isolated reusable fixture", err)
+				}
 				t.Cleanup(func() { existing.Close() })
 				s.auditDB = existing
 				state, err := existing.ActivityIndexState(t.Context(), "r1")
