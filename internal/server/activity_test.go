@@ -201,6 +201,18 @@ func TestActivityBrowserJourney(t *testing.T) {
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	})
+	mux.HandleFunc("POST /fixture/dense", func(w http.ResponseWriter, r *http.Request) {
+		now := time.Now().UnixMilli() - 1000
+		var events []activity.Event
+		for i := 0; i < 4200; i++ {
+			events = append(events, activity.Event{RouterID: "r1", SourceKey: fmt.Sprintf("dense:%d", i), At: now - int64(i)*1000, Received: now, Kind: "dns", Domain: fmt.Sprintf("d%d.synthetic.example", i), Client: "synthetic", User: "اسم محفوظ", DNSIPs: []string{"2001:db8::8"}, TimeCertain: true})
+		}
+		if err := s.auditDB.PersistActivity(events, nil, nil, nil); err != nil {
+			writeJSON500OK(w)
+			return
+		}
+		writeJSON(w, map[string]int{"stored": len(events)})
+	})
 	setup := s.activitySetupGet(func(string) activitywire.Reader {
 		return activityReader{exec: func(c routeros.Cmd) ([]routeros.Reply, error) { return activitySetupRows()[c.Path], nil }}
 	})

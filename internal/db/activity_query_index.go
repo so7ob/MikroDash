@@ -66,7 +66,15 @@ func activityCalendarWhere(alias string, f activity.Filter, zone string) (string
 	return q, args
 }
 
+type activitySQLReader interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
 func (d *DB) activityHistogram(ctx context.Context, router string, f activity.Filter, zone string, out *activity.Result) error {
+	return activityHistogramQuery(ctx, d.sql, router, f, zone, out)
+}
+func activityHistogramQuery(ctx context.Context, read activitySQLReader, router string, f activity.Filter, zone string, out *activity.Result) error {
 	histogramFilter := f
 	// The chart already counts DNS only; an explicit DNS source filter is
 	// redundant and must retain the same bounded boundary-hour plan.
@@ -81,29 +89,7 @@ func (d *DB) activityHistogram(ctx context.Context, router string, f activity.Fi
 	}
 	utcBucket := "a.at/" + strconv.FormatInt(bucket, 10) + "*" + strconv.FormatInt(bucket, 10)
 	localBucket := "(a.at/1000+(" + localTimeOffset("a.at", zone, f.From, f.To) + "))/3600"
-	loc, locErr := time.LoadLocation(zone)
-	if locErr != nil {
-		loc = time.UTC
-	}
-	wholeHour := true
-	for at := f.From; at < f.To; at += 1800000 {
-		_, offset := time.UnixMilli(at).In(loc).Zone()
-		if offset%3600 != 0 {
-			wholeHour = false
-			break
-		}
-	}
-	for at := time.UnixMilli(f.From); at.UnixMilli() < f.To; {
-		_, end := at.In(loc).ZoneBounds()
-		if end.IsZero() || end.UnixMilli() >= f.To {
-			break
-		}
-		if end.UnixMilli()%3600000 != 0 {
-			wholeHour = false
-			break
-		}
-		at = end
-	}
+	wholeHour := activityUsesWholeHours(zone, f.From, f.To)
 	// Filter shapes once, then seek their hourly/fact indexes. Aggregate each
 	// source before UNION so SQLite never materializes hundreds of thousands
 	// of union rows just to discard most of them in an outer filter.
@@ -122,7 +108,7 @@ func (d *DB) activityHistogram(ctx context.Context, router string, f activity.Fi
 	}
 	lo, hi := (f.From+3600000-1)/3600000, f.To/3600000
 	source := ""
-	if wholeHour && f.Day == "" && f.Hour == "" && lo < hi {
+	if wholeHour && lo < hi {
 		// Hours may be folded into six-hour chart buckets; heatmap keeps every
 		// local hour, including the repeated hour at a DST transition.
 		hourAt := "h.hour*3600000"
@@ -133,13 +119,15 @@ func (d *DB) activityHistogram(ctx context.Context, router string, f activity.Fi
 		} else {
 			source = `SELECT ` + hb + ` AS bucket,` + lh + ` AS localhour,SUM(h.n) AS n FROM matching m CROSS JOIN activity_hourly h INDEXED BY activity_hourly_shape ON h.shape_id=m.id WHERE h.router_id=? AND h.hour>=? AND h.hour<? GROUP BY 1,2`
 		}
+		source = strings.TrimSuffix(source, " GROUP BY 1,2") + strings.ReplaceAll(calSQL, "a.at", "(h.hour*3600000)") + " GROUP BY 1,2"
 		args = append(args, router, lo, hi)
+		args = append(args, calArgs...)
 		source += " UNION ALL " + raw(f.From, lo*3600000) + " UNION ALL " + raw(hi*3600000, f.To)
 	} else {
 		source = raw(f.From, f.To)
 	}
 	q := matching + `SELECT bucket,localhour,SUM(n) FROM (` + source + `) GROUP BY 1,2`
-	rows, err := d.sql.QueryContext(ctx, q, args...)
+	rows, err := read.QueryContext(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -225,7 +213,9 @@ func decodeActivityCursor(raw, key string) (activityCursor, error) {
 // Interior groups use the committed count directly. A fractional time range
 // never includes an out-of-range source row just because its second overlaps.
 func activityGroupBase(router string, f activity.Filter, zone string, whole bool) (string, []any) {
-	shapeSQL, shapeArgs := activityShapeWhere(f)
+	shapeFilter := f
+	shapeFilter.Kind = ""
+	shapeSQL, shapeArgs := activityShapeWhere(shapeFilter)
 	calF := f
 	calSQL, calArgs := activityCalendarWhere("a", calF, zone)
 	boundary := `a.router_id=g.router_id AND a.shape_id=g.shape_id AND a.at>=g.second*1000 AND a.at<g.second*1000+1000 AND a.at>=? AND a.at<?` + calSQL
@@ -245,6 +235,10 @@ func activityGroupBase(router string, f activity.Filter, zone string, whole bool
 	q += ` WHERE g.router_id=? AND g.second>=? AND g.second<=?` + shapeSQL
 	args = append(args, router, f.From/1000, (f.To-1)/1000)
 	args = append(args, shapeArgs...)
+	if f.Kind != "" {
+		q += " AND g.kind=?"
+		args = append(args, f.Kind)
+	}
 	if f.Day != "" {
 		q += " AND " + localTimeExpression("g.second*1000", "%Y-%m-%d", zone, f.From, f.To) + "=?"
 		args = append(args, f.Day)
@@ -255,11 +249,15 @@ func activityGroupBase(router string, f activity.Filter, zone string, whole bool
 	}
 	return q, args
 }
-func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activity.Filter, zone string, rules []activity.Rule, lookup func(string) (string, string), countsKey string, expires int64) (activity.Result, error) {
+func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activity.Filter, zone string, rules []activity.Rule, lookup func(string) (string, string), countsKey string, expires int64, access ...activitySQLReader) (activity.Result, error) {
+	var read activitySQLReader = d.sql
+	if len(access) > 0 {
+		read = access[0]
+	}
 	out := EmptyActivityResult(f)
 	key := cursorKey(router, f)
 	var partial bool
-	err := d.sql.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM activity_event_groups WHERE router_id=? AND (second=? OR second=?) AND (first_at<? OR last_at>=?))`, router, f.From/1000, (f.To-1)/1000, f.From, f.To).Scan(&partial)
+	err := read.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM activity_event_groups WHERE router_id=? AND (second=? OR second=?) AND (first_at<? OR last_at>=?))`, router, f.From/1000, (f.To-1)/1000, f.From, f.To).Scan(&partial)
 	if err != nil {
 		return out, err
 	}
@@ -267,7 +265,7 @@ func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activit
 	if cached, ok := d.activityCache.get(countsKey, time.Now().UnixMilli()); ok {
 		out.TotalRows, out.Totals = cached.TotalRows, cached.Totals
 	} else {
-		if err = d.activityGroupCounts(ctx, router, f, zone, &out); err != nil {
+		if err = d.activityGroupCounts(ctx, router, f, zone, &out, read); err != nil {
 			return out, err
 		}
 		d.activityCache.put(countsKey, out, expires)
@@ -303,9 +301,9 @@ func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activit
 			var number int64
 			var text string
 			if numeric {
-				err = d.sql.QueryRowContext(ctx, `SELECT `+expr+` FROM (`+base+`) WHERE second=? AND shape_id=? AND n>0`, append(append([]any{}, args...), cursor.Second, cursor.Shape)...).Scan(&number)
+				err = read.QueryRowContext(ctx, `SELECT `+expr+` FROM (`+base+`) WHERE second=? AND shape_id=? AND n>0`, append(append([]any{}, args...), cursor.Second, cursor.Shape)...).Scan(&number)
 			} else {
-				err = d.sql.QueryRowContext(ctx, `SELECT `+expr+` FROM (`+base+`) WHERE second=? AND shape_id=? AND n>0`, append(append([]any{}, args...), cursor.Second, cursor.Shape)...).Scan(&text)
+				err = read.QueryRowContext(ctx, `SELECT `+expr+` FROM (`+base+`) WHERE second=? AND shape_id=? AND n>0`, append(append([]any{}, args...), cursor.Second, cursor.Shape)...).Scan(&text)
 			}
 			if err == nil {
 				cursor.Number, cursor.Text = number, text
@@ -359,7 +357,7 @@ func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activit
 		q += " OFFSET ?"
 		args = append(args, (f.Page-1)*f.Limit)
 	}
-	rows, err := d.sql.QueryContext(ctx, q, args...)
+	rows, err := read.QueryContext(ctx, q, args...)
 	if err != nil {
 		return out, err
 	}
@@ -400,7 +398,7 @@ func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activit
 		cursor.Back = true
 		cursor.Inclusive = false
 		fallback.Cursor = encodeActivityCursor(cursor)
-		nearest, err := d.activityIndexedEvents(ctx, router, fallback, zone, rules, lookup, countsKey, expires)
+		nearest, err := d.activityIndexedEvents(ctx, router, fallback, zone, rules, lookup, countsKey, expires, read)
 		nearest.HasNext = false
 		nearest.NextCursor = ""
 		nearest.Filter = f
@@ -432,7 +430,7 @@ func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activit
 		var e activity.Event
 		// Use the first retained source within the exact range, not an arbitrary
 		// bare GROUP BY column or a source pruned from the leading partial second.
-		err = d.sql.QueryRowContext(ctx, `SELECT e.id,e.payload FROM activity_facts a JOIN activity_events e ON e.id=a.event_id WHERE a.router_id=? AND a.shape_id=? AND a.at>=? AND a.at<? ORDER BY a.event_id LIMIT 1`, router, g.shape, max(f.From, g.second*1000), min(f.To, g.second*1000+1000)).Scan(&e.ID, &b)
+		err = read.QueryRowContext(ctx, `SELECT e.id,e.payload FROM activity_facts a JOIN activity_events e ON e.id=a.event_id WHERE a.router_id=? AND a.shape_id=? AND a.at>=? AND a.at<? ORDER BY a.event_id LIMIT 1`, router, g.shape, max(f.From, g.second*1000), min(f.To, g.second*1000+1000)).Scan(&e.ID, &b)
 		if err != nil {
 			return out, err
 		}
@@ -459,21 +457,74 @@ func (d *DB) activityIndexedEvents(ctx context.Context, router string, f activit
 	return out, nil
 }
 
-// Daily rollups cover complete UTC days; only boundary days walk indexed facts.
-// Router values are quoted as SQL literals here, never identifiers or fragments.
-func activityDailySource(router string, from, to int64) string {
-	r := "'" + strings.ReplaceAll(router, "'", "''") + "'"
-	lo, hi := (from+86400000-1)/86400000, to/86400000
-	if lo >= hi {
-		return fmt.Sprintf("SELECT router_id,shape_id,at,1 AS n FROM activity_facts WHERE router_id=%s AND at>=%d AND at<%d", r, from, to)
+// Complete UTC days use daily rollups; their boundary days use complete hours.
+// Only the two partial hours walk original facts. Each source carries its exact
+// representative timestamp/ID key, avoiding one random seek per result shape.
+func activityUsesWholeHours(zone string, from, to int64) bool {
+	loc, err := time.LoadLocation(zone)
+	if err != nil {
+		loc = time.UTC
 	}
-	return fmt.Sprintf("SELECT router_id,shape_id,last_at AS at,n FROM activity_daily WHERE router_id=%s AND day>=%d AND day<%d UNION ALL SELECT router_id,shape_id,at,1 AS n FROM activity_facts WHERE router_id=%s AND at>=%d AND at<%d UNION ALL SELECT router_id,shape_id,at,1 AS n FROM activity_facts WHERE router_id=%s AND at>=%d AND at<%d", r, lo, hi, r, from, lo*86400000, r, hi*86400000, to)
+	for at := time.UnixMilli(from); at.UnixMilli() < to; {
+		local := at.In(loc)
+		_, offset := local.Zone()
+		if offset%3600 != 0 {
+			return false
+		}
+		_, end := local.ZoneBounds()
+		if end.IsZero() || end.UnixMilli() >= to {
+			break
+		}
+		if end.UnixMilli()%3600000 != 0 {
+			return false
+		}
+		at = end
+	}
+	return true
+}
+func activityHourlySource(router string, from, to int64) string {
+	return activityRollupSource(router, from, to, false)
+}
+func activityDailySource(router string, from, to int64) string {
+	return activityRollupSource(router, from, to, true)
+}
+func activityRollupSource(router string, from, to int64, daily bool) string {
+	r := "'" + strings.ReplaceAll(router, "'", "''") + "'"
+	raw := func(lo, hi int64) string {
+		return fmt.Sprintf("SELECT router_id,shape_id,at,1 AS n,evidence_key FROM activity_facts WHERE router_id=%s AND at>=%d AND at<%d", r, lo, hi)
+	}
+	var parts []string
+	hours := func(lo, hi int64) {
+		first, last := (lo+3599999)/3600000, hi/3600000
+		if first >= last {
+			parts = append(parts, raw(lo, hi))
+			return
+		}
+		parts = append(parts, fmt.Sprintf("SELECT router_id,shape_id,last_at AS at,n,evidence_key FROM activity_hourly WHERE router_id=%s AND hour>=%d AND hour<%d", r, first, last))
+		if lo < first*3600000 {
+			parts = append(parts, raw(lo, first*3600000))
+		}
+		if last*3600000 < hi {
+			parts = append(parts, raw(last*3600000, hi))
+		}
+	}
+	first, last := (from+86399999)/86400000, to/86400000
+	if !daily || first >= last {
+		hours(from, to)
+	} else {
+		parts = append(parts, fmt.Sprintf("SELECT router_id,shape_id,last_at AS at,n,evidence_key FROM activity_daily WHERE router_id=%s AND day>=%d AND day<%d", r, first, last))
+		hours(from, first*86400000)
+		hours(last*86400000, to)
+	}
+	return strings.Join(parts, " UNION ALL ")
 }
 
 func (d *DB) activityFilterChoices(ctx context.Context, router string, out *activity.Result) error {
-	rows, err := d.sql.QueryContext(ctx, `SELECT DISTINCT 'category',category FROM activity_shapes WHERE router_id=? AND ready=1 AND kind='dns'
- UNION SELECT DISTINCT 'country',country FROM activity_shapes WHERE router_id=? AND ready=1 AND kind='firewall'
- UNION SELECT DISTINCT 'dnsCountry',a.country FROM activity_shape_answers a JOIN activity_shapes s ON s.id=a.shape_id WHERE s.router_id=? AND s.ready=1`, router, router, router)
+	// Called only after PrepareActivityShapes completes for this router. Reading
+	// the scalar covering index avoids a payload-table seek per retained shape.
+	rows, err := d.sql.QueryContext(ctx, `SELECT DISTINCT 'category',category FROM activity_shapes INDEXED BY activity_shapes_summary WHERE router_id=? AND kind='dns'
+ UNION SELECT DISTINCT 'country',country FROM activity_shapes INDEXED BY activity_shapes_summary WHERE router_id=? AND kind='firewall'
+ UNION SELECT DISTINCT 'dnsCountry',a.country FROM activity_shapes s INDEXED BY activity_shapes_summary CROSS JOIN activity_shape_answers a ON a.shape_id=s.id WHERE s.router_id=?`, router, router, router)
 	if err != nil {
 		return err
 	}
@@ -498,16 +549,67 @@ func (d *DB) activityFilterChoices(ctx context.Context, router string, out *acti
 
 // Count complete UTC days from transactional rollups. Only the two boundary
 // fragments need per-second groups; count cost does not grow with page depth.
-func (d *DB) activityGroupCounts(ctx context.Context, router string, f activity.Filter, zone string, out *activity.Result) error {
+func (d *DB) activityGroupCounts(ctx context.Context, router string, f activity.Filter, zone string, out *activity.Result, access ...activitySQLReader) error {
+	var read activitySQLReader = d.sql
+	if len(access) > 0 {
+		read = access[0]
+	}
 	ranges := [][2]int64{{f.From, f.To}}
-	lo, hi := (f.From+86400000-1)/86400000, f.To/86400000
-	if lo < hi && f.Day == "" && f.Hour == "" {
-		shapeSQL, args := activityShapeWhere(f)
-		query := `SELECT COALESCE(SUM(g.groups),0),COALESCE(SUM(CASE WHEN s.kind='dns' THEN g.n ELSE 0 END),0),COALESCE(SUM(CASE WHEN s.kind='firewall' THEN g.n ELSE 0 END),0) FROM activity_shapes s CROSS JOIN activity_daily g INDEXED BY activity_daily_shape ON g.router_id=s.router_id AND g.shape_id=s.id WHERE s.router_id=? AND g.day>=? AND g.day<?` + shapeSQL
-		if err := d.sql.QueryRowContext(ctx, query, append([]any{router, lo, hi}, args...)...).Scan(&out.TotalRows, &out.Totals.DNS, &out.Totals.Firewall); err != nil {
-			return err
+	calendar := f.Day != "" || f.Hour != ""
+	if !calendar || activityUsesWholeHours(zone, f.From, f.To) {
+		shapeFilter := f
+		shapeFilter.Kind = ""
+		shapeSQL, _ := activityShapeWhere(shapeFilter)
+		if shapeSQL == "" {
+			lo, hi := (f.From+3599999)/3600000, f.To/3600000
+			if lo < hi {
+				q := `SELECT COALESCE(SUM(groups),0),COALESCE(SUM(CASE WHEN kind='dns' THEN n ELSE 0 END),0),COALESCE(SUM(CASE WHEN kind='firewall' THEN n ELSE 0 END),0) FROM activity_hour_totals h WHERE router_id=? AND hour>=? AND hour<?`
+				args := []any{router, lo, hi}
+				cal, ca := activityCalendarWhere("a", f, zone)
+				q += strings.ReplaceAll(cal, "a.at", "(h.hour*3600000)")
+				args = append(args, ca...)
+				if f.Kind != "" {
+					q += " AND kind=?"
+					args = append(args, f.Kind)
+				}
+				if err := read.QueryRowContext(ctx, q, args...).Scan(&out.TotalRows, &out.Totals.DNS, &out.Totals.Firewall); err != nil {
+					return err
+				}
+				ranges = [][2]int64{{f.From, lo * 3600000}, {hi * 3600000, f.To}}
+			}
+		} else {
+			buckets := []struct {
+				table, column string
+				width         int64
+			}{{"activity_daily", "day", 86400000}, {"activity_hourly", "hour", 3600000}}
+			if calendar {
+				buckets = buckets[1:]
+			}
+			for _, bucket := range buckets {
+				var partial [][2]int64
+				for _, r := range ranges {
+					lo, hi := (r[0]+bucket.width-1)/bucket.width, r[1]/bucket.width
+					if lo >= hi {
+						partial = append(partial, r)
+						continue
+					}
+					where, values := activityShapeWhere(f)
+					q := `SELECT COALESCE(SUM(g.groups),0),COALESCE(SUM(CASE WHEN s.kind='dns' THEN g.n ELSE 0 END),0),COALESCE(SUM(CASE WHEN s.kind='firewall' THEN g.n ELSE 0 END),0) FROM activity_shapes s CROSS JOIN ` + bucket.table + ` g INDEXED BY ` + bucket.table + `_shape ON g.router_id=s.router_id AND g.shape_id=s.id WHERE s.router_id=? AND g.` + bucket.column + `>=? AND g.` + bucket.column + `<?` + where
+					cal, ca := activityCalendarWhere("a", f, zone)
+					q += strings.ReplaceAll(cal, "a.at", "(g.hour*3600000)")
+					values = append(values, ca...)
+					var groups, dns, firewall int
+					if err := read.QueryRowContext(ctx, q, append([]any{router, lo, hi}, values...)...).Scan(&groups, &dns, &firewall); err != nil {
+						return err
+					}
+					out.TotalRows += groups
+					out.Totals.DNS += dns
+					out.Totals.Firewall += firewall
+					partial = append(partial, [2]int64{r[0], lo * bucket.width}, [2]int64{hi * bucket.width, r[1]})
+				}
+				ranges = partial
+			}
 		}
-		ranges = [][2]int64{{f.From, lo * 86400000}, {hi * 86400000, f.To}}
 	}
 	for _, r := range ranges {
 		if r[0] >= r[1] {
@@ -518,7 +620,7 @@ func (d *DB) activityGroupCounts(ctx context.Context, router string, f activity.
 		boundary.To = r[1]
 		base, args := activityGroupBase(router, boundary, zone, false)
 		var groups, dns, firewall int
-		if err := d.sql.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN kind='dns' THEN n ELSE 0 END),0),COALESCE(SUM(CASE WHEN kind='firewall' THEN n ELSE 0 END),0) FROM (`+base+`) WHERE n>0`, args...).Scan(&groups, &dns, &firewall); err != nil {
+		if err := read.QueryRowContext(ctx, `SELECT COUNT(*),COALESCE(SUM(CASE WHEN kind='dns' THEN n ELSE 0 END),0),COALESCE(SUM(CASE WHEN kind='firewall' THEN n ELSE 0 END),0) FROM (`+base+`) WHERE n>0`, args...).Scan(&groups, &dns, &firewall); err != nil {
 			return err
 		}
 		out.TotalRows += groups
