@@ -1,8 +1,10 @@
 # Activity query structure and range verification — Issue #109
 
-Status: development change; schema 48 is not deployed by this document. The
-existing v1.0.4 image/tag remains immutable. Release/deployment acceptance is
-separate from the source, synthetic HTTP and read-only hardware checks below.
+Release: 1.0.5, schema 48. Publication and deployment acceptance are recorded
+separately on Issue #111; this document does not claim a deployment merely from
+a source change or image publication. The existing v1.0.4 image/tag remains
+immutable. The checks below distinguish synthetic HTTP and read-only hardware
+evidence from actual production UI acceptance.
 
 ## Storage and observed bottlenecks
 
