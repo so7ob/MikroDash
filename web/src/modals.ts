@@ -79,7 +79,7 @@ export function wireModals(): void {
  * Capture owns its close events so the legacy delegated closer cannot discard
  * a dirty or saving form. Failed writes retain the original controls and values.
  */
-export function managedModal(id: string, title: string, content: HTMLElement, wide = false) {
+export function managedModal(id: string, title: string, content: HTMLElement, wide = false, trackDirty = true) {
   const backdrop = document.createElement('div');
   backdrop.id = id; backdrop.className = 'rtr-modal-bg';
   backdrop.innerHTML = `<div class="rtr-modal managed-modal ${wide ? 'subscriber-wide-modal' : 'pmodal'}" role="dialog" aria-modal="true" aria-labelledby="${id}-title" tabindex="-1"><div class="rtr-modal-hdr"><h2 id="${id}-title" class="rtr-modal-title"></h2><button type="button" class="rtr-modal-close" data-managed-close aria-label="Close">×</button></div><div class="rtr-modal-body"></div><div class="rtr-modal-footer"><p data-managed-error role="alert" class="text-break"></p><div data-managed-discard hidden><p>Discard unsaved changes?</p><button type="button" class="sbtn sbtn-danger" data-managed-discard>Discard changes</button> <button type="button" class="sbtn sbtn-outline" data-managed-keep>Keep editing</button></div><button type="button" class="sbtn sbtn-outline" data-managed-close>Cancel</button></div></div>`;
@@ -110,8 +110,8 @@ export function managedModal(id: string, title: string, content: HTMLElement, wi
     for (const item of inert) item.node.inert = item.value;
     inert = []; if(wasOpen)closed();opener?.focus();return true;
   }
-  backdrop.addEventListener('input', () => { dirty = true; });
-  backdrop.addEventListener('change', () => { dirty = true; });
+  backdrop.addEventListener('input', () => { if(trackDirty)dirty = true; });
+  backdrop.addEventListener('change', () => { if(trackDirty)dirty = true; });
   backdrop.addEventListener('click', e => {
     const target = e.target;
     if (!(target instanceof HTMLElement)) return;

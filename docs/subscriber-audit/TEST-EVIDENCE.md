@@ -104,3 +104,41 @@ The first full #99 gate caught an explicit form-ID binding omission in
 TestTemplateIDsAreBound. The same submitted form is now bound through the shared
 DOM helper. The static check remains intact. Initial failure is retained in
 /tmp/mikrodash-99-full-verify.log; final evidence uses the corrected head.
+
+
+## #101 administrative account and subscription audit, 2026-11-14
+
+Focused store/migration/protected API tests pass (7.848s/0.477s/0.845s), with
+query-only reads, exact >2^53 keyset boundaries, persisted ownership despite
+cross-domain ID collisions, UTC/category filters, rollback/no phantom history,
+strict safe credential evidence and storage/authority failures. Branch-limited
+query changes also pass the same tests. TypeScript and the earlier full frontend run (179 tests) passed;
+eleven targeted controller/render tests, including the later control-character
+regression, cover account/filter/close response races,
+malformed/partial pages, retries, evidence and Unicode.
+
+Actual protected HTTP/SQLite browser initially caught section-heading uppercase
+on identifiers. Corrected browser passed 74.362s; a further layout round passed
+81.550s, adding readable mobile section cards and collapsed filters; reading
+position coverage passed 86.326s. These are real synthetic-history browser runs,
+not a claim about hardware. Final selected head/full gate/browser/PR/develop
+runs are recorded on #101. Raw artifacts: /tmp/mikrodash-101-*.
+
+BenchmarkAccountAuditUnrelatedScale passed asserted 100/1k/10k/100k unrelated
+account/subscription populations: actual selected 50-event SQLite reads
+2.378689–4.891236ms/op, 41,942–42,574 bytes/op, 792–794 allocations/op. Whole-process
+peak RSS 27,688KiB includes seeding; it is not runtime/service RSS. Exact commands,
+environment, results and practical limits are in ACCOUNT-AUDIT.md.
+
+Final pre-commit visual polish passed 86.029s with exact dates, wrapped actors,
+phone cards and retained reading position. Representative frames and visual-source
+hashes are committed in audit-evidence/manifest.json.
+
+The final NUL-preserving reader passes its focused integrity tests and the
+added control-character rendering regression. Final benchmark source/log is
+/tmp/mikrodash-101-scale-final.log; shared-host CPU was not isolated. The previous
+TEXT-prefix benchmark remains historical evidence, not the final performance claim.
+
+The final corrected implementation browser passed 112.748s with twelve visual/axe
+cases and independently verified unchanged account/credential/usage/audit state.
+The final source hashes and refreshed representative images are in audit-evidence/.

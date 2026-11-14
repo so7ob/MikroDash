@@ -74,3 +74,26 @@ HTTP/SQLite authority. CREDENTIAL-ROTATION.md records the contract and UI eviden
 The full stable gate, exact tested SHA, PR, squash SHA and pre/post-merge CI are
 recorded on #99 after final delivery. Keep #38/#76/#97 open. Next P0: broader
 account audit, followed by commercial idempotency; the A-N/P0-P3 roadmap remains.
+
+
+## Administrative account/subscription audit (#101), 2026-11-14
+
+Extends verified develop 45ead3ff (#99/#100), without reopening completed
+credential work. Current administrative chronology now includes account creation,
+name/status/batch/credential changes and owned historical assignment/speed
+requests. A bounded indexed reader and protected GET support exact audit IDs and
+server UTC/category filters while RADIUS is disabled. Index-only migration 47
+preserves old records and reuses existing subscription ownership indexing.
+
+The selected-account shared modal shows scoped counts, safe original evidence and
+truthful unknown before-states, a dense desktop table and phone section cards.
+Read-only filters close without unsaved-edit confirmation; edit dialogs keep their
+dirty protection. Account/filter/close races, partial errors/retry, keyboard and
+reading position are covered. Focused store/API and eleven new controller/rendering tests pass;
+real HTTP/SQLite browser/visual and scale details are in ACCOUNT-AUDIT.md.
+
+Final source SHA, exact-head full gate/browser, PR and develop CI are recorded on
+#101 after delivery. Review is source/visual self-review. No release, deployment,
+runtime activation or router write. #38/#76/#97 remain open. Next P0 is commercial
+operation idempotency using the owner's fresh-period/no-rollover rule; all other
+A-N/P0-P3 requirements remain in scope.

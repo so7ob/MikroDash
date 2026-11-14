@@ -52,10 +52,10 @@ and protected delivery evidence is recorded against the final head in Issue #97.
 | Page | Implemented foundation | Remaining acceptance/dependency | State |
 |---|---|---|---|
 | Overview | Default child route, real total/active/suspended directory counts, status distribution, configured runtime, unavailable metrics labelled | Aggregate confirmed usage, subscription expiry/pending/online counts and real trends need scoped SQL reporting | Foundation browser-verified; full workflow partial |
-| Subscribers | List first, Add modal, fenced display-name editor, prompt-free plan assignment, selection-only bulk controls and frozen review modal, search/status/sort and 50-row DOM pages; read-only detail for Profile/Subscription/Quotas/Sessions/Devices/Accounting plus status-history link | P1-DIRECTORY server pagination/plan filter, plan/usage/remaining/last-seen projection and complete general account audit; no fabricated columns | Foundation browser-verified; full workflow partial |
+| Subscribers | List first, Add modal, fenced display-name editor, prompt-free plan assignment, selection-only bulk controls and frozen review modal, search/status/sort and 50-row DOM pages; read-only detail for Profile/Subscription/Quotas/Sessions/Devices/Accounting plus status-history and administrative-audit links | P1-DIRECTORY server pagination/plan filter, plan/usage/remaining/last-seen projection and combined network/accounting chronology; no fabricated columns | Foundation browser-verified; full workflow partial |
 | Plans & Policies | Published-version list, search/sort, compact summaries, grouped wide Add/New version editor, exact units, structured add/edit/remove limits | Full saved-policy states, explicit speed-profile editing, schedule windows, copy/archive and subscriber assignment distribution remain P0-PLAN | Foundation browser-verified; full workflow partial |
 | Policy Simulator | Account/time controls, Run, current vs assumed-time decision, Allowed/Denied reasons, existing quota visualization, recorded sessions count and accounting quality | Arbitrary draft-plan scenarios and richer timeline comparison remain functional work | Foundation browser-verified; full workflow partial |
-| Status History | Separate page, account selector, table, actors/reasons/exact operation IDs, loaded-event KPIs, date/action filters, evidence/details dialog | Global server date filters, general account audit and reliably documented legacy before-state remain P0-HISTORY; never invent unknown transitions | Foundation browser-verified; full workflow partial |
+| Status History | Separate page, account selector, table, actors/reasons/exact operation IDs, loaded-event KPIs, date/action filters, evidence/details dialog | Status-page global server date filters remain scoped work. #101 adds server-filtered administrative account/subscription audit; legacy missing before-states are explicit, never inferred | Foundation browser-verified; full workflow partial |
 | Reconciliation | Account-scoped real category KPIs, case/evidence list, independent review dialogs, explicit confirmation, retained invalid input, asynchronous account-race fence and refresh after commit | Global queue/aggregation and broader admin accounting reports remain roadmap work | Foundation browser-verified; full workflow partial |
 
 Plan versions are never overwritten. New version opens a detached copy and
@@ -216,3 +216,41 @@ Committed images and hashes are in [credential evidence](credential-evidence/man
 [desktop light](credential-evidence/credential-light-1280.png),
 [mobile Nord](credential-evidence/credential-nord-375.png).
 Exact final source/full gate/PR/develop CI are recorded on Issue #99.
+
+
+### Administrative account audit (#101)
+
+Subscriber row Audit and Open account audit in details open the existing managed
+modal. It places original account identity and compact scoped counts before
+collapsed filters and the list. Desktop uses shared tables/pills; phones use
+existing subscriber-section cards, with the same event/evidence renderer and
+vendored responsive display utilities. No extra CSS, palette or component library
+is introduced. Both views preserve exact audit IDs and escaped original Unicode.
+The shared managed modal opts out of automatic dirty tracking for these readonly
+filters; create/edit/review dialogs retain their existing dirty/busy behavior.
+
+The protected API filters UTC date/category on the server and joins owned
+historical subscriptions. Loaded-count labels avoid implying global totals.
+Stored before-values and safe original evidence appear in native disclosures;
+unknown historical state is labelled. Credential material has no raw fallback.
+Busy/empty/failed/older-page/retry states fence account/filter/close races, retain
+reading position and restore keyboard focus. Real 401/403/400 failures and 59
+actual persisted fixture events are tested through protected HTTP/SQLite.
+
+The four widths and dark/light/Nord cover shared form geometry and axe. Phone
+cards avoid horizontal evidence scrolling; desktop tables retain exact identifiers
+without squeezing dates. Screenshot review corrected uppercase user identifiers,
+control-first hierarchy, stacked excess summaries and long actor wrapping. Final
+source/image hashes and representative frames are in audit-evidence/manifest.json;
+final exact-head browser/full gate and PR/develop CI are recorded on #101.
+
+Before this increment only the [status-specific history](ui-evidence/after-subscriber-history-dark-1280.png)
+was available; this historical #97 frame does not represent the full #101 baseline.
+After: [phone audit cards](audit-evidence/audit-dark-375.png),
+[desktop audit table](audit-evidence/audit-dark-1280.png),
+[light table](audit-evidence/audit-light-1280.png),
+[Nord phone](audit-evidence/audit-nord-375.png).
+
+This completes the scoped administrative audit increment. Directory scale,
+status-page filter extension, broader network/accounting event views, commercial
+receipts and the remaining page matrix still keep #97/#38 open.

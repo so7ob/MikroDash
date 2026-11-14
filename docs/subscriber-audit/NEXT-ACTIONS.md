@@ -10,8 +10,9 @@ Current integration: #77, #78, #80, #81 and #79 are delivered, with successful
 full local and PR/post-merge CI. Issue #95 tracks the audit PR and its own exact
 head/CI. Keep #38/#76 open; no release or runtime activation is implied.
 
-P0-CREDENTIAL is implemented and locally verified in Issue #99. Its exact head,
-full gate, PR/develop merge and CI are recorded on that issue after delivery.
+P0-CREDENTIAL is delivered through #99/#100 at develop 45ead3ff, with
+local/PR/post-merge checks recorded on #99. #101 adds current administrative
+account/subscription audit; its exact delivery head and CI are recorded on #101.
 The contract below is retained as implemented acceptance, not a task to restart.
 Audited administrator credential rotation provides a reviewed administrator UI/API with modern authority, Origin/CSRF, explicit account
 and reason, stale credential-version fencing and scrypt using existing primitives.
@@ -24,13 +25,14 @@ login/admission races, audit/storage rollback, sessions/tickets, unauthorized ca
 input retention/uncertain response and actual protected HTTP/SQLite browser UX.
 Define the credential epoch contract before editing network admission code.
 
-Next independent P0 is broader account audit (P0-AUDIT): bounded indexed
-chronology for creation, name/status/assignment and credential events; exact
-audit IDs, actor/reason/action, safe parsed revision changes, original evidence,
-truthful unknown historical before-state, account/subscription isolation,
-readonly protected API and shared detail modal. Search existing issues first.
-Preserve the delivered status-only history and #99 credential epoch contract.
-Then implement P0 commercial operation idempotency. The
+P0-AUDIT administrative chronology is implemented and verified in #101: indexed
+creation/name/status/credential/owned-subscription/speed events, server filters,
+exact safe evidence, readonly authority and shared responsive modal. Preserve it
+and the delivered status/credential contracts. Network/session/accounting and
+future financial event history still belong to their retained roadmap scopes.
+
+Next independent P0 is commercial operation idempotency. Search existing issues
+first and create/reuse a numbered branch from then-current develop. The
 owner-approved policy is a new period without rollover. Review must show previous
 remaining balance, transferred amount zero and new period credit; retain prior
 subscription and usage records. New request keys produce one immutable operation

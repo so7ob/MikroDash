@@ -845,3 +845,20 @@ Read docs/subscriber-audit/UI-UX-UNIFICATION.md for per-page and future acceptan
 Aesthetic audit: existing dark glass, Oxanium/mono, blue interaction and semantic
 state roles retained; no new palette, font, component library or decorative chart.
 Rendered foundation review passed four widths, dark/light and dialog Nord with shared geometry, keyboard/focus and axe checks; representative images and remaining functional scope are in that document.
+
+
+## Subscriber audit detail (2026-11-14, #101)
+
+Keep this administrative evidence view compact, precise and familiar. It uses
+existing Oxanium/mono scales, dark/light/Nord tokens, KPI cards, shared field
+contract, table/pills and managed modal. Preserve original account identifier case
+outside uppercase section headings. Place selected identity/counts first, optional
+filters in a native disclosure, then current scoped data. Desktop is a table;
+phone evidence uses existing subscriber-section cards and Tabler responsive display
+utilities. No new CSS, palette, fonts, decorative charts or component library.
+
+Read-only filter dialogs can disable the shared modal's automatic dirty tracking;
+edit/review dialogs keep the default protection. Labels describe loaded evidence,
+UTC filters and display-timezone dates truthfully. Original before-values require
+stored evidence. Source/visual audit, image provenance and remaining scope live in
+docs/subscriber-audit/UI-UX-UNIFICATION.md and ACCOUNT-AUDIT.md.
