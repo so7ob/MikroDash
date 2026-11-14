@@ -117,6 +117,13 @@ preserves the full Ranking contract while avoiding repeated window ordering for
 chart facets. The new hardware finding required a new revision after the first
 verified preparation-only commit; final exact-head checks/CI are on #103/#104.
 
+The first full final-head browser run observed an extra Activity request during
+clipboard-only assertions (14 versus 13) after the long accessibility matrix.
+The copy fixture now suppresses its unrelated synthetic refreshAt timer while
+retaining real API responses, all exact no-request assertions and independent
+live/expiry coverage. This is fixture isolation, not a production clipboard fix;
+the original failure remains in the delivery record.
+
 ## Synthetic visual evidence
 
 ![Preparation on a narrow dark viewport](verification/activity-103/mikrodash-activity-preparing-375-dark.png)
